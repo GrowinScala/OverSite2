@@ -2,4 +2,4 @@
 
 A Bia alterou aqui
 
-# João jas joined
+João has joined
