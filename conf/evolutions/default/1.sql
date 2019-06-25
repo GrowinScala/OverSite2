@@ -1,4 +1,4 @@
--- User schema
+-- Address schema
 
 -- !Ups
 
