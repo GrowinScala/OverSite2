@@ -4,4 +4,4 @@ package repositories.dtos
 We use a negative number because we would get an error if this default value
 were to be accepted*/
 
-case class Oversight (oversightId: Int = -1, userChatId: Int, userId: Int)
+case class Attachment (attachmentId : Int = -1, emailId: Int)

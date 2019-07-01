@@ -1,7 +1,7 @@
 package services
 
 import javax.inject.Inject
-import services.dtos.CreateAddressDTO
+import repositories.dtos.Address
 import repositories.slick.implementations.AddressesRepository
 import services.dtos.{AddressDTO, CreateAddressDTO}
 
@@ -12,13 +12,13 @@ class AddressService @Inject() (addresses: AddressesRepository) {
 
   def getAddress(id: Int): Future[Option[AddressDTO]] = {
     addresses.find(id) map {
-      case Some(address : AddressDTO) => Some(AddressDTO(address.addressId, address.address))
+      case Some(address : Address) => Some(AddressDTO.toAddressDTO(address))
       case None => None
     }
   }
 
   def postAddress(createAddressDTO: CreateAddressDTO) : Future[AddressDTO] = {
-    val address = createAddressDTO.toAddressDTOWithoutID
+    val address = createAddressDTO.toAddressWithoutID
     addresses.insert(address).map{ id: Int => createAddressDTO.toAddressDTO(id) }
   }
 	

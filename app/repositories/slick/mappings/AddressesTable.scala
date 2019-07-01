@@ -1,11 +1,11 @@
 package repositories.slick.mappings
 
-import services.dtos.AddressDTO
+import repositories.dtos.Address
 import slick.jdbc.MySQLProfile.api._
 
 trait AddressesTable {
 
-  class Addresses(tag: Tag) extends Table[AddressDTO](tag, "addresses") {
+  class Addresses(tag: Tag) extends Table[Address](tag, "addresses") {
     // Columns
     def addressId = column[Int]("address_id", O.PrimaryKey, O.AutoInc)
     def address = column[String]("address")
@@ -15,7 +15,7 @@ trait AddressesTable {
 
     // Select
     override def * =
-    (addressId, address) <>(AddressDTO.tupled, AddressDTO.unapply)
+    (addressId, address) <>(Address.tupled, Address.unapply)
 
   }
 

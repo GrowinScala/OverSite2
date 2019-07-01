@@ -8,7 +8,7 @@ trait UsersTable {
   class Users(tag: Tag) extends Table[User](tag, "users") {
 
     // Columns
-    def userId = column[String]("user_id", O.PrimaryKey)
+    def userId = column[Int]("user_id", O.PrimaryKey)
     def addressId = column[Int]("address_id")
     def firstName = column[String]("first_name")
     def lastName = column[String]("last_name")

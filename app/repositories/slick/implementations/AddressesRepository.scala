@@ -3,8 +3,8 @@ package repositories.slick.implementations
 import javax.inject.Inject
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.db.NamedDatabase
+import repositories.dtos.Address
 import repositories.slick.mappings.AddressesTable
-import services.dtos.AddressDTO
 import slick.dbio.DBIOAction
 import slick.jdbc.JdbcProfile
 import slick.jdbc.MySQLProfile.api._
@@ -22,7 +22,7 @@ class AddressesRepository @Inject()
   def init() = db.run(DBIOAction.seq(addresses.schema.create))
   def drop() = db.run(DBIOAction.seq(addresses.schema.drop))
 
-  def insert(address: AddressDTO): Future[Int] = db.run(addresses returning addresses.map(_.addressId) += address)
+  def insert(address: Address): Future[Int] = db.run(addresses returning addresses.map(_.addressId) += address)
 
   def find(id: Int) = db.run(addresses.filter(_.addressId === id).result.headOption)
 
@@ -38,4 +38,7 @@ class AddressesRepository @Inject()
   def getNames(id: Int) = db.run(
     sql"select address from addresses where address_id = #$id"
       .as[String].headOption)
+  
+
+  
 }

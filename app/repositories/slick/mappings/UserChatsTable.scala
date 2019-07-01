@@ -11,7 +11,7 @@ trait UserChatsTable {
     def userChatId = column[Int]("user_chat_id", O.PrimaryKey, O.AutoInc)
     def userId = column[Int]("user_id")
     def chatId = column[Int]("chat_id")
-    def mailBox = column[String]("mail_box")
+    def mailBox = column[String]("mailbox")
 
     // Indexes
 

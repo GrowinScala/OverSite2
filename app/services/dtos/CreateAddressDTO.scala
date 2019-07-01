@@ -1,11 +1,12 @@
 package services.dtos
 
 import play.api.libs.json.{Json, OFormat}
+import repositories.dtos.Address
 
 case class CreateAddressDTO (address: String) {
 
-  def toAddressDTOWithoutID: AddressDTO =
-    AddressDTO(address = this.address)
+  def toAddressWithoutID: Address =
+    Address(address = this.address)
 
   def toAddressDTO(id: Int): AddressDTO =
     AddressDTO(id, this.address)
