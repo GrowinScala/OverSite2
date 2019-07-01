@@ -4,7 +4,6 @@ import javax.inject._
 import play.api.mvc._
 import play.api.libs.json.{JsValue, Json, OFormat}
 import repositories.dtos.{AddressDTO, CreateAddressDTO}
-import repositories.mappings.Address
 import services.AddressService
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -13,7 +12,7 @@ import scala.concurrent.Future
 @Singleton
 class ApplicationController @Inject()(cc: ControllerComponents, addressService: AddressService) extends AbstractController(cc) {
 
-  implicit val addressFormat : OFormat[Address] = Json.format[Address]
+  implicit val addressFormat : OFormat[AddressDTO] = Json.format[AddressDTO]
 
   def getAddress(id: Int): Action[AnyContent] =
     Action.async { implicit request: Request[AnyContent] =>

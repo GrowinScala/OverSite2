@@ -1,16 +1,18 @@
 package repositories.dtos
 
 import play.api.libs.json.{Json, OFormat}
-import repositories.mappings.Address
 
-case class AddressDTO (addressId: Int, address: String) {
-  def toAddress: Address = Address(this.addressId, this.address)
+case class AddressDTO (addressId: Int = -1, address: String) {
+  def toAddress: AddressDTO = AddressDTO(this.addressId, this.address)
 }
 
 object AddressDTO {
   implicit val addressFormat : OFormat[AddressDTO] = Json.format[AddressDTO]
 
-  def toAddressDTO(address: Address): AddressDTO = {
+  def toAddressDTO(address: AddressDTO): AddressDTO = {
     AddressDTO(address.addressId, address.address)
   }
+  
+  def tupled = (AddressDTO.apply _).tupled
+  
 }
