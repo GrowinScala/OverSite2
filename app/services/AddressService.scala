@@ -1,8 +1,9 @@
 package services
 
 import javax.inject.Inject
-import repositories.AddressesRepository
-import repositories.dtos.{AddressDTO, CreateAddressDTO}
+import services.dtos.CreateAddressDTO
+import repositories.slick.implementations.AddressesRepository
+import services.dtos.{AddressDTO, CreateAddressDTO}
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global

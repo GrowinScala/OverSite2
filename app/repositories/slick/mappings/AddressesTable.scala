@@ -1,7 +1,7 @@
-package repositories.mappings
+package repositories.slick.mappings
 
+import services.dtos.AddressDTO
 import slick.jdbc.MySQLProfile.api._
-import repositories.dtos.AddressDTO
 
 trait AddressesTable {
 
