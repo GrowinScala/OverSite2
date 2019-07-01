@@ -4,5 +4,9 @@
 # ~~~~
 
 # Addresses TEST
-GET     /getAddress/:id             controllers.ApplicationController.getAddress(id : Long)
+GET     /getAddress/:id             controllers.ApplicationController.getAddress(id : Int)
 
+POST    /postAddress                controllers.ApplicationController.postAddress()
+
+
+#{ "address" : "xxx@mail.com" }

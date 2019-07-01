@@ -1,8 +1,10 @@
 package controllers
 
 import javax.inject._
-import repositories.Address
 import play.api.mvc._
+import play.api.libs.json.{JsValue, Json, OFormat}
+import repositories.dtos.{AddressDTO, CreateAddressDTO}
+import repositories.mappings.Address
 import services.AddressService
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -11,10 +13,24 @@ import scala.concurrent.Future
 @Singleton
 class ApplicationController @Inject()(cc: ControllerComponents, addressService: AddressService) extends AbstractController(cc) {
 
-  def getAddress(id: Long) = Action.async { implicit request: Request[AnyContent] =>
-    addressService.getAddress(id) map { address =>
-      Ok("Address with id " + id + " is " + address)
+  implicit val addressFormat : OFormat[Address] = Json.format[Address]
+
+  def getAddress(id: Int): Action[AnyContent] =
+    Action.async { implicit request: Request[AnyContent] =>
+      addressService.getAddress(id).map{
+        case Some(addressDTO : AddressDTO) => Ok(Json.toJson(addressDTO))
+        case None => NotFound
+      }
     }
-  }
+
+  def postAddress(): Action[JsValue] =
+    Action.async(parse.json) { implicit request: Request[JsValue] =>
+      val jsonValue = request.body
+      val createAddressDTO = jsonValue.as[CreateAddressDTO]
+      addressService.postAddress(createAddressDTO).map{ result =>
+        Ok(Json.toJson(result))
+      }
+    }
+
 
 }
