@@ -27,8 +27,8 @@ class AddressesRepository @Inject()
   def find(id: Int) = db.run(addresses.filter(_.addressId === id).result.headOption)
 
   def update(id: Int, address: String) = {
-    val query = for (address <- addresses if address.addressId === id)
-      yield address.address
+    val query = for (addressDTO <- addresses if addressDTO.addressId === id)
+      yield addressDTO.address
     db.run(query.update(address)) map { _ > 0 }
   }
 

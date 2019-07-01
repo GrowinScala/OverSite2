@@ -15,8 +15,7 @@ class ApplicationController @Inject()(cc: ControllerComponents, addressService: 
   implicit val addressFormat : OFormat[AddressDTO] = Json.format[AddressDTO]
 
   def getAddress(id: Int): Action[AnyContent] =
-    Action.async { implicit request: Request[AnyContent] =>
-      addressService.getAddress(id).map{
+    Action.async { addressService.getAddress(id).map{
         case Some(addressDTO : AddressDTO) => Ok(Json.toJson(addressDTO))
         case None => NotFound
       }
@@ -30,6 +29,16 @@ class ApplicationController @Inject()(cc: ControllerComponents, addressService: 
         Ok(Json.toJson(result))
       }
     }
-
+	
+	def deleteAddress(id: Int): Action[AnyContent] =
+		Action.async { addressService.deleteAddress(id).map{
+				case true => NoContent
+				case _ => NotFound
+			}
+		}
+	
+	
+	
+	
 
 }

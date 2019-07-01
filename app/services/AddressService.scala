@@ -20,4 +20,9 @@ class AddressService @Inject() (addresses: AddressesRepository) {
     val address = createAddressDTO.toAddressDTOWithoutID
     addresses.insert(address).map{ id: Int => createAddressDTO.toAddressDTO(id) }
   }
+	
+	def deleteAddress(id: Int): Future[Boolean] = {
+		addresses.delete(id)
+	}
+	
 }
