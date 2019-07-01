@@ -8,7 +8,7 @@ trait UserChatsTable {
   class UserChats(tag: Tag) extends Table[UserChat](tag, "user_chats") {
 
     // Columns
-    def userChatId = column[String]("user_chat_id", O.PrimaryKey)
+    def userChatId = column[Int]("user_chat_id", O.PrimaryKey, O.AutoInc)
     def userId = column[Int]("user_id")
     def chatId = column[Int]("chat_id")
     def mailBox = column[String]("mail_box")

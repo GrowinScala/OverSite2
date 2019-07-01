@@ -8,9 +8,9 @@ trait OversightsTable {
   class Oversights(tag: Tag) extends Table[Oversight](tag, "oversights") {
 
     // Columns
-    def oversightId = column[String]("oversight_id", O.PrimaryKey)
-    def userChatId = column[String]("user_chat_id")
-    def userId = column[String]("user_id")
+    def oversightId = column[Int]("oversight_id", O.PrimaryKey, O.AutoInc)
+    def userChatId = column[Int]("user_chat_id")
+    def userId = column[Int]("user_id")
 
     // Indexes
 
