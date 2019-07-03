@@ -1,27 +1,27 @@
 package repositories.slick.mappings
 
-import repositories.dtos.UserChat
+
 import slick.jdbc.MySQLProfile.api._
 
-trait UserChatsTable {
+case class UserChatRow (userChatId: Int, userId: Int, chatId: Int, mailBox: String)
 
-  class UserChats(tag: Tag) extends Table[UserChat](tag, "user_chats") {
+class UserChatsTable (tag: Tag) extends Table[UserChatRow](tag, "user_chats") {
+  // Columns
+  def userChatId = column[Int]("user_chat_id", O.PrimaryKey, O.AutoInc)
+  def userId = column[Int]("user_id")
+  def chatId = column[Int]("chat_id")
+  def mailBox = column[String]("mailbox")
+  
+  // Indexes
+  
+  
+  // Table mapping
+  override def * =
+    (userChatId, userId, chatId, mailBox) <> (UserChatRow.tupled, UserChatRow.unapply)
+  
+}
 
-    // Columns
-    def userChatId = column[Int]("user_chat_id", O.PrimaryKey, O.AutoInc)
-    def userId = column[Int]("user_id")
-    def chatId = column[Int]("chat_id")
-    def mailBox = column[String]("mailbox")
-
-    // Indexes
-
-
-    // Select
-    override def * =
-      (userChatId, userId, chatId, mailBox) <>(UserChat.tupled, UserChat.unapply)
-
-  }
-
-  val userChats = TableQuery[UserChats]
-
+object UserChatsTable {
+  val all = TableQuery[UserChatsTable]
+  
 }
