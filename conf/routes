@@ -4,11 +4,11 @@
 # ~~~~
 
 # Addresses TEST
-GET     /address/:id             controllers.ApplicationController.getAddress(id : Int)
+GET     /address/:id             controllers.AddressController.getAddress(id : Int)
 
-POST    /address                 controllers.ApplicationController.postAddress()
+POST    /address                 controllers.AddressController.postAddress()
 
-DELETE  /address/:id             controllers.ApplicationController.deleteAddress(id : Int)
+DELETE  /address/:id             controllers.AddressController.deleteAddress(id : Int)
 
 
 #{ "address" : "xxx@mail.com" }
