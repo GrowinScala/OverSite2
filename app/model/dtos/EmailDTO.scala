@@ -3,8 +3,9 @@ package model.dtos
 import play.api.libs.json.{Json, OFormat}
 
 
-case class EmailDTO (emailId: Int, from: String, to: Array[String], bcc: Array[String],
-                     cc: Array[String], body: String, date: String, sent: Boolean)
+case class EmailDTO (emailId: Int, from: String, to: Seq[String], bcc: Seq[String],
+                     cc: Seq[String], body: String, date: String, sent: Boolean,
+                     attachments: Seq[Int])
 
 //TODO Attachments missing
 

@@ -20,26 +20,10 @@ class ChatController @Inject()(cc: ControllerComponents, chatService: ChatServic
 			// TODO Hard-coded userId = 1
 			val userId = 1
 
-				chatService.getChat(id, userId).map{emaildto =>
-				Ok(Json.toJson(emaildto))
+			chatService.getChat(id, userId).map{emailDTO =>
+				Ok(Json.toJson(emailDTO))
 			}
 		}
 
-		/*
-		// Hard-coded
-		Action.async {
-
-			val overseersDTO = OverseersDTO("valter@mail.com", Array("pedrol@mail.com", "pedroc@mail.com", "rui@mail.com"))
-			val emailDTO = EmailDTO(1, "valter@mail.com", Array("beatriz@mail.com", "joao@mail.com"), Array(), Array(),
-				"2019-06-17 10:00:00", "Olá Beatriz e João! Vamos começar o projeto.", Array(), true)
-
-			val chatDTO = ChatDTO(1, "Projeto Oversite2", Array("valter@mail.com", "joao@mail.com", "beatriz@mail.com"),
-				Array(overseersDTO), Array(emailDTO))
-
-			Future(Ok(Json.toJson(chatDTO)))
-		}*/
-
-
-	
 
 }

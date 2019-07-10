@@ -6,7 +6,7 @@ We use a negative number because we would get an error if this default value
 were to be accepted*/
 
 
-case class EmailAddress (emailAddressId : Int = -1, emailId : Int, addressId: Int, receiverType: String)
+case class EmailAddress (emailAddressId : Int, emailId : Int, addressId: Int, receiverType: String)
 
 /*
 object receiverType extends Enumeration {

@@ -8,8 +8,8 @@ were to be accepted*/
 
 //case class Email (emailId : Int = -1, fromAddress : String, chatId : Int, body : String, date : String, sent: Int)
 
-case class Email (emailId: Int, from: String, receiverType: String,
-                  receiverAddress: String, body: String, date: String, sent: Int)
+case class Email (emailId: Int, from: String, to: Seq[String], bcc: Seq[String],
+                     cc: Seq[String], body: String, date: String, sent: Int, attachments: Seq[Int])
 
 //TODO Attachments missing
 

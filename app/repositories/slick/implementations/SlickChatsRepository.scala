@@ -19,48 +19,120 @@ class SlickChatsRepository @Inject()
 	extends ChatsRepository with HasDatabaseConfigProvider[JdbcProfile] {
 
 
-  private def emailAddressesQuery(chatId: Int) =
-    for {
-      chatEmailId <- EmailsTable.all
-        .filter(_.chatId === chatId).map(_.emailId)
-      emailAddress: (Rep[Int], Rep[String]) <- EmailAddressesTable.all
-        .filter(_.emailId === chatEmailId)
-        .map(emailAddress => (emailAddress.addressId, emailAddress.receiverType))
-      address: Rep[String] <- AddressesTable.all.filter(_.addressId === emailAddress._1).map(_.address)
-    } yield (chatEmailId, emailAddress._2, address)
-
-  private def receiversOfEmail(emailId: Rep[Int]) : Query[Rep[Int], Int, scala.Seq] = {
-    // to, bcc, cc
-    EmailAddressesTable.all.filter(_.emailId === emailId).map(_.addressId)
+  /*** Chat ***/
+  private def processChat(chatId: Int) = {
+    val query = ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
+    db.run(query.result.head)     // TODO headOption (chat might not exist)
   }
 
-  private def emailsQuery(chatId: Int, userId: Int) =
+  def getChat(chatId: Int, userId: Int) = {
+    val userAddressQuery = for {
+      userAddressId <- UsersTable.getUserAddressId(userId)
+      userAddress <- AddressesTable.all.filter(_.addressId === userAddressId).map(_.address)
+    } yield userAddress
+
+    val userAddress: Future[String] = db.run(userAddressQuery.result.head)  // TODO headOption (user might not exist)
+
     for {
-      userAddressId: Rep[Int] <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
-      email: EmailsTable <- EmailsTable.all
-        .filter(email => email.chatId === chatId &&
-          (email.fromAddressId === userAddressId ||             //user must be sender OR receiver of the email
-            userAddressId.in(receiversOfEmail(email.emailId))   //in order to have permission to see it
-          )
+      subject <- processChat(chatId)
+      (addresses, emails) <- processEmailsAndAddresses(chatId)
+      overseers <- processOverseers(chatId, userId)
+    } yield
+      Chat(
+        chatId,
+        subject,
+        addresses,
+        overseers,
+        emails
+      )
+
+  }
+
+  /*** Email DTO ***/
+  private def allChatEmailsQuery(chatId: Int) = {
+    //Get all the emails of the chat
+    for {
+      email <- EmailsTable.getChatEmails(chatId)
+    } yield (email.emailId, email.chatId, email.body, email.date, email.sent)
+    // (emailId, chatId, body, date, sent)
+  }
+
+  private def allChatEmailsAddressesQuery(emailsIds: Query[Rep[Int], Int, scala.Seq]) = {
+    //Get all the email_addresses for those email IDs and JOIN with the table Addresses
+    for {
+      (emailAddress, address) <- EmailAddressesTable.all.filter(_.emailId in emailsIds)
+        .join(AddressesTable.all).on(_.addressId === _.addressId)
+    } yield (emailAddress.emailId, emailAddress.receiverType, address.address)
+    // (emailId, receiverType, address)
+  }
+
+  private def allChatEmailsAttachmentsQuery(emailsIds: Query[Rep[Int], Int, scala.Seq]) = {
+    AttachmentsTable.all
+      .filter(_.emailId in emailsIds)
+      .map(attachment => (attachment.emailId, attachment.attachmentId))
+    // (emailId, attachmentId)
+  }
+
+  private def mergeEmailsAddressesAttachments(emails: Seq[(Int, Int, String, String, Int)],
+                                      addresses: Map[(Int, String), Seq[String]],
+                                      attachments: Map[Int, Seq[Int]]
+                             ) = {
+
+    emails.map{
+      case (emailId, chatId, body, date, sent) =>
+        Email(
+          emailId,
+          addresses.getOrElse((emailId, "from"), Seq()).head,
+          addresses.getOrElse((emailId, "to"), Seq()),
+          addresses.getOrElse((emailId, "bcc"), Seq()),
+          addresses.getOrElse((emailId, "cc"), Seq()),
+          body,
+          date,
+          sent,
+          attachments.getOrElse(emailId, Seq())
         )
-      fromAddress: Rep[String] <- AddressesTable.all.filter(_.addressId === email.fromAddressId).map(_.address)
-
-    } yield (email.emailId, fromAddress, email.body, email.date, email.sent)
-
-
-  def chatEmailsQuery(chatId: Int, userId: Int) = {
-    val query = for {
-      (email, emailAddress) <- emailsQuery(chatId, userId).join(emailAddressesQuery(chatId)).on(_._1 === _._1)
-
-    } yield (email._1, email._2, emailAddress._2, emailAddress._3, email._3, email._4, email._5)
-    // (emailId, fromAddress, receiverType, receiverAddress, body, date, sent)
-
-    db.run(query.result).map(_.map(Email.tupled))
+    }
   }
 
-  def chatOverseersQuery(chatId: Int, userId: Int) = {
+  private def processEmailsAndAddresses(chatId: Int) : Future[(Seq[String], Seq[Email])] = {
+    val emailsQuery = allChatEmailsQuery(chatId)
 
-    val query = for {
+    val emailsResult = db.run(emailsQuery.result)
+
+    val addressesResult = db.run(allChatEmailsAddressesQuery(emailsQuery.map(_._1)).result)
+
+    val groupedAddressesResult =
+      addressesResult
+        .map(_
+          .groupBy(emailAddress => (emailAddress._1, emailAddress._2))  //group by email ID and receiver type (from, to, bcc, cc)
+          .mapValues(_.map(_._3))   // Map: (emailId, receiverType) -> addresses
+        )
+
+    val attachmentsResult = db.run(allChatEmailsAttachmentsQuery(emailsQuery.map(_._1)).result)
+
+    val groupedAttachmentsResult =
+      attachmentsResult
+        .map(_
+          .groupBy(_._1)
+          .mapValues(_.map(_._2))
+        )
+
+    // All addresses that sent and received emails in this chat
+    val chatAddressesResult = addressesResult.map(_.map(_._3).distinct)
+
+    for {
+      chatAddresses <- chatAddressesResult
+      emails <- emailsResult
+      addresses <- groupedAddressesResult
+      attachments <- groupedAttachmentsResult
+    } yield (chatAddresses, mergeEmailsAddressesAttachments(emails, addresses, attachments))
+
+  }
+
+  /*** Overseers DTO ***/
+  private def chatOverseersQuery(chatId: Int, userId: Int) = {
+
+    for {
       /** Overseer **/
       (userChatId, overseenId) <- UserChatsTable.all.filter(_.chatId === chatId).map( uc => (uc.userChatId, uc.userId) )
       overseerId <- OversightsTable.all.filter(_.userChatId === userChatId).map(_.userId)
@@ -73,16 +145,15 @@ class SlickChatsRepository @Inject()
       userAddress <- AddressesTable.all.filter(_.addressId === userAddressId).map(_.address)
 
     } yield (userAddress, overseerAddress)
-
-    db.run(query.result).map(_.map(Overseer.tupled))
   }
 
-  def chatInfoQuery(chatId: Int) = {
-    val query = ChatsTable.all.filter(_.chatId === chatId).map(chat => (chat.chatId, chat.subject))
-
-    db.run(query.result.headOption).map(_.map(Chat.tupled))
+  private def processOverseers(chatId: Int, userId: Int) = {
+    db.run(chatOverseersQuery(chatId, userId).result)
+      .map(_
+          .groupBy(_._1) // group by user
+          .mapValues(_.map(_._2))
+          .toSeq
+          .map(Overseer.tupled)
+    )
   }
-
-
-
 }

@@ -23,5 +23,11 @@ class UsersTable (tag: Tag) extends Table[UserRow](tag, "users") {
 
 object UsersTable {
   val all = TableQuery[UsersTable]
+
+  def getUser(userId: Int) =
+    all.filter(_.userId === userId)
+
+  def getUserAddressId(userId: Int) : Query[Rep[Int], Int, scala.Seq] =
+    getUser(userId).map(_.addressId)
   
 }

@@ -24,5 +24,11 @@ class EmailsTable (tag: Tag) extends Table[EmailRow](tag, "emails") {
 
 object EmailsTable {
 	val all = TableQuery[EmailsTable]
+
+	def getChatEmails(chatId: Int) =
+		all.filter(email => email.chatId === chatId)
+
+	def getChatEmailsIds(chatId: Int) =
+		getChatEmails(chatId).map(email => email.emailId)
 	
 }

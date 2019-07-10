@@ -2,7 +2,7 @@ package model.dtos
 
 import play.api.libs.json.{Json, OFormat}
 
-case class OverseersDTO (user: String, overseers: Array[String])
+case class OverseersDTO (user: String, overseers: Seq[String])
 
 object OverseersDTO {
   implicit val overseersFormat : OFormat[OverseersDTO] = Json.format[OverseersDTO]
