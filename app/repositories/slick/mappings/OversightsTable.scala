@@ -3,20 +3,21 @@ package repositories.slick.mappings
 
 import slick.jdbc.MySQLProfile.api._
 
-case class OversightRow (oversightId: Int, userChatId: Int, userId: Int)
+case class OversightRow (oversightId: Int, chatId: Int, overseerId: Int, overseeId: Int)
 
 class OversightsTable (tag: Tag) extends Table[OversightRow](tag, "oversights") {
   // Columns
   def oversightId = column[Int]("oversight_id", O.PrimaryKey, O.AutoInc)
-  def userChatId = column[Int]("user_chat_id")
-  def userId = column[Int]("user_id")
+  def chatId = column[Int]("chat_id")
+  def overseerId = column[Int]("overseer_id")
+  def overseeId = column[Int]("oversee_id")
   
   // Indexes
   
   
   // Table mapping
   override def * =
-    (oversightId, userChatId, userId) <> (OversightRow.tupled, OversightRow.unapply)
+    (oversightId, chatId, overseerId, overseeId) <> (OversightRow.tupled, OversightRow.unapply)
   
 }
 
