@@ -108,14 +108,13 @@ class SlickChatsRepository @Inject() (@NamedDatabase("oversitedb") protected val
         userChatRow.userId === userId &&
           (mailbox match {
             case Inbox => userChatRow.inbox === 1
-            case Sent  => userChatRow.sent === 1
+            case Sent => userChatRow.sent === 1
             case Trash => userChatRow.trash === 1
             case Draft => userChatRow.draft === 1
           })).map(_.chatId)
 
       (emailId, date, sent) <- EmailsTable.all.filter(_.chatId === chatId).map(
-        emailRow => (emailRow.emailId, emailRow.date, emailRow.sent)
-      )
+        emailRow => (emailRow.emailId, emailRow.date, emailRow.sent))
 
       (addressId, participantType) <- EmailAddressesTable.all.filter(_.emailId === emailId)
         .map(emailAddressRow =>
@@ -161,8 +160,7 @@ class SlickChatsRepository @Inject() (@NamedDatabase("oversitedb") protected val
         (chatId, subject, address, dateOption.getOrElse("Missing Date"), body)
     })
 
-    chatPreviewQuery.sortBy(_._1.desc).result.statements.foreach(println)
-
+    
     result.map(_.map(ChatPreview.tupled))
 
   }
