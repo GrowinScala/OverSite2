@@ -16,4 +16,4 @@ DELETE  /address/:id             controllers.AddressController.deleteAddress(id 
 
 GET     /chats                   controllers.ChatController.getChats(mailbox: String ?= "inbox")
 
-GET     /test                    controllers.ApplicationController.test(mailbox: String ?= "inbox")
+# GET     /test                    controllers.ApplicationController.test(mailbox: String ?= "inbox")

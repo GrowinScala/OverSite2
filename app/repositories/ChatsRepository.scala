@@ -1,15 +1,12 @@
 package repositories
 
-
-import repositories.dtos.{Address, ChatPreview}
-
+import model.types.Mailbox
+import repositories.dtos.ChatPreview
 
 import scala.concurrent.Future
 
 trait ChatsRepository {
-	
-	def getChatPreview(mailbox: String, user: Int) : Future[Array[ChatPreview]]
-	
-	def getOverseeingChatPreview(user: Int) : Future[Array[ChatPreview]]
+
+  def getChatPreview(mailbox: Mailbox, user: Int): Future[Seq[ChatPreview]]
 
 }
