@@ -1,9 +1,8 @@
 package repositories.slick.mappings
 
-
 import slick.jdbc.MySQLProfile.api._
 
-case class UserRow (userId: Int, addressId: Int, firstName: String, lastName: String)
+case class UserRow(userId: Int, addressId: Int, firstName: String, lastName: String)
 
 class UsersTable (tag: Tag) extends Table[UserRow](tag, "users") {
   // Columns
@@ -29,5 +28,5 @@ object UsersTable {
 
   def getUserAddressId(userId: Int) : Query[Rep[Int], Int, scala.Seq] =
     getUser(userId).map(_.addressId)
-  
+
 }

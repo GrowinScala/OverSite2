@@ -13,5 +13,6 @@ DELETE  /address/:id             controllers.AddressController.deleteAddress(id 
 
 #{ "address" : "xxx@mail.com" }
 
-# Endpoint to retrieve a specific chat
+
+GET     /chats                   controllers.ChatController.getChats(mailbox: String ?= "inbox")
 GET     /chats/:id              controllers.ChatController.getChat(id : Int)
