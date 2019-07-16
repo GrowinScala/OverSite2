@@ -7,54 +7,43 @@ import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
 import play.db.NamedDatabase
 import repositories.ChatsRepository
 import repositories.slick.mappings._
-import repositories.dtos.{Chat, Email, Overseer, ChatPreview}
+import repositories.dtos.{ Chat, Email, Overseer, ChatPreview }
 import slick.jdbc.JdbcProfile
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future }
 
-
-
-class SlickChatsRepository @Inject()
-(@NamedDatabase("oversitedb") protected val dbConfigProvider: DatabaseConfigProvider)
-(implicit executionContext: ExecutionContext)
-	extends ChatsRepository with HasDatabaseConfigProvider[JdbcProfile] {
+class SlickChatsRepository @Inject() (@NamedDatabase("oversitedb") protected val dbConfigProvider: DatabaseConfigProvider)(implicit executionContext: ExecutionContext)
+  extends ChatsRepository with HasDatabaseConfigProvider[JdbcProfile] {
 
   val PREVIEW_BODY_LENGTH: Int = 30
 
-  /*** Chat ***/
-  def getChat(chatId: Int, userId: Int) = {
-    for {
-      subject <- processChat(chatId)
-      (addresses, emails) <- processEmailsAndAddresses(chatId, userId)
-      overseers <- processOverseers(chatId)
-    } yield
-      Chat(
-        chatId,
-        subject,
-        addresses,
-        overseers,
-        emails
-      )
-  }
+/*** Stuff that I need: ***/
 
-  private def processChat(chatId: Int): Future[String] = {
+  /**
+   * Method to get data of a specific chat
+   * @param chatId ID of chat
+   * @return chat's data. In this case, the subject
+   */
+  private def getChatData(chatId: Int): Future[String] = {
     val query = ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
-    db.run(query.result.head)     // TODO headOption (chat might not exist)
+    db.run(query.result.head) // TODO headOption (chat might not exist)
   }
 
-  def getChatPreview(mailbox: Mailbox, userId: Int): Future[Seq[ChatPreview]] = {
-    //This query returns a User, returns all of its chats and for EACH chat, all of its emails
-    // and for each email, all of it's participants
-    val baseQuery = for {
+  //TODO: Document this
+  private def getChatsMetadataQueryByUserId(userId: Int, optBox: Option[Mailbox] = None) = {
+    // This query returns, for a user, all of its chats and for EACH chat, all of its emails
+    // (without body) and for each email, all of its participants
+    for {
       chatId <- UserChatsTable.all.filter(userChatRow =>
         userChatRow.userId === userId &&
-          (mailbox match {
-            case Inbox => userChatRow.inbox === 1
-            case Sent => userChatRow.sent === 1
-            case Trash => userChatRow.trash === 1
-            case Draft => userChatRow.draft === 1
+          (optBox match {
+            case Some(Inbox) => userChatRow.inbox === 1
+            case Some(Sent) => userChatRow.sent === 1
+            case Some(Trash) => userChatRow.trash === 1
+            case Some(Draft) => userChatRow.draft === 1
+            case None => true
           })).map(_.chatId)
 
       (emailId, date, sent) <- EmailsTable.all.filter(_.chatId === chatId).map(
@@ -65,11 +54,217 @@ class SlickChatsRepository @Inject()
           (emailAddressRow.addressId, emailAddressRow.participantType))
 
     } yield (chatId, emailId, date, sent, addressId, participantType)
+  }
 
+  // TODO Document this
+  private def getGroupedEmailsAndAddresses(chatId: Int, userId: Int): Future[(Seq[String], Seq[Email])] = {
+
+    /** Queries **/
+    val userAddressIdQuery = UsersTable.all.filter(_.userId === userId).map(_.addressId)
+
+    // All chat metadata
+    val getChatEmailsQuery = getChatsMetadataQueryByUserId(userId, None).filter(_._1 === chatId)
+
+    // Get all oversees of this user for this particular chat
+    val userOverseesAddressIdQuery = getUserChatOverseesQuery(userId, Some(chatId))
+
+    // Query to filter the chat's emails
+    val emailsQuery = for {
+      userAddressId <- userAddressIdQuery
+
+      // If the address is the user's OR If the address is an oversee of the user
+      // AND if the email is a draft (sent == 0), the "from" address must be the user's
+      (emailId, date, sent) <- getChatEmailsQuery.filter {
+        case (chatId, emailId, date, sent, addressId, participantType) =>
+          (addressId === userAddressId || addressId.in(userOverseesAddressIdQuery)) &&
+            (sent === 1 || (participantType === "from" && addressId === userAddressId))
+      }
+        .map(filteredRow => (filteredRow._2, filteredRow._3, filteredRow._4))
+
+      body <- EmailsTable.all.filter(_.emailId === emailId).map(_.body)
+
+    } yield (emailId, body, date, sent)
+
+    // Query to get all the addresses involved in the emails of this chat
+    // (emailId, participationType, address)
+    val emailAddressesQuery = getEmailAddressesQuery(userAddressIdQuery, emailsQuery.map(_._1))
+
+    /** Results (Futures) **/
+
+    /** Emails **/
+    val emails = db.run(emailsQuery.distinct.result)
+    /** Email Addresses **/
+    val emailAddressesResult = db.run(emailAddressesQuery.result)
+    val groupedEmailAddresses =
+      emailAddressesResult
+        .map(_
+          .groupBy(emailAddress => (emailAddress._1, emailAddress._2)) //group by email ID and receiver type (from, to, bcc, cc)
+          .mapValues(_.map(_._3)) // Map: (emailId, receiverType) -> addresses
+        )
+    /** Chat Addresses **/
+    // All addresses that sent and received emails in this chat
+    val chatAddressesResult = emailAddressesResult.map(_.map(_._3).distinct)
+    /** Attachments **/
+    val attachments = getEmailsAttachments(emailsQuery.map(_._1))
+
+    for {
+      chatAddresses <- chatAddressesResult
+      emails <- emails
+      groupedAddresses <- groupedEmailAddresses
+      attachments <- attachments
+    } yield (
+      chatAddresses,
+      buildEmailDto(emails, groupedAddresses, attachments))
+
+  }
+
+  private def getEmailAddressesQuery(userAddressIdQuery: Query[Rep[Int], Int, scala.Seq], emailIdsQuery: Query[Rep[Int], Int, scala.Seq]) = {
+    //Query with fromAddressId for each emailId
+    val fromAddressIdsQuery = EmailAddressesTable.all
+      .filter(emailAddressRow =>
+        emailAddressRow.emailId.in(emailIdsQuery) &&
+          emailAddressRow.participantType === "from")
+      .map(emailAddressRow => (emailAddressRow.emailId, emailAddressRow.addressId))
+
+    for {
+      userAddressId <- userAddressIdQuery
+      emailId <- emailIdsQuery
+      /*fromAddressId <- EmailAddressesTable.all
+        .filter(ea => ea.emailId === emailId && ea.participantType === "from")
+        .map(_.addressId)*/
+      // TODO this or that
+      fromAddressId <- fromAddressIdsQuery.filter(_._1 === emailId).map(_._2)
+
+      (participantType, addressId, address) <- EmailAddressesTable.all.join(AddressesTable.all)
+        .on((emailAddressRow, addressRow) =>
+          emailAddressRow.emailId === emailId &&
+            emailAddressRow.addressId === addressRow.addressId &&
+            (emailAddressRow.participantType =!= "bcc" ||
+              (emailAddressRow.addressId === userAddressId || fromAddressId === userAddressId)))
+        .map {
+          case (emailAddressRow, addressRow) =>
+            (emailAddressRow.participantType, emailAddressRow.addressId, addressRow.address)
+        }
+
+    } yield (emailId, participantType, address)
+  }
+
+  // TODO igual ao João (com mais um filtro). Fazer metodo geral?
+  private def getUserChatOverseesQuery(userId: Int, chatId: Option[Int] = None): Query[Rep[Int], Int, scala.Seq] = {
+    val chatFilteredOversightsTable = OversightsTable.all.filter(
+      row => chatId match {
+        case Some(id) => row.chatId === id
+        case _ => true: Rep[Boolean]
+      })
+
+    UsersTable.all
+      .join(chatFilteredOversightsTable)
+      .on((userRow, oversightRow) =>
+        userRow.userId === oversightRow.overseeId &&
+          oversightRow.overseerId === userId)
+      .map(_._1.addressId)
+  }
+
+  private def getEmailsAttachments(emailsIds: Query[Rep[Int], Int, scala.Seq]) = {
+    val query = AttachmentsTable.all
+      .filter(_.emailId in emailsIds)
+      .map(attachment => (attachment.emailId, attachment.attachmentId))
+    // (emailId, attachmentId)
+
+    db.run(query.result)
+      .map(_
+        .groupBy(_._1)
+        .mapValues(_.map(_._2)))
+  }
+
+  private def buildEmailDto(
+    emails: Seq[(Int, String, String, Int)],
+    addresses: Map[(Int, String), Seq[String]],
+    attachments: Map[Int, Seq[Int]]): Seq[Email] = {
+
+    emails.map {
+      case (emailId, body, date, sent) =>
+        Email(
+          emailId,
+          addresses.getOrElse((emailId, "from"), Seq()).head,
+          addresses.getOrElse((emailId, "to"), Seq()).distinct, //TODO distinct?
+          addresses.getOrElse((emailId, "bcc"), Seq()).distinct,
+          addresses.getOrElse((emailId, "cc"), Seq()).distinct,
+          body,
+          date,
+          sent,
+          attachments.getOrElse(emailId, Seq()))
+    }
+  }
+  /**
+   * Query that retrieves all tuples of AddressId/Address a certain user is able to see emails from in a certain chat.
+   * @param overseerUserId the userId of self
+   * @param chatId the chatId we're interested on
+   * @return a Seq of Tuples
+   */
+  private def getOverseerAddresses(overseerUserId: Int, chatId: Int): Future[Seq[(Int, String)]] = {
+    val overseesUserIds = OversightsTable.all.filter(o => o.overseerId === overseerUserId && o.chatId === chatId).map(_.overseeId)
+    val addressIds = UsersTable.all.filter(user => user.userId.in(overseesUserIds) || user.userId === overseerUserId)
+      .join(AddressesTable.all).on(_.addressId === _.addressId).map(tp => (tp._2.addressId, tp._2.address))
+
+    db.run(addressIds.result)
+  }
+  /*
+   overseeAddress <- UsersTable.all.join(AddressesTable.all)
+     .on((user, address) => user.userId === oversight.overseeId && address.addressId === user.addressId)
+     .map(_._2.address)
+   overseerAddress <- UsersTable.all.join(AddressesTable.all)
+     .on((user, address) => user.userId === oversight.overseerId && address.addressId === user.addressId)
+     .map(_._2.address)
+   */
+  private def getOverseersData(chatId: Int) = {
+    val chatOverseersQuery = for {
+      oversight <- OversightsTable.all.filter(_.chatId === chatId)
+
+      overseeAddressId <- UsersTable.all.filter(_.userId === oversight.overseeId).map(_.addressId)
+      overseeAddress <- AddressesTable.all.filter(_.addressId === overseeAddressId)
+        .map(_.address)
+
+      overseerAddressId <- UsersTable.all.filter(_.userId === oversight.overseerId).map(_.addressId)
+      overseerAddress <- AddressesTable.all.filter(_.addressId === overseerAddressId)
+        .map(_.address)
+    } yield (overseeAddress, overseerAddress)
+
+    db.run(chatOverseersQuery.result)
+      .map(_
+        .groupBy(_._1) // group by user
+        .mapValues(_.map(_._2))
+        .toSeq
+        .map(Overseer.tupled))
+  }
+
+/*** End of Stuff that I need: ***/
+
+/*** Chat ***/
+  def getChat(chatId: Int, userId: Int): Future[Chat] = {
+    for {
+      subject <- getChatData(chatId)
+      (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
+      overseers <- getOverseersData(chatId)
+    } yield Chat(
+      chatId,
+      subject,
+      addresses,
+      overseers,
+      emails)
+  }
+
+/*** Chat Preview ***/
+  def getChatPreview(mailbox: Mailbox, userId: Int): Future[Seq[ChatPreview]] = {
+    val baseQuery = getChatsMetadataQueryByUserId(userId, Some(mailbox))
+
+    /*
     val overseesAddressIdQuery = UsersTable.all
       .join(OversightsTable.all)
       .on((userRow, oversightRow) => userRow.userId === oversightRow.overseeId && oversightRow.overseerId === userId)
       .map(_._1.addressId)
+      */
+    val overseesAddressIdQuery = getUserChatOverseesQuery(userId)
 
     val filteredQuery = for {
       userAddressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
@@ -104,220 +299,7 @@ class SlickChatsRepository @Inject()
         (chatId, subject, address, dateOption.getOrElse("Missing Date"), body)
     })
 
-
     result.map(_.map(ChatPreview.tupled))
 
-  }
-
-  /**
-    * Query that retrieves all tuples of AddressId/Address a certain user is able to see emails from in a certain chat.
-    * @param overseerUserId the userId of self
-    * @param chatId the chatId we're interested on
-    * @return a Seq of Tuples
-    */
-  private def getOverseerAdresses(overseerUserId: Int, chatId: Int): Future[Seq[(Int, String)]] = {
-    val overseesUserIds = OversightsTable.all.filter(o => o.overseerId === overseerUserId && o.chatId === chatId).map(_.overseeId)
-    val addressIds = UsersTable.all.filter(user => user.userId.in(overseesUserIds) || user.userId === overseerUserId)
-      .join(AddressesTable.all).on(_.addressId === _.addressId).map(tp => (tp._2.addressId, tp._2.address))
-
-    db.run(addressIds.result)
-  }
-
-  /**
-    * A query that returns a SET of all emails a certain group of addressIds will be able to see
-    * @param chatId
-    * @param overseerAddressId
-    * @param overseenAddressIds
-    * @return
-    */
-  private def getEmailsAndAddressesQuery(chatId: Int, overseerAddressId: Int, overseenAddressIds: Seq[Int]) = {
-    val userAddressId = UsersTable.all.filter(_.userId === overseerAddressId).map(_.addressId)
-    val userAddress = AddressesTable.all.filter(_.addressId.in(userAddressId)).map(_.address)
-
-    val emailsQuery = for {
-      email <- EmailsTable.all.filter(_.chatId === chatId)
-      // Filter the drafts: (the user can only see chat's drafts if the user is sender (from)
-      fromAddressId <- EmailAddressesTable.all
-        .filter(ea => ea.emailId === email.emailId && ea.participantType === "from")
-        .map(_.addressId)
-      fromAddress <- AddressesTable.all.filter(_.addressId === fromAddressId).map(_.address)
-      if (email.sent === 0 && fromAddress.in(userAddress)) || email.sent === 1
-    } yield (email.emailId, email.body, email.date, email.sent)
-
-    val emailAddressesQuery = for {
-      emailId <- emailsQuery.map(_._1)
-      emailAddress <- EmailAddressesTable.all.filter(_.emailId === emailId)
-      address <- AddressesTable.all.filter(_.addressId === emailAddress.addressId)
-    } yield (emailAddress.emailId, emailAddress.participantType, address.address)
-
-    (emailsQuery, emailAddressesQuery)
-    // ( (emailId, body, date, sent), (emailId, participantType, address) )
-  }
-
-  /*** Emails ***/
-  private def processEmailsAndAddresses(chatId: Int, userId: Int): Future[(Seq[String], Seq[Email])] = {
-    /** User Address **/
-    /*
-    val userAddressIdQuery = UserChatsTable.all.filter(uc => uc.userId === userId && uc.chatId === chatId)
-      .join(UsersTable.all).on(_.userId === _.userId)
-      .map(_._2.addressId)
-    val userAddressQuery = AddressesTable.all.join(userAddressIdQuery).on(_.addressId === _.value).map(_._1.address)
-    //AddressesTable.all.filter(_.addressId.in(userAddressIdQuery)).map(_.address)
-    val userAddressResult = db.run(userAddressQuery.result.head)
-    /** Overseers **/
-    val overseesIdsQuery = OversightsTable.all.filter(o => o.overseerId === userId && o.chatId === chatId).map(_.overseeId)
-    val overseesAddressesQuery = UsersTable.all.filter(_.userId.in(overseesIdsQuery)).map(_.addressId)
-      .join(AddressesTable.all).on(_.value === _.addressId).map(_._2.address)
-    val overseesAddressesResult = db.run(overseesAddressesQuery.result)
-         */
-
-    /** All addresses **/
-    val res1 = getOverseerAdresses(userId, chatId)
-
-    /** All emails **/
-
-
-
-
-
-    /** Emails and Email Addresses **/
-    val (emailsQuery, emailAddressesQuery) = getEmailsAndAddressesQuery(chatId, userId)
-    /** Emails **/
-    val emailsResult = db.run(emailsQuery.result)
-    val groupedEmails = emailsResult.map(_.groupBy(_._1)) // group by email id
-    /** Email Addresses **/
-    val emailAddressesResult = db.run(emailAddressesQuery.result)
-    val emailAddressesPerEmail =
-      emailAddressesResult
-        .map(_.groupBy(_._1).mapValues(_.map(_._3)))
-    val emailAddressesPerEmailAndType =
-      emailAddressesResult
-        .map(_
-          .groupBy(emailAddress => (emailAddress._1, emailAddress._2))  //group by email ID and receiver type (from, to, bcc, cc)
-          .mapValues(_.map(_._3))   // Map: (emailId, receiverType) -> addresses
-        )
-    /** Chat Addresses **/
-    // All addresses that sent and received emails in this chat
-    val chatAddressesResult = emailAddressesResult.map(_.map(_._3).distinct)
-    /** Attachments **/
-    val attachmentsResult = db.run(getEmailsAttachmentsQuery(emailsQuery.map(_._1)).result)
-    val groupedAttachmentsResult =
-      attachmentsResult
-        .map(_
-          .groupBy(_._1)
-          .mapValues(_.map(_._2))
-        )
-
-
-    for {
-      chatAddresses <- chatAddressesResult
-      emails <- groupedEmails
-      addresses <- emailAddressesPerEmail
-      groupedAddresses <- emailAddressesPerEmailAndType
-      overseesAddresses <- overseesAddressesResult
-      userAddress <- userAddressResult
-      attachments <- groupedAttachmentsResult
-    } yield
-      (
-        chatAddresses,
-
-        mergeEmailsAddressesAttachments(
-          emails.filter{case (emailId, email) => filterAccessibleEmails(emailId, addresses.getOrElse(emailId, Seq()), overseesAddresses, userAddress)}
-            .flatMap{ case (emailId, email) => email}.toSeq,
-          groupedAddresses,
-          attachments
-        )
-      )
-  }
-
-  private def getEmailsAndAddressesQuery(chatId: Int, userId: Int) = {
-    val userAddressId = UsersTable.all.filter(_.userId === userId).map(_.addressId)
-    val userAddress = AddressesTable.all.filter(_.addressId.in(userAddressId)).map(_.address)
-
-    val emailsQuery = for {
-      email <- EmailsTable.all.filter(_.chatId === chatId)
-      // Filter the drafts: (the user can only see chat's drafts if the user is sender (from)
-      fromAddressId <- EmailAddressesTable.all
-        .filter(ea => ea.emailId === email.emailId && ea.participantType === "from")
-        .map(_.addressId)
-      fromAddress <- AddressesTable.all.filter(_.addressId === fromAddressId).map(_.address)
-      if (email.sent === 0 && fromAddress.in(userAddress)) || email.sent === 1
-    } yield (email.emailId, email.body, email.date, email.sent)
-
-    val emailAddressesQuery = for {
-      emailId <- emailsQuery.map(_._1)
-      emailAddress <- EmailAddressesTable.all.filter(_.emailId === emailId)
-      address <- AddressesTable.all.filter(_.addressId === emailAddress.addressId)
-    } yield (emailAddress.emailId, emailAddress.participantType, address.address)
-
-    (emailsQuery, emailAddressesQuery)
-    // ( (emailId, body, date, sent), (emailId, participantType, address) )
-  }
-
-  private def getEmailsAttachmentsQuery(emailsIds: Query[Rep[Int], Int, scala.Seq]) = {
-    AttachmentsTable.all
-      .filter(_.emailId in emailsIds)
-      .map(attachment => (attachment.emailId, attachment.attachmentId))
-    // (emailId, attachmentId)
-  }
-
-  private def mergeEmailsAddressesAttachments(emails: Seq[(Int, String, String, Int)],
-                                              addresses: Map[(Int, String), Seq[String]],
-                                              attachments: Map[Int, Seq[Int]]
-                                              ) = {
-
-    emails.map{
-      case (emailId, body, date, sent) =>
-        Email(
-          emailId,
-          addresses.getOrElse((emailId, "from"), Seq()).head,
-          addresses.getOrElse((emailId, "to"), Seq()),
-          addresses.getOrElse((emailId, "bcc"), Seq()),
-          addresses.getOrElse((emailId, "cc"), Seq()),
-          body,
-          date,
-          sent,
-          attachments.getOrElse(emailId, Seq())
-        )
-    }
-  }
-
-
-
-  private def filterAccessibleEmails(emailId: Int, addresses: Seq[String],
-                             oversees: Seq[String], userAddress: String) = {
-    oversees
-      .foldLeft(false){
-        case (acc, address) => acc || addresses.contains(address)
-      } ||
-      addresses.contains(userAddress)
-  }
-
-
-  /*** Overseers ***/
-
-  private def processOverseers(chatId: Int) = {
-    db.run(chatOverseersQuery(chatId).result)
-      .map(_
-          .groupBy(_._1) // group by user
-          .mapValues(_.map(_._2))
-          .toSeq
-          .map(Overseer.tupled)
-    )
-  }
-
-  private def chatOverseersQuery(chatId: Int) = {
-
-    for {
-      oversight <- OversightsTable.all.filter(_.chatId === chatId)
-
-      overseeAddressId <- UsersTable.all.filter(_.userId === oversight.overseeId).map(_.addressId)
-      overseeAddress <- AddressesTable.all.filter(_.addressId === overseeAddressId)
-        .map(_.address)
-
-      overseerAddressId <- UsersTable.all.filter(_.userId === oversight.overseerId).map(_.addressId)
-      overseerAddress <- AddressesTable.all.filter(_.addressId === overseerAddressId)
-        .map(_.address)
-    } yield (overseeAddress, overseerAddress)
   }
 }

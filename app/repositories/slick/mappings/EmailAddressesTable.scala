@@ -22,4 +22,8 @@ class EmailAddressesTable(tag: Tag) extends Table[EmailAddressRow](tag, "email_a
 object EmailAddressesTable {
   val all = TableQuery[EmailAddressesTable]
 
+  def getEmailFromAddressId(emailId: Rep[Int]): Query[Rep[Int], Int, scala.Seq] = {
+    all.filter(ea => ea.emailId === emailId && ea.participantType === "from").map(_.addressId)
+  }
+
 }

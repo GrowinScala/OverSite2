@@ -4,7 +4,7 @@ import javax.inject.Inject
 import model.dtos.ChatPreviewDTO
 import model.types.Mailbox
 import model.types.Mailbox._
-import model.dtos.{ChatDTO, EmailDTO, OverseersDTO}
+import model.dtos.{ ChatDTO, EmailDTO, OverseersDTO }
 import repositories.dtos.Chat
 import repositories.slick.implementations.SlickChatsRepository
 import repositories.ChatsRepository
@@ -28,7 +28,7 @@ class ChatService @Inject() (chatsRep: SlickChatsRepository) {
     chatsRep.getChat(chatId, userId).map(toChatDTO)
   }
 
-  def toChatDTO(chat: Chat) = {
+  private def toChatDTO(chat: Chat) = {
     ChatDTO(
       chat.chatId,
       chat.subject,
@@ -36,8 +36,7 @@ class ChatService @Inject() (chatsRep: SlickChatsRepository) {
       chat.overseers.map(overseer =>
         OverseersDTO(
           overseer.user,
-          overseer.overseers)
-      ),
+          overseer.overseers)),
       chat.emails.map(email =>
         EmailDTO(
           email.emailId,
@@ -48,10 +47,8 @@ class ChatService @Inject() (chatsRep: SlickChatsRepository) {
           email.body,
           email.date,
           intToBoolean(email.sent),
-          email.attachments)
-      ).sortBy(_.date)
-    )
+          email.attachments)).sortBy(_.date))
   }
-  def intToBoolean(i: Int): Boolean = if (i != 0) true else false
+  private def intToBoolean(i: Int): Boolean = if (i != 0) true else false
 
 }

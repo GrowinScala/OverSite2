@@ -15,4 +15,4 @@ DELETE  /address/:id             controllers.AddressController.deleteAddress(id 
 
 
 GET     /chats                   controllers.ChatController.getChats(mailbox: String ?= "inbox")
-GET     /chats/:id              controllers.ChatController.getChat(id : Int)
+GET     /chats/:id               controllers.ChatController.getChat(id : Int)
