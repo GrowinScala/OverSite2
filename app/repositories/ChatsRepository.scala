@@ -8,6 +8,4 @@ import scala.concurrent.Future
 
 trait ChatsRepository {
 
-
-
 }
