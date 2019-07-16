@@ -284,13 +284,13 @@ class SlickChatsRepository @Inject() (@NamedDatabase("oversitedb") protected val
    */
   private def getOverseersData(chatId: Int) = {
     val chatOverseersQuery = for {
-      oversight <- OversightsTable.all.filter(_.chatId === chatId)
+      (overseerId, overseeId) <- OversightsTable.all.filter(_.chatId === chatId).map(row => (row.overseerId, row.overseeId))
 
-      overseeAddressId <- UsersTable.all.filter(_.userId === oversight.overseeId).map(_.addressId)
+      overseeAddressId <- UsersTable.all.filter(_.userId === overseeId).map(_.addressId)
       overseeAddress <- AddressesTable.all.filter(_.addressId === overseeAddressId)
         .map(_.address)
 
-      overseerAddressId <- UsersTable.all.filter(_.userId === oversight.overseerId).map(_.addressId)
+      overseerAddressId <- UsersTable.all.filter(_.userId === overseerId).map(_.addressId)
       overseerAddress <- AddressesTable.all.filter(_.addressId === overseerAddressId)
         .map(_.address)
     } yield (overseeAddress, overseerAddress)
