@@ -1,7 +1,7 @@
 package controllers
 
 import javax.inject._
-import model.dtos.ChatPreviewDTO
+import model.dtos.ChatsPreviewDTO
 import play.api.mvc._
 import play.api.libs.json.{ JsError, JsValue, Json, OFormat }
 import services.{ AddressService, ChatService }
@@ -14,7 +14,7 @@ import model.types.Mailbox
 class ChatController @Inject() (cc: ControllerComponents, chatService: ChatService)
   extends AbstractController(cc) {
 
-  val user = 3
+  val user = 2
 
   def getChats(mailboxString: String): Action[AnyContent] = {
     val mailbox = Mailbox(mailboxString)
@@ -22,13 +22,5 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
       chatService.getChats(mailbox, user).map(seq => Ok(Json.toJson(seq)))
     }
   }
-
-  /*	def getChats (mailbox: String) : Action[AnyContent] =
-		Action.async { chatService.getChats(mailbox).map{array =>
-			if(array.isEmpty) Ok(Json.toJson(array))
-			else NotFound
-		}
-		}
-	*/
 
 }

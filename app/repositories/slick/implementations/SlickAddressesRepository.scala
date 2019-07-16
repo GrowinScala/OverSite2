@@ -1,8 +1,6 @@
 package repositories.slick.implementations
 
 import javax.inject.Inject
-import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
-import play.db.NamedDatabase
 import repositories.AddressesRepository
 import repositories.dtos.Address
 import repositories.slick.mappings.{ AddressRow, AddressesTable }
@@ -11,9 +9,10 @@ import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-class SlickAddressesRepository @Inject() (@NamedDatabase("example") protected val dbConfigProvider: DatabaseConfigProvider)(implicit executionContext: ExecutionContext)
-  extends AddressesRepository with HasDatabaseConfigProvider[JdbcProfile] {
+class SlickAddressesRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
+  extends AddressesRepository {
 
+ 
 /******* Queries here **********/
 
   def insert(address: String): Future[Int] = db.run(AddressesTable.all returning AddressesTable.all.map(_.addressId) +=

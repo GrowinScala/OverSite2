@@ -7,6 +7,6 @@ import scala.concurrent.Future
 
 trait ChatsRepository {
 
-  def getChatPreview(mailbox: Mailbox, user: Int): Future[Seq[ChatPreview]]
+  def getChatsPreview(mailbox: Mailbox, user: Int): Future[Seq[ChatPreview]]
 
 }
