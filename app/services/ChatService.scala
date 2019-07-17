@@ -10,7 +10,7 @@ import repositories.ChatsRepository
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-// Put the implementation here instead of the Trait because we're leaving injection for later
+
 class ChatService @Inject() (chatsRep: ChatsRepository) {
 
   def getChats(mailbox: Mailbox, user: Int): Future[Seq[ChatsPreviewDTO]] = {
