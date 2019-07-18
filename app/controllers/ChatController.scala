@@ -17,18 +17,17 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
 
   def getChat(id: Int): Action[AnyContent] =
     Action.async {
-      // TODO Hard-coded userId = 1
-      val userId = 1
+      val userId = 4
 
-      chatService.getChat(id, userId).map { emailDTO =>
-        Ok(Json.toJson(emailDTO))
+      chatService.getChat(id, userId).map {
+        case Some(chat) => Ok(Json.toJson(chat))
+        case None => NotFound
       }
     }
 
-  val user = 2
-
   def getChats(mailboxString: String): Action[AnyContent] = {
     val mailbox = Mailbox(mailboxString)
+    val user = 2
     Action.async {
       chatService.getChats(mailbox, user).map(seq => Ok(Json.toJson(seq)))
     }

@@ -6,7 +6,9 @@ import repositories.dtos.{ Chat, ChatPreview }
 import scala.concurrent.Future
 
 trait ChatsRepository {
-  def getChat(chatId: Int, userId: Int): Future[Chat]
 
-  def getChatPreview(mailbox: Mailbox, user: Int): Future[Seq[ChatPreview]]
+  def getChatsPreview(mailbox: Mailbox, user: Int): Future[Seq[ChatPreview]]
+
+  def getChat(chatId: Int, userId: Int): Future[Option[Chat]]
+
 }

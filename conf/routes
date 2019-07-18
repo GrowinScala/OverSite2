@@ -11,8 +11,10 @@ POST    /address                 controllers.AddressController.postAddress()
 DELETE  /address/:id             controllers.AddressController.deleteAddress(id : Int)
 
 
-#{ "address" : "xxx@mail.com" }
 
 
 GET     /chats                   controllers.ChatController.getChats(mailbox: String ?= "inbox")
+
 GET     /chats/:id               controllers.ChatController.getChat(id : Int)
+
+
