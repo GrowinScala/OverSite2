@@ -12,7 +12,6 @@ import scala.concurrent.{ ExecutionContext, Future }
 class SlickAddressesRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
   extends AddressesRepository {
 
- 
 /******* Queries here **********/
 
   def insert(address: String): Future[Int] = db.run(AddressesTable.all returning AddressesTable.all.map(_.addressId) +=

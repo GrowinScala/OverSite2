@@ -12,44 +12,45 @@ import repositories.ChatsRepository
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-
 class ChatService @Inject() (chatsRep: ChatsRepository) {
 
-  def getChats(mailbox: Mailbox, user: Int): Future[Seq[ChatsPreviewDTO]] = {
+  def getChats(mailbox: Mailbox, user: Int): Future[Seq[ChatPreviewDTO]] = {
     val chatsPreview = chatsRep.getChatsPreview(mailbox, user)
 
     chatsPreview.map(_.map(chatPreview =>
-      ChatsPreviewDTO(chatPreview.chatId, chatPreview.subject, chatPreview.lastAddress, chatPreview.lastEmailDate,
+      ChatPreviewDTO(chatPreview.chatId, chatPreview.subject, chatPreview.lastAddress, chatPreview.lastEmailDate,
         chatPreview.contentPreview)))
 
   }
 
-
-
-  def getChat(chatId: Int, userId: Int): Future[ChatDTO] = {
+  def getChat(chatId: Int, userId: Int): Future[Option[ChatDTO]] = {
     chatsRep.getChat(chatId, userId).map(toChatDTO)
   }
 
-  private def toChatDTO(chat: Chat) = {
-    ChatDTO(
-      chat.chatId,
-      chat.subject,
-      chat.addresses,
-      chat.overseers.map(overseer =>
-        OverseersDTO(
-          overseer.user,
-          overseer.overseers)),
-      chat.emails.map(email =>
-        EmailDTO(
-          email.emailId,
-          email.from,
-          email.to,
-          email.bcc,
-          email.cc,
-          email.body,
-          email.date,
-          intToBoolean(email.sent),
-          email.attachments)).sortBy(_.date))
+  private def toChatDTO(optionChat: Option[Chat]) = {
+    optionChat.map {
+      chat =>
+        ChatDTO(
+          chat.chatId,
+          chat.subject,
+          chat.addresses,
+          chat.overseers.map(overseer =>
+            OverseersDTO(
+              overseer.user,
+              overseer.overseers)),
+          chat.emails.map(email =>
+            EmailDTO(
+              email.emailId,
+              email.from,
+              email.to,
+              email.bcc,
+              email.cc,
+              email.body,
+              email.date,
+              intToBoolean(email.sent),
+              email.attachments)).sortBy(_.date))
+    }
+
   }
   private def intToBoolean(i: Int): Boolean = if (i != 0) true else false
 
