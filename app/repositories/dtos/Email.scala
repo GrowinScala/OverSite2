@@ -6,7 +6,12 @@ package repositories.dtos
 We use a negative number because we would get an error if this default value
 were to be accepted*/
 
-case class Email(emailId: Int = -1, fromAddressId: Int, chatId: Int, body: String, date: String, sent: Int)
+//case class Email (emailId : Int = -1, fromAddress : String, chatId : Int, body : String, date : String, sent: Int)
+
+case class Email(emailId: Int, from: String, to: Seq[String], bcc: Seq[String],
+  cc: Seq[String], body: String, date: String, sent: Int, attachments: Seq[Int])
+
+//TODO Attachments missing
 
 /*
 implicit val dateColumnType: BaseColumnType[Date] = MappedColumnType.base[Date, Timestamp](dateToTimestamp, timestampToDate)
