@@ -12,17 +12,19 @@ import repositories.ChatsRepository
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-// Put the implementation here instead of the Trait because we're leaving injection for later
-class ChatService @Inject() (chatsRep: SlickChatsRepository) {
 
-  def getChats(mailbox: Mailbox, user: Int): Future[Seq[ChatPreviewDTO]] = {
-    val chatPreview = chatsRep.getChatPreview(mailbox, user)
+class ChatService @Inject() (chatsRep: ChatsRepository) {
 
-    chatPreview.map(_.map(chatPreview =>
-      ChatPreviewDTO(chatPreview.chatId, chatPreview.subject, chatPreview.lastAddress, chatPreview.lastEmailDate,
+  def getChats(mailbox: Mailbox, user: Int): Future[Seq[ChatsPreviewDTO]] = {
+    val chatsPreview = chatsRep.getChatsPreview(mailbox, user)
+
+    chatsPreview.map(_.map(chatPreview =>
+      ChatsPreviewDTO(chatPreview.chatId, chatPreview.subject, chatPreview.lastAddress, chatPreview.lastEmailDate,
         chatPreview.contentPreview)))
 
   }
+
+
 
   def getChat(chatId: Int, userId: Int): Future[ChatDTO] = {
     chatsRep.getChat(chatId, userId).map(toChatDTO)

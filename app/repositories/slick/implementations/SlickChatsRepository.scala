@@ -3,8 +3,6 @@ package repositories.slick.implementations
 import javax.inject.Inject
 import model.types.Mailbox
 import model.types.Mailbox._
-import play.api.db.slick.{ DatabaseConfigProvider, HasDatabaseConfigProvider }
-import play.db.NamedDatabase
 import repositories.ChatsRepository
 import repositories.slick.mappings._
 import repositories.dtos.{ Chat, Email, Overseer, ChatPreview }
@@ -14,15 +12,82 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future }
 
-class SlickChatsRepository @Inject() (@NamedDatabase("oversitedb") protected val dbConfigProvider: DatabaseConfigProvider)(implicit executionContext: ExecutionContext)
-  extends ChatsRepository with HasDatabaseConfigProvider[JdbcProfile] {
+class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
+  extends ChatsRepository {
 
   val PREVIEW_BODY_LENGTH: Int = 30
+/******* Queries here **********/
 
-/*** Get Chat Preview ***/
-  def getChatPreview(mailbox: Mailbox, userId: Int): Future[Seq[ChatPreview]] = {
-    val baseQuery = getChatsMetadataQueryByUserId(userId, Some(mailbox))
+  /*	def test   =  */
 
+  def getChatsPreview(mailbox: Mailbox, userId: Int): Future[Seq[ChatPreview]] = {
+    //This query returns a User, returns all of its chats and for EACH chat, all of its emails
+    // and for each email, all of it's participants
+    val baseQuery = for {
+      chatId <- UserChatsTable.all.filter(userChatRow =>
+        userChatRow.userId === userId &&
+          (mailbox match {
+            case Inbox => userChatRow.inbox === 1
+            case Sent => userChatRow.sent === 1
+            case Trash => userChatRow.trash === 1
+            case Draft => userChatRow.draft === 1
+          })).map(_.chatId)
+
+      (emailId, date, sent) <- EmailsTable.all.filter(_.chatId === chatId).map(
+        emailRow => (emailRow.emailId, emailRow.date, emailRow.sent))
+
+      (addressId, participantType) <- EmailAddressesTable.all.filter(_.emailId === emailId)
+        .map(emailAddressRow =>
+          (emailAddressRow.addressId, emailAddressRow.participantType))
+
+    } yield (chatId, emailId, date, sent, addressId, participantType)
+
+    val overseesEmailIdQuery = for {
+      (oversightChatId, overseeId) <- OversightsTable.all.filter(_.overseerId === userId)
+        .map(oversightRow => (oversightRow.chatId, oversightRow.overseeId))
+      overseeAddressId <- UsersTable.all.filter(_.userId === overseeId).map(_.addressId)
+      emailId <- EmailAddressesTable.all.filter(_.addressId === overseeAddressId).map(_.emailId)
+      _ <- EmailsTable.all.filter(emailRow => emailRow.emailId === emailId && emailRow.chatId === oversightChatId)
+    } yield emailId
+
+    val filteredQuery = for {
+      userAddressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
+
+      (chatId, date) <- baseQuery.filter {
+        case (chatId, emailId, date, sent, addressId, participantType) =>
+          (addressId === userAddressId || emailId.in(overseesEmailIdQuery)) &&
+            (sent === 1 || (participantType === "from" && addressId === userAddressId))
+      }
+        .map(filteredRow => (filteredRow._1, filteredRow._3))
+
+    } yield (chatId, date)
+
+    val groupedQuery = filteredQuery.groupBy(_._1).map { case (chatId, date) => (chatId, date.map(_._2).max) }
+
+    val chatPreviewQuery = for {
+      (chatId, date) <- groupedQuery
+      subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
+      (emailId, body) <- EmailsTable.all.filter(emailRow =>
+        emailRow.chatId === chatId && emailRow.date === date).map(emailRow =>
+        (emailRow.emailId, emailRow.body.take(PREVIEW_BODY_LENGTH)))
+      addressId <- EmailAddressesTable.all.filter(emailAddressRow =>
+        emailAddressRow.emailId === emailId && emailAddressRow.participantType === "from")
+        .map(_.addressId)
+      address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
+    } yield (chatId, subject, address, date, body)
+
+    val resultOption = db.run(chatPreviewQuery.sortBy(_._1.desc).result)
+
+    val result = resultOption.map(_.map {
+      case (chatId, subject, address, dateOption, body) =>
+        (chatId, subject, address, dateOption.getOrElse("Missing Date"), body)
+    })
+
+    result.map(_.map(ChatPreview.tupled))
+
+  }
+
+}
     /*
     val overseesAddressIdQuery = UsersTable.all
       .join(OversightsTable.all)
