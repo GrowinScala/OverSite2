@@ -15,7 +15,7 @@ import services.ChatService
 
 class ControllersSpec extends PlaySpec with Results {
 	
-/*	private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
+	private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
 	private lazy val injector: Injector = appBuilder.injector()
 	private val cc: ControllerComponents = Helpers.stubControllerComponents()
 	private val chatService = injector.instanceOf[ChatService]
@@ -24,12 +24,11 @@ class ControllersSpec extends PlaySpec with Results {
 	"ChatController#getChats" should {
 		"be valid in" in {
 			val controller = new ChatController(cc, chatService)
-			val result: Future[Result] = controller.getChats().apply(FakeRequest())
+			val result: Future[Result] = controller.getChats("Inbox").apply(FakeRequest())
 			val bodyText: String = contentAsString(result)
 			bodyText mustBe "ok"
 		}
 	}
-	*/
 	
 
 	}

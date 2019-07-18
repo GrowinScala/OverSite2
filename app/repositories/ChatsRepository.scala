@@ -9,6 +9,6 @@ trait ChatsRepository {
 
   def getChatsPreview(mailbox: Mailbox, user: Int): Future[Seq[ChatPreview]]
 
-  def getChat(chatId: Int, userId: Int): Future[Chat]
-	
+  def getChat(chatId: Int, userId: Int): Future[Option[Chat]]
+
 }
