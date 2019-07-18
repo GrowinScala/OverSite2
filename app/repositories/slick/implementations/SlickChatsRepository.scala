@@ -17,7 +17,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   val PREVIEW_BODY_LENGTH: Int = 30
 
-  
 /*** Shared auxiliary methods: ***/
 
   /**
