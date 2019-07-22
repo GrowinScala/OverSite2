@@ -10,6 +10,7 @@ import services.{ AddressService, ChatService, ChatServiceImpl }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import model.types.Mailbox
+import validations.CategoryNames
 
 @Singleton
 class ChatController @Inject() (cc: ControllerComponents, chatService: ChatService)
@@ -27,7 +28,7 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
 
   def getChats(mailboxString: String): Action[AnyContent] = {
     Action.async {
-      if (List("inbox", "sent", "trash", "drafts").contains(mailboxString)) {
+      if (CategoryNames.validMailboxes.contains(mailboxString)) {
         val mailbox = Mailbox(mailboxString)
         val user = 2
         chatService.getChats(mailbox, user).map(seq => Ok(Json.toJson(seq)))

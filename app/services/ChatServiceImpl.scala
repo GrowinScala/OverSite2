@@ -20,7 +20,6 @@ class ChatServiceImpl @Inject() (chatsRep: ChatsRepository) extends ChatService 
     chatsPreview.map(_.map(chatPreview =>
       ChatPreviewDTO(chatPreview.chatId, chatPreview.subject, chatPreview.lastAddress, chatPreview.lastEmailDate,
         chatPreview.contentPreview)))
-
   }
 
   def getChat(chatId: Int, userId: Int): Future[Option[ChatDTO]] = {
@@ -52,6 +51,6 @@ class ChatServiceImpl @Inject() (chatsRep: ChatsRepository) extends ChatService 
     }
 
   }
-  private def intToBoolean(i: Int): Boolean = if (i != 0) true else false
+  private def intToBoolean(i: Int): Boolean = i != 0
 
 }
