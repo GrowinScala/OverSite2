@@ -65,4 +65,24 @@ class ChatControllerSpec extends PlaySpec with Results {
     }
   }
 
+  "ChatController#getChat" should {
+    "return Json for ChatDTO" in {
+      val controller = new ChatController(cc, chatService)
+      val result: Future[Result] = controller.getChat(1).apply(FakeRequest())
+      val expectedResult =
+        """{"chatId": 1,"subject": "Subject","addresses": ["address1", "address2"],
+          |"overseers":[{"user": "address1","overseers": ["address3"]}],"emails": [{"emailId": 1,"from":"address1","to":
+          |["address2"],"bcc":[],"cc": [],"body": "This is the body","date":"2019-07-19 10:00:00","sent":
+          |true,"attachments": [1]}]}""".stripMargin
+      result.map(_ mustBe Ok(expectedResult))
+    }
+  }
+
+  "ChatController#getChat" should {
+    "return NotFound" in {
+      val controller = new ChatController(cc, chatService)
+      val result: Future[Result] = controller.getChat(1).apply(FakeRequest())
+      result.map(_ mustBe NotFound)
+    }
+  }
 }

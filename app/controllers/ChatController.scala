@@ -17,7 +17,7 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
 
   def getChat(id: Int): Action[AnyContent] =
     Action.async {
-      val userId = 4
+      val userId = -1
 
       chatService.getChat(id, userId).map {
         case Some(chat) => Ok(Json.toJson(chat))
