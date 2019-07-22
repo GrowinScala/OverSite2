@@ -10,13 +10,14 @@ object Mailbox {
 
   case object Trash extends Mailbox("trash")
 
-  case object Draft extends Mailbox("drafts")
+  case object Drafts extends Mailbox("drafts")
 
   def apply(s: String): Mailbox = s.toLowerCase match {
     case Inbox.value => Inbox
     case Sent.value => Sent
     case Trash.value => Trash
-    case Draft.value => Draft
+    case Drafts.value => Drafts
 
   }
 }
+
