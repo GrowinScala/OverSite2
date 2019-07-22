@@ -1,8 +1,7 @@
-package scala.services
+package services
 
 import model.dtos.{ ChatDTO, ChatPreviewDTO, EmailDTO, OverseersDTO }
 import model.types.Mailbox
-import services.ChatService
 
 import scala.concurrent.{ ExecutionContext, Future }
 
