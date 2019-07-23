@@ -113,7 +113,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
     } yield (chatId, subject, address, date, body)
 
-    val resultOption = db.run(chatPreviewQuery.sortBy(_._1.desc).result)
+    val resultOption = db.run(chatPreviewQuery.sortBy(_._4.desc).result)
 
     val result = resultOption.map(_.map {
       case (chatId, subject, address, dateOption, body) =>

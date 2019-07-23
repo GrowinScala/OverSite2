@@ -1,8 +1,7 @@
 import com.google.inject.AbstractModule
-import com.google.inject.name.Names
 import repositories.ChatsRepository
 import repositories.slick.implementations.SlickChatsRepository
-import services.{ ChatService, ChatServiceImpl }
+import services.ChatService
 import slick.jdbc.MySQLProfile.api._
 import utils.DatabaseUtils.DEFAULT_DB
 
@@ -13,13 +12,11 @@ class Module extends AbstractModule {
 
     implicit val ec: ExecutionContextExecutor = ExecutionContext.global
     val chatsRep = new SlickChatsRepository(DEFAULT_DB)
-    val chatServ = new ChatServiceImpl(chatsRep)
+    val chatServ = new ChatService(chatsRep)
 
     bind(classOf[Database]).toInstance(DEFAULT_DB)
 
     bind(classOf[ChatsRepository]).toInstance(chatsRep)
-
-    bind(classOf[ChatService]).toInstance(chatServ)
 
   }
 }
