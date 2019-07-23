@@ -6,7 +6,7 @@ case class UserRow(userId: Int, addressId: Int, firstName: String, lastName: Str
 
 class UsersTable(tag: Tag) extends Table[UserRow](tag, "users") {
   // Columns
-  def userId = column[Int]("user_id", O.PrimaryKey)
+  def userId = column[Int]("user_id", O.PrimaryKey, O.AutoInc)
   def addressId = column[Int]("address_id")
   def firstName = column[String]("first_name")
   def lastName = column[String]("last_name")

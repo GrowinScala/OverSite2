@@ -1,8 +1,10 @@
 package repositories.slick.implementations
 
+import model.types.Mailbox.{ Drafts, Inbox }
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
+import repositories.dtos.ChatPreview
 import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
 
@@ -27,11 +29,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       EmailAddressesTable.all.schema.create,
       UserChatsTable.all.schema.create,
       OversightsTable.all.schema.create,
-      AttachmentsTable.all.schema.create)), Duration.Inf)
-  }
-
-  override def beforeEach(): Unit = {
-    Await.result(db.run(DBIO.seq(
+      AttachmentsTable.all.schema.create,
       AddressesTable.all ++= Seq(
         AddressRow(1, "beatriz@mail.com"),
         AddressRow(2, "joao@mail.com"),
@@ -186,17 +184,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         OversightRow(8, 3, 4, 1)))), Duration.Inf)
   }
 
-  override def afterEach(): Unit = {
-    Await.result(db.run(DBIO.seq(
-      AddressesTable.all.delete,
-      UsersTable.all.delete,
-      ChatsTable.all.delete,
-      EmailsTable.all.delete,
-      EmailAddressesTable.all.delete,
-      UserChatsTable.all.delete,
-      OversightsTable.all.delete,
-      AttachmentsTable.all.delete)), Duration.Inf)
-  }
+  override def beforeEach(): Unit = {}
+
+  override def afterEach(): Unit = {}
 
   override def afterAll(): Unit = {
     Await.result(db.run(DBIO.seq(
@@ -211,8 +201,91 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
   }
   //endregion
 
+  //region getChatsPreview tests
+  "SlickChatsRepository#getChatsPreview" should {
+    "be valid for User: 1 Mailbox: Inbox" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chatsPreview = chatsRep.getChatsPreview(Inbox, 1)
+
+      chatsPreview.map(_ mustBe Seq(
+        ChatPreview(3, "Vencimento", "beatriz@mail.com", "2019-06-27 11:04:00", "Okay, obrigada!"),
+        ChatPreview(2, "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
+        ChatPreview(1, "Projeto Oversite2", "beatriz@mail.com", "2019-06-17 10:05:00", "Estou a chegar!")))
+    }
+  }
+
+  "SlickChatsRepository#getChatsPreview" should {
+    "be valid for User: 2 Mailbox: Inbox" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chatsPreview = chatsRep.getChatsPreview(Inbox, 2)
+
+      chatsPreview.map(_ mustBe Seq(
+        ChatPreview(3, "Vencimento", "joao@mail.com", "2019-06-27 11:01:00", "Sim!"),
+        ChatPreview(2, "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
+        ChatPreview(1, "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:02:00", "Scrum room")))
+    }
+  }
+
+  "SlickChatsRepository#getChatsPreview" should {
+    "be valid for User: 3 Mailbox: Inbox" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chatsPreview = chatsRep.getChatsPreview(Inbox, 3)
+
+      chatsPreview.map(_ mustBe Seq(
+        ChatPreview(3, "Vencimento", "joana@mail.com", "2019-06-27 11:03:00", "Já vou resolver o assunto!"),
+        ChatPreview(2, "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
+        ChatPreview(1, "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema.")))
+    }
+  }
+
+  "SlickChatsRepository#getChatsPreview" should {
+    "be valid for User: 4 Mailbox: Inbox" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chatsPreview = chatsRep.getChatsPreview(Inbox, 4)
+
+      chatsPreview.map(_ mustBe Seq(
+        ChatPreview(3, "Vencimento", "joana@mail.com", "2019-06-27 11:03:00", "Já vou resolver o assunto!"),
+        ChatPreview(2, "Laser Tag Quarta-feira", "pedrol@mail.com", "2019-06-19 11:05:00", "Também vou!"),
+        ChatPreview(1, "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema.")))
+    }
+  }
+
+  "SlickChatsRepository#getChatsPreview" should {
+    "be valid for User: 5 Mailbox: Inbox" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chatsPreview = chatsRep.getChatsPreview(Inbox, 5)
+
+      chatsPreview.map(_ mustBe Seq(
+        ChatPreview(2, "Laser Tag Quarta-feira", "pedroc@mail.com", "2019-06-19 11:06:00", "Talvez vá"),
+        ChatPreview(1, "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema.")))
+    }
+  }
+
+  "SlickChatsRepository#getChatsPreview" should {
+    "be valid for User: 6 Mailbox: Inbox" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chatsPreview = chatsRep.getChatsPreview(Inbox, 6)
+
+      chatsPreview.map(_ mustBe Seq(
+        ChatPreview(2, "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
+        ChatPreview(1, "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema.")))
+    }
+  }
+
+  "SlickChatsRepository#getChatsPreview" should {
+    "be valid for User: 5 Mailbox: Drafts" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chatsPreview = chatsRep.getChatsPreview(Drafts, 5)
+
+      chatsPreview.map(_ mustBe Seq(
+        ChatPreview(2, "Laser Tag Quarta-feira", "pedroc@mail.com", "2019-06-19 11:06:00", "Talvez vá")))
+    }
+  }
+  //endregion
+
   "SlickChatsRepository#getChatData" should {
     "return Id and Subject" in {
+
       val chatsRep = new SlickChatsRepository(db)
       val chatData = chatsRep.getChatData(1)
 

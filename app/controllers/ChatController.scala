@@ -1,11 +1,9 @@
 package controllers
 
 import javax.inject._
-import model.dtos.{ AddressDTO, ChatDTO, EmailDTO, OverseersDTO }
-import model.dtos.ChatPreviewDTO
 import play.api.mvc._
-import play.api.libs.json.{ JsError, JsValue, Json, OFormat }
-import services.{ AddressService, ChatService, ChatServiceImpl }
+import play.api.libs.json.Json
+import services.ChatService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -18,7 +16,7 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
 
   def getChat(id: Int): Action[AnyContent] =
     Action.async {
-      val userId = 4
+      val userId = 5
 
       chatService.getChat(id, userId).map {
         case Some(chat) => Ok(Json.toJson(chat))
@@ -30,7 +28,7 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
     Action.async {
       if (CategoryNames.validMailboxes.contains(mailboxString)) {
         val mailbox = Mailbox(mailboxString)
-        val user = 2
+        val user = 0
         chatService.getChats(mailbox, user).map(seq => Ok(Json.toJson(seq)))
       } else Future.successful(NotFound)
     }
