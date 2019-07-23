@@ -18,7 +18,5 @@ class Module extends AbstractModule {
 
     bind(classOf[ChatsRepository]).toInstance(chatsRep)
 
-    bind(classOf[ChatService]).toInstance(chatServ)
-
   }
 }

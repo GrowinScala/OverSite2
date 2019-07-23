@@ -28,7 +28,7 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
     Action.async {
       if (CategoryNames.validMailboxes.contains(mailboxString)) {
         val mailbox = Mailbox(mailboxString)
-        val user = 0
+        val user = 1
         chatService.getChats(mailbox, user).map(seq => Ok(Json.toJson(seq)))
       } else Future.successful(NotFound)
     }

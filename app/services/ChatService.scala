@@ -12,10 +12,10 @@ import repositories.ChatsRepository
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class ChatService @Inject()(chatsRep: ChatsRepository) {
+class ChatService @Inject() (chatsRep: ChatsRepository) {
 
   def getChats(mailbox: Mailbox, user: Int): Future[Seq[ChatPreviewDTO]] = {
-    
+
     val chatsPreview = chatsRep.getChatsPreview(mailbox, user)
 
     chatsPreview.map(_.map(chatPreview =>
