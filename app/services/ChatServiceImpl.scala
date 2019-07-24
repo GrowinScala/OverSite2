@@ -23,34 +23,6 @@ class ChatServiceImpl @Inject() (chatsRep: ChatsRepository) extends ChatService 
   }
 
   def getChat(chatId: Int, userId: Int): Future[Option[ChatDTO]] = {
-    chatsRep.getChat(chatId, userId).map(toChatDTO)
+    chatsRep.getChat(chatId, userId).map(ChatDTO.toChatDTO)
   }
-
-  private def toChatDTO(optionChat: Option[Chat]) = {
-    optionChat.map {
-      chat =>
-        ChatDTO(
-          chat.chatId,
-          chat.subject,
-          chat.addresses,
-          chat.overseers.map(overseer =>
-            OverseersDTO(
-              overseer.user,
-              overseer.overseers)),
-          chat.emails.map(email =>
-            EmailDTO(
-              email.emailId,
-              email.from,
-              email.to,
-              email.bcc,
-              email.cc,
-              email.body,
-              email.date,
-              intToBoolean(email.sent),
-              email.attachments)).sortBy(_.date))
-    }
-
-  }
-  private def intToBoolean(i: Int): Boolean = i != 0
-
 }
