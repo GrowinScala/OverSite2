@@ -5,7 +5,7 @@ import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
-import repositories.dtos.{ Chat, Email, Overseer, ChatPreview }
+import repositories.dtos._
 import slick.jdbc.JdbcProfile
 import slick.jdbc.MySQLProfile.api._
 
@@ -341,7 +341,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .groupBy(_._1) // group by user
         .mapValues(_.map(_._2))
         .toSeq
-        .map(Overseer.tupled))
+        .map(Overseers.tupled))
   }
   //endregion
 

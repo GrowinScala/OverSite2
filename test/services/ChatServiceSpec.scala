@@ -7,7 +7,7 @@ import org.mockito.Mockito.when
 import org.scalatest.{ AsyncWordSpec, MustMatchers }
 import org.scalatest.mockito.MockitoSugar._
 import repositories.ChatsRepository
-import repositories.dtos.{ Chat, ChatPreview, Email, Overseer }
+import repositories.dtos._
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 
@@ -35,7 +35,7 @@ class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
           Some(
             Chat(
               1, "Subject", Seq("address1", "address2"),
-              Seq(Overseer("address1", Seq("address3"))),
+              Seq(Overseers("address1", Seq("address3"))),
               Seq(Email(1, "address1", Seq("address2"), Seq(), Seq(),
                 "This is the body", "2019-07-19 10:00:00", 1, Seq(1)))))))
 

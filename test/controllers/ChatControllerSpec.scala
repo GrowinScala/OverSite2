@@ -1,6 +1,6 @@
 package controllers
 
-import model.dtos.ChatPreviewDTO
+import model.dtos.{ ChatDTO, ChatPreviewDTO, EmailDTO, OverseersDTO }
 import model.types.Mailbox._
 import org.scalatest.mockito.MockitoSugar._
 import org.scalatestplus.play._
@@ -13,6 +13,7 @@ import play.api.test._
 import services.{ ChatService, FakeChatService }
 import org.mockito.Mockito.when
 import org.mockito.ArgumentMatchersSugar._
+import repositories.dtos.{ Chat, Email, Overseers }
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 import scala.util.Random
@@ -90,6 +91,13 @@ class ChatControllerSpec extends PlaySpec with Results {
 
   "ChatController#getChat" should {
     "return Json for ChatDTO" in {
+      val mockChatService = mock[ChatService]
+      when(mockChatService.getChat(anyInt, anyInt))
+        .thenReturn(Future.successful(
+          Some(
+            ChatDTO(
+              1, "Subject", Seq("address1", "address2"), Seq(OverseersDTO("address1", Seq("address3"))),
+              Seq(EmailDTO(1, "address1", Seq("address2"), Seq(), Seq(), "This is the body", "2019-07-19 10:00:00", true, Seq(1)))))))
       val controller = new ChatController(cc, chatService)
       val result: Future[Result] = controller.getChat(1).apply(FakeRequest())
       val expectedResult =
@@ -103,6 +111,9 @@ class ChatControllerSpec extends PlaySpec with Results {
 
   "ChatController#getChat" should {
     "return NotFound" in {
+      val mockChatService = mock[ChatService]
+      when(mockChatService.getChat(anyInt, anyInt))
+        .thenReturn(Future.successful(None))
       val controller = new ChatController(cc, chatService)
       val result: Future[Result] = controller.getChat(1).apply(FakeRequest())
       result.map(_ mustBe NotFound)
