@@ -3,7 +3,8 @@ package repositories.slick.implementations
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
-import repositories.slick.mappings._
+import repositories.dtos.{ Chat, Email, Overseers }
+import repositories.slick.mappings.{ EmailRow, _ }
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.duration.Duration
@@ -27,11 +28,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       EmailAddressesTable.all.schema.create,
       UserChatsTable.all.schema.create,
       OversightsTable.all.schema.create,
-      AttachmentsTable.all.schema.create)), Duration.Inf)
-  }
+      AttachmentsTable.all.schema.create,
 
-  override def beforeEach(): Unit = {
-    Await.result(db.run(DBIO.seq(
       AddressesTable.all ++= Seq(
         AddressRow(1, "beatriz@mail.com"),
         AddressRow(2, "joao@mail.com"),
@@ -44,6 +42,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         AddressRow(9, "ivo@mail.com"),
         AddressRow(10, "joana@mail.com"),
         AddressRow(11, "daniel@mail.com")),
+
       UsersTable.all ++= Seq(
         UserRow(1, 1, "Beatriz", "Santos"),
         UserRow(2, 2, "João", "Simões"),
@@ -51,10 +50,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         UserRow(4, 4, "Pedro", "Luís"),
         UserRow(5, 5, "Pedro", "Correia"),
         UserRow(6, 6, "Rui", "Valente")),
+
       ChatsTable.all ++= Seq(
         ChatRow(1, "Projeto Oversite2"),
         ChatRow(2, "Laser Tag Quarta-feira"),
-        ChatRow(3, "Vencimento")),
+        ChatRow(3, "Vencimento"),
+        ChatRow(4, "Location")),
+
       EmailsTable.all ++= Seq(
         EmailRow(1, 1, "Olá Beatriz e João! Vamos começar o projeto.", "2019-06-17 10:00:00", 1),
         EmailRow(2, 1, "Okay! Onde nos reunimos?", "2019-06-17 10:01:00", 1),
@@ -73,7 +75,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         EmailRow(15, 3, "Sim!", "2019-06-27 11:01:00", 1),
         EmailRow(16, 3, "Não...", "2019-06-27 11:02:00", 1),
         EmailRow(17, 3, "Já vou resolver o assunto!", "2019-06-27 11:03:00", 1),
-        EmailRow(18, 3, "Okay, obrigada!", "2019-06-27 11:04:00", 0)),
+        EmailRow(18, 3, "Okay, obrigada!", "2019-06-27 11:04:00", 0),
+        EmailRow(19, 4, "Where are you?", "2019-06-17 10:00:00", 1),
+        EmailRow(20, 4, "Here", "2019-06-17 10:05:00", 0)),
+
       EmailAddressesTable.all ++= Seq(
         EmailAddressRow(1, 1, 1, 3, "from"),
         EmailAddressRow(2, 1, 1, 1, "to"),
@@ -151,13 +156,23 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         EmailAddressRow(74, 17, 3, 10, "from"),
         EmailAddressRow(75, 17, 3, 1, "to"),
         EmailAddressRow(76, 18, 3, 1, "from"),
-        EmailAddressRow(77, 18, 3, 10, "to")),
+        EmailAddressRow(77, 18, 3, 10, "to"),
+
+        EmailAddressRow(78, 19, 4, 2, "from"),
+        EmailAddressRow(79, 19, 4, 1, "to"),
+        EmailAddressRow(80, 19, 4, 4, "bcc"),
+        EmailAddressRow(81, 19, 4, 5, "cc"),
+        EmailAddressRow(82, 20, 4, 1, "from"),
+        EmailAddressRow(83, 20, 4, 2, "to")),
+
       AttachmentsTable.all ++= Seq(
         AttachmentRow(1, 1),
         AttachmentRow(2, 1),
         AttachmentRow(3, 1),
         AttachmentRow(4, 7),
-        AttachmentRow(5, 15)),
+        AttachmentRow(5, 15),
+        AttachmentRow(6, 20)),
+
       UserChatsTable.all ++= Seq(
         UserChatRow(1, 1, 1, 1, 1, 1, 0),
         UserChatRow(2, 2, 1, 1, 1, 0, 0),
@@ -174,7 +189,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         UserChatRow(13, 1, 3, 1, 1, 1, 0),
         UserChatRow(14, 2, 3, 1, 1, 0, 0),
         UserChatRow(15, 3, 3, 1, 0, 0, 0),
-        UserChatRow(16, 4, 3, 1, 0, 0, 0)),
+        UserChatRow(16, 4, 3, 1, 0, 0, 0),
+        UserChatRow(17, 1, 4, 1, 0, 1, 0),
+        UserChatRow(18, 2, 4, 0, 1, 0, 0),
+        UserChatRow(19, 3, 4, 1, 0, 0, 0),
+        UserChatRow(20, 4, 4, 1, 0, 0, 0),
+        UserChatRow(21, 5, 4, 1, 0, 0, 0),
+        UserChatRow(22, 6, 4, 1, 0, 0, 0)),
+
       OversightsTable.all ++= Seq(
         OversightRow(1, 1, 4, 3),
         OversightRow(2, 1, 5, 3),
@@ -183,19 +205,16 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         OversightRow(5, 2, 4, 1),
         OversightRow(6, 3, 3, 1),
         OversightRow(7, 3, 3, 2),
-        OversightRow(8, 3, 4, 1)))), Duration.Inf)
+        OversightRow(8, 3, 4, 1),
+        OversightRow(9, 4, 3, 1),
+        OversightRow(10, 4, 6, 4)))), Duration.Inf)
+  }
+
+  override def beforeEach(): Unit = {
+
   }
 
   override def afterEach(): Unit = {
-    Await.result(db.run(DBIO.seq(
-      AddressesTable.all.delete,
-      UsersTable.all.delete,
-      ChatsTable.all.delete,
-      EmailsTable.all.delete,
-      EmailAddressesTable.all.delete,
-      UserChatsTable.all.delete,
-      OversightsTable.all.delete,
-      AttachmentsTable.all.delete)), Duration.Inf)
   }
 
   override def afterAll(): Unit = {
@@ -220,4 +239,105 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
     }
   }
 
+  "SlickChatsRepository#getChat" should {
+    "return a chat for a user that has received an email and has a draft (chat 4, user 1)" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chat = chatsRep.getChat(4, 1)
+
+      val expectedRepositoryResponse: Option[Chat] =
+        Some(
+          Chat(
+            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
+            Set(
+              Overseers("beatriz@mail.com", Set("valter@mail.com")),
+              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+            Seq(
+              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
+                "Where are you?", "2019-06-17 10:00:00", 1, Set()),
+              Email(20, "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(),
+                "Here", "2019-06-17 10:05:00", 0, Set(6)))))
+
+      chat.map(_ mustBe expectedRepositoryResponse)
+    }
+  }
+
+  "SlickChatsRepository#getChat" should {
+    "return a chat for a user that sent an email (with a bcc) (chat 4, user 2)" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chat = chatsRep.getChat(4, 2)
+
+      val expectedRepositoryResponse: Option[Chat] =
+        Some(
+          Chat(
+            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
+            Set(
+              Overseers("beatriz@mail.com", Set("valter@mail.com")),
+              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+            Seq(
+              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
+                "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+
+      chat.map(_ mustBe expectedRepositoryResponse)
+    }
+  }
+
+  "SlickChatsRepository#getChat" should {
+    "return a chat for an overseer of a user (sees what their oversee sees, except for their drafts)(chat 4, user 3)" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chat = chatsRep.getChat(4, 3)
+
+      val expectedRepositoryResponse: Option[Chat] =
+        Some(
+          Chat(
+            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
+            Set(
+              Overseers("beatriz@mail.com", Set("valter@mail.com")),
+              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+            Seq(
+              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
+                "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+
+      chat.map(_ mustBe expectedRepositoryResponse)
+    }
+  }
+
+  "SlickChatsRepository#getChat" should {
+    "return a chat for a user that is a BCC of an email of that chat (chat 4, user 4)" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chat = chatsRep.getChat(4, 4)
+
+      val expectedRepositoryResponse: Option[Chat] =
+        Some(
+          Chat(
+            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
+            Set(
+              Overseers("beatriz@mail.com", Set("valter@mail.com")),
+              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+            Seq(
+              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
+                "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+
+      chat.map(_ mustBe expectedRepositoryResponse)
+    }
+  }
+
+  "SlickChatsRepository#getChat" should {
+    "return a chat for an overseer of a user that appear as BCC (chat 4, user 6)" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chat = chatsRep.getChat(4, 6)
+
+      val expectedRepositoryResponse: Option[Chat] =
+        Some(
+          Chat(
+            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
+            Set(
+              Overseers("beatriz@mail.com", Set("valter@mail.com")),
+              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+            Seq(
+              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
+                "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+
+      chat.map(_ mustBe expectedRepositoryResponse)
+    }
+  }
 }

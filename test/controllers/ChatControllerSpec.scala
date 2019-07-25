@@ -96,8 +96,8 @@ class ChatControllerSpec extends PlaySpec with Results {
         .thenReturn(Future.successful(
           Some(
             ChatDTO(
-              1, "Subject", Seq("address1", "address2"), Seq(OverseersDTO("address1", Seq("address3"))),
-              Seq(EmailDTO(1, "address1", Seq("address2"), Seq(), Seq(), "This is the body", "2019-07-19 10:00:00", true, Seq(1)))))))
+              1, "Subject", Set("address1", "address2"), Set(OverseersDTO("address1", Set("address3"))),
+              Seq(EmailDTO(1, "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", true, Set(1)))))))
       val controller = new ChatController(cc, chatService)
       val result: Future[Result] = controller.getChat(1).apply(FakeRequest())
       val expectedResult =
