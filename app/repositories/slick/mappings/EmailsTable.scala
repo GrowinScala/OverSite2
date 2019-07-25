@@ -2,12 +2,12 @@ package repositories.slick.mappings
 
 import slick.jdbc.MySQLProfile.api._
 
-case class EmailRow(emailId: Int, chatId: Int, body: String, date: String, sent: Int)
+case class EmailRow(emailId: String, chatId: String, body: String, date: String, sent: Int)
 
 class EmailsTable(tag: Tag) extends Table[EmailRow](tag, "emails") {
   // Columns
-  def emailId = column[Int]("email_id", O.PrimaryKey, O.AutoInc)
-  def chatId = column[Int]("chat_id")
+  def emailId = column[String]("email_id", O.PrimaryKey)
+  def chatId = column[String]("chat_id")
   def body = column[String]("body")
   def date = column[String]("date")
   def sent = column[Int]("sent")
@@ -23,10 +23,10 @@ class EmailsTable(tag: Tag) extends Table[EmailRow](tag, "emails") {
 object EmailsTable {
   val all = TableQuery[EmailsTable]
 
-  def getChatEmails(chatId: Int): Query[EmailsTable, EmailsTable#TableElementType, scala.Seq] =
+  def getChatEmails(chatId: String): Query[EmailsTable, EmailsTable#TableElementType, scala.Seq] =
     all.filter(email => email.chatId === chatId)
 
-  def getChatEmailsIds(chatId: Int): Query[Rep[Int], Int, scala.Seq] =
+  def getChatEmailsIds(chatId: String): Query[Rep[String], String, scala.Seq] =
     getChatEmails(chatId).map(email => email.emailId)
 
 }

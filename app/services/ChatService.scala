@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class ChatService @Inject() (chatsRep: ChatsRepository) {
 
-  def getChats(mailbox: Mailbox, user: Int): Future[Seq[ChatPreviewDTO]] = {
+  def getChats(mailbox: Mailbox, user: String): Future[Seq[ChatPreviewDTO]] = {
 
     val chatsPreview = chatsRep.getChatsPreview(mailbox, user)
 
@@ -23,7 +23,7 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
         chatPreview.contentPreview)))
   }
 
-  def getChat(chatId: Int, userId: Int): Future[Option[ChatDTO]] = {
+  def getChat(chatId: String, userId: String): Future[Option[ChatDTO]] = {
     chatsRep.getChat(chatId, userId).map(toChatDTO)
   }
 

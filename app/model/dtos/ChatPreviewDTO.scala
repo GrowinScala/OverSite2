@@ -2,7 +2,7 @@ package model.dtos
 
 import play.api.libs.json.{ Json, OFormat }
 
-case class ChatPreviewDTO(chatId: Int, subject: String, lastAddress: String,
+case class ChatPreviewDTO(chatId: String, subject: String, lastAddress: String,
   lastEmailDate: String, contentPreview: String)
 
 object ChatPreviewDTO {
