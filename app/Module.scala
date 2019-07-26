@@ -8,7 +8,7 @@ import utils.DatabaseUtils.DEFAULT_DB
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
 
 class Module extends AbstractModule {
-  def configure(): Unit = {
+  override def configure(): Unit = {
 
     implicit val ec: ExecutionContextExecutor = ExecutionContext.global
     val chatsRep = new SlickChatsRepository(DEFAULT_DB)

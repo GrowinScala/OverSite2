@@ -5,7 +5,7 @@ import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
-import repositories.dtos.{ Chat, Email, Overseer, ChatPreview }
+import repositories.dtos._
 import slick.jdbc.JdbcProfile
 import slick.jdbc.MySQLProfile.api._
 
@@ -27,7 +27,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @return Query: For a user, all of its chats and for EACH chat, all of its emails
    * (without body) and for each email, all of its participants
    */
-  private[implementations] def getChatsMetadataQueryByUserId(userId: Int, optBox: Option[Mailbox] = None) = {
+  private[implementations] def getChatsMetadataQueryByUserId(userId: String, optBox: Option[Mailbox] = None) = {
     for {
       chatId <- UserChatsTable.all.filter(userChatRow =>
         userChatRow.userId === userId &&
@@ -55,7 +55,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chatId The chat in question
    * @return Query addressIds of the oversees for the given chat
    */
-  private def getUserChatOverseesQuery(userId: Int, chatId: Rep[Int]) = {
+  private def getUserChatOverseesQuery(userId: String, chatId: Rep[String]) = {
     OversightsTable.all
       .join(UsersTable.all)
       .on((oversightRow, userRow) =>
@@ -75,7 +75,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *   excluding the oversee's drafts)
    * - AND if email is draft (sent = 0), only the user with the "from" address can see it
    */
-  private def getVisibleEmailsQuery(userId: Int, optBox: Option[Mailbox] = None) =
+  private def getVisibleEmailsQuery(userId: String, optBox: Option[Mailbox] = None) =
     for {
       userAddressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
 
@@ -94,7 +94,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param userId The userId of the user in question
    * @return A Future sequence of ChatPreview dtos. The preview of each chat only shows the most recent email
    */
-  def getChatsPreview(mailbox: Mailbox, userId: Int): Future[Seq[ChatPreview]] = {
+  def getChatsPreview(mailbox: Mailbox, userId: String): Future[Seq[ChatPreview]] = {
 
     val groupedQuery = getVisibleEmailsQuery(userId, Some(mailbox))
       .map(visibleEmailRow => (visibleEmailRow._1, visibleEmailRow._4))
@@ -135,10 +135,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         the overseers of the chat
    *         and the emails of the chat (that the user can see)
    */
-  def getChat(chatId: Int, userId: Int): Future[Option[Chat]] = {
+  def getChat(chatId: String, userId: String): Future[Option[Chat]] = {
 
     for {
-      chatData <- getChatData(chatId)
+      chatData <- getChatData(chatId, userId)
       (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
       overseers <- getOverseersData(chatId)
     } yield chatData.map {
@@ -158,8 +158,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chatId ID of chat
    * @return chat's data. In this case, just the subject
    */
-  private[implementations] def getChatData(chatId: Int): Future[Option[(Int, String)]] = {
-    val query = ChatsTable.all.filter(_.chatId === chatId).map(row => (row.chatId, row.subject))
+  private[implementations] def getChatData(chatId: String, userId: String): Future[Option[(String, String)]] = {
+    val query = ChatsTable.all
+      .join(UserChatsTable.all)
+      .on((chat, userChat) => chat.chatId === chatId && chat.chatId === userChat.chatId && userChat.userId === userId)
+      .map { case (chat, _) => (chat.chatId, chat.subject) }
     db.run(query.result.headOption)
   }
 
@@ -173,7 +176,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param userId ID of the user that requested the chat
    * @return for each email, returns a tuple (emailId, body, date, sent)
    */
-  private def getEmailsQuery(chatId: Int, userId: Int) = {
+  private def getEmailsQuery(chatId: String, userId: String) = {
     val query = getVisibleEmailsQuery(userId)
       .filter(_._1 === chatId)
       .map {
@@ -192,7 +195,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *                      by the email the user has permission to see (including its oversees)
    * @return for each participant of an email, returns a tuple with (emailId, participantType, address)
    */
-  private def getEmailAddressesQuery(userId: Int, emailIdsQuery: Query[Rep[Int], Int, scala.Seq]) = {
+  private def getEmailAddressesQuery(userId: String, emailIdsQuery: Query[Rep[String], String, scala.Seq]) = {
     val userAddressIdQuery = UsersTable.all.filter(_.userId === userId).map(_.addressId)
 
     for {
@@ -204,11 +207,17 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .map(_.addressId)
 
       (participantType, addressId, address) <- EmailAddressesTable.all.join(AddressesTable.all)
-        .on((emailAddressRow, addressRow) =>
+        .on((emailAddressRow, addressRow) => {
+          val userOverseesOfThisChat = getUserChatOverseesQuery(userId, emailAddressRow.chatId)
           emailAddressRow.emailId === emailId &&
             emailAddressRow.addressId === addressRow.addressId &&
             (emailAddressRow.participantType =!= "bcc" ||
-              (emailAddressRow.addressId === userAddressId || fromAddressId === userAddressId)))
+              (
+                emailAddressRow.addressId === userAddressId ||
+                fromAddressId === userAddressId ||
+                emailAddressRow.addressId.in(userOverseesOfThisChat) ||
+                fromAddressId.in(userOverseesOfThisChat)))
+        })
         .map {
           case (emailAddressRow, addressRow) =>
             (emailAddressRow.participantType, emailAddressRow.addressId, addressRow.address)
@@ -226,8 +235,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         and a Seq of Email DTOs
    */
   private def groupEmailsAndAddresses(
-    emailsQuery: Query[(Rep[Int], Rep[String], Rep[String], Rep[Int]), (Int, String, String, Int), scala.Seq],
-    emailAddressesQuery: Query[(Rep[Int], Rep[String], Rep[String]), (Int, String, String), scala.Seq]): Future[(Seq[String], scala.Seq[Email])] = {
+    emailsQuery: Query[(Rep[String], Rep[String], Rep[String], Rep[Int]), (String, String, String, Int), scala.Seq],
+    emailAddressesQuery: Query[(Rep[String], Rep[String], Rep[String]), (String, String, String), scala.Seq]): Future[(Set[String], scala.Seq[Email])] = {
 
     /** Emails **/
     val emails = db.run(emailsQuery.result)
@@ -252,7 +261,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       groupedAddresses <- groupedEmailAddresses
       attachments <- attachments
     } yield (
-      chatAddresses,
+      chatAddresses.toSet,
       buildEmailDto(emails, groupedAddresses, attachments))
   }
 
@@ -263,7 +272,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param userId ID of the user requesting the chat
    * @return a Future of the tuple (chatEmailAddresses, sequenceOfEmailDTOs)
    */
-  private def getGroupedEmailsAndAddresses(chatId: Int, userId: Int): Future[(Seq[String], Seq[Email])] = {
+  private def getGroupedEmailsAndAddresses(chatId: String, userId: String): Future[(Set[String], Seq[Email])] = {
     // Query to get all the emails of this chat that the user can see
     val emailsQuery = getEmailsQuery(chatId, userId)
 
@@ -279,7 +288,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param emailsIds query with the IDs of the emails the user is allowed to see
    * @return a Future with a Map with the attachment IDs grouped by email ID
    */
-  private def getEmailsAttachments(emailsIds: Query[Rep[Int], Int, scala.Seq]) = {
+  private def getEmailsAttachments(emailsIds: Query[Rep[String], String, scala.Seq]) = {
     val query = AttachmentsTable.all
       .filter(_.emailId in emailsIds)
       .map(attachment => (attachment.emailId, attachment.attachmentId))
@@ -299,22 +308,22 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @return a Sequence of Email(emailId, from, to, bcc, cc, body, date, sent, attachments) DTOs
    */
   private def buildEmailDto(
-    emails: Seq[(Int, String, String, Int)],
-    addresses: Map[(Int, String), Seq[String]],
-    attachments: Map[Int, Seq[Int]]): Seq[Email] = {
+    emails: Seq[(String, String, String, Int)],
+    addresses: Map[(String, String), Seq[String]],
+    attachments: Map[String, Seq[String]]): Seq[Email] = {
 
     emails.map {
       case (emailId, body, date, sent) =>
         Email(
           emailId,
           addresses.getOrElse((emailId, "from"), Seq()).head,
-          addresses.getOrElse((emailId, "to"), Seq()),
-          addresses.getOrElse((emailId, "bcc"), Seq()),
-          addresses.getOrElse((emailId, "cc"), Seq()),
+          addresses.getOrElse((emailId, "to"), Seq()).toSet,
+          addresses.getOrElse((emailId, "bcc"), Seq()).toSet,
+          addresses.getOrElse((emailId, "cc"), Seq()).toSet,
           body,
           date,
           sent,
-          attachments.getOrElse(emailId, Seq()))
+          attachments.getOrElse(emailId, Seq()).toSet)
     }
   }
 
@@ -323,7 +332,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chatId ID of the requested chat
    * @return a Future with a Sequence of Overseer(userAddress, overseersAddresses) DTOs
    */
-  private def getOverseersData(chatId: Int) = {
+  private def getOverseersData(chatId: String) = {
     val chatOverseersQuery = for {
       (overseerId, overseeId) <- OversightsTable.all.filter(_.chatId === chatId).map(row => (row.overseerId, row.overseeId))
 
@@ -339,9 +348,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(chatOverseersQuery.result)
       .map(_
         .groupBy(_._1) // group by user
-        .mapValues(_.map(_._2))
+        .mapValues(_.map(_._2).toSet)
         .toSeq
-        .map(Overseer.tupled))
+        .map(Overseers.tupled)
+        .toSet)
   }
   //endregion
 

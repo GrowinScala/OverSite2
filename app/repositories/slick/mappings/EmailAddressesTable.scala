@@ -2,14 +2,14 @@ package repositories.slick.mappings
 
 import slick.jdbc.MySQLProfile.api._
 
-case class EmailAddressRow(emailAddressId: Int, emailId: Int, chatId: Int, addressId: Int, participantType: String)
+case class EmailAddressRow(emailAddressId: String, emailId: String, chatId: String, addressId: String, participantType: String)
 
 class EmailAddressesTable(tag: Tag) extends Table[EmailAddressRow](tag, "email_addresses") {
   // Columns
-  def emailAddressId = column[Int]("email_address_id", O.PrimaryKey, O.AutoInc)
-  def emailId = column[Int]("email_id")
-  def chatId = column[Int]("chat_id")
-  def addressId = column[Int]("address_id")
+  def emailAddressId = column[String]("email_address_id", O.PrimaryKey)
+  def emailId = column[String]("email_id")
+  def chatId = column[String]("chat_id")
+  def addressId = column[String]("address_id")
   def participantType = column[String]("participant_type")
 
   // Indexes
