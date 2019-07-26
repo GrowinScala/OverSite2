@@ -3,18 +3,15 @@
 # https://www.playframework.com/documentation/latest/ScalaRouting
 # ~~~~
 
-# Addresses TEST
-GET     /address/:id             controllers.AddressController.getAddress(id : Int)
-
-POST    /address                 controllers.AddressController.postAddress()
-
-DELETE  /address/:id             controllers.AddressController.deleteAddress(id : Int)
-
-
-
-
+# Chats
 GET     /chats                   controllers.ChatController.getChats(mailbox: String ?= "inbox")
 
-GET     /chats/:id               controllers.ChatController.getChat(id : Int)
+GET     /chats/:id               controllers.ChatController.getChat(id : String)
+
+
+# Authentication
+
+# POST    /user                    controllers.AuthenticationController.insertUser
+
 
 

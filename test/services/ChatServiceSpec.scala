@@ -19,11 +19,11 @@ class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
     "map ChatPreview DTO" in {
       val mockChatsRep = mock[ChatsRepository]
       when(mockChatsRep.getChatsPreview(any, any))
-        .thenReturn(Future.successful(Seq(ChatPreview(1, "Ok", "Ok", "Ok", "Ok"))))
+        .thenReturn(Future.successful(Seq(ChatPreview("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok"))))
 
-      val chatServiceImpl = new ChatServiceImpl(mockChatsRep)
-      val chatsPreviewDTO = chatServiceImpl.getChats(Inbox, 1)
-      chatsPreviewDTO.map(_ mustBe Seq(ChatPreviewDTO(1, "Ok", "Ok", "Ok", "Ok")))
+      val chatServiceImpl = new ChatService(mockChatsRep)
+      val chatsPreviewDTO = chatServiceImpl.getChats(Inbox, "00000000-0000-0000-0000-000000000000")
+      chatsPreviewDTO.map(_ mustBe Seq(ChatPreviewDTO("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok")))
     }
   }
 

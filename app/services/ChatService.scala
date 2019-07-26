@@ -1,14 +1,57 @@
 package services
 
-import model.dtos.{ ChatDTO, ChatPreviewDTO }
+import javax.inject.Inject
+import model.dtos.ChatPreviewDTO
 import model.types.Mailbox
+import model.types.Mailbox._
+import model.dtos.{ ChatDTO, EmailDTO, OverseersDTO }
+import repositories.dtos.Chat
+import repositories.slick.implementations.SlickChatsRepository
+import repositories.ChatsRepository
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
-trait ChatService {
+class ChatService @Inject() (chatsRep: ChatsRepository) {
 
-  def getChats(mailbox: Mailbox, user: Int): Future[Seq[ChatPreviewDTO]]
+  def getChats(mailbox: Mailbox, user: String): Future[Seq[ChatPreviewDTO]] = {
 
-  def getChat(chatId: Int, userId: Int): Future[Option[ChatDTO]]
+    val chatsPreview = chatsRep.getChatsPreview(mailbox, user)
+
+    chatsPreview.map(_.map(chatPreview =>
+      ChatPreviewDTO(chatPreview.chatId, chatPreview.subject, chatPreview.lastAddress, chatPreview.lastEmailDate,
+        chatPreview.contentPreview)))
+  }
+
+  def getChat(chatId: String, userId: String): Future[Option[ChatDTO]] = {
+    chatsRep.getChat(chatId, userId).map(toChatDTO)
+  }
+
+  private def toChatDTO(optionChat: Option[Chat]) = {
+    optionChat.map {
+      chat =>
+        ChatDTO(
+          chat.chatId,
+          chat.subject,
+          chat.addresses,
+          chat.overseers.map(overseer =>
+            OverseersDTO(
+              overseer.user,
+              overseer.overseers)),
+          chat.emails.map(email =>
+            EmailDTO(
+              email.emailId,
+              email.from,
+              email.to,
+              email.bcc,
+              email.cc,
+              email.body,
+              email.date,
+              intToBoolean(email.sent),
+              email.attachments)).sortBy(_.date))
+    }
+
+  }
+  private def intToBoolean(i: Int): Boolean = i != 0
 
 }

@@ -2,12 +2,12 @@ package repositories.slick.mappings
 
 import slick.jdbc.MySQLProfile.api._
 
-case class AttachmentRow(attachmentId: Int, emailId: Int)
+case class AttachmentRow(attachmentId: String, emailId: String)
 
 class AttachmentsTable(tag: Tag) extends Table[AttachmentRow](tag, "attachments") {
   // Columns
-  def attachmentId = column[Int]("attachment_id", O.PrimaryKey, O.AutoInc)
-  def emailId = column[Int]("email_id")
+  def attachmentId = column[String]("attachment_id", O.PrimaryKey)
+  def emailId = column[String]("email_id")
 
   // Indexes
 
