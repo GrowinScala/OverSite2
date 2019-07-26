@@ -1,5 +1,7 @@
 package repositories.slick.implementations
 
+import java.util.UUID
+
 import model.types.Mailbox.{ Drafts, Inbox }
 import org.scalatest._
 import play.api.inject.Injector
@@ -445,5 +447,30 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       }
   }
 
+  "SlickChatsRepository#getChat" should {
+    "NOT return a chat for a user that does not exist " +
+      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user with random UUID)" in {
+        val chatsRep = new SlickChatsRepository(db)
+        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", UUID.randomUUID().toString)
+
+        //val expectedRepositoryResponse: Option[Chat] = NONE
+
+        chat.map(_ mustBe None)
+      }
+  }
+
+  "SlickChatsRepository#getChat" should {
+    "NOT return a chat that does not exist " +
+      "(chat with random UUID, user (1) 148a3b1b-8326-466d-8c27-1bd09b8378f3)" in {
+        val chatsRep = new SlickChatsRepository(db)
+        val chat = chatsRep.getChat(UUID.randomUUID().toString, "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+
+        //val expectedRepositoryResponse: Option[Chat] = NONE
+
+        chat.map(_ mustBe None)
+      }
+  }
+
+  //"12345678-1234-5678-9012-123456789100"
   //endregion
 }

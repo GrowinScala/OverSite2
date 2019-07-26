@@ -138,7 +138,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getChat(chatId: String, userId: String): Future[Option[Chat]] = {
 
     for {
-      chatData <- getChatData(chatId)
+      chatData <- getChatData(chatId, userId)
       (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
       overseers <- getOverseersData(chatId)
     } yield chatData.map {
@@ -158,8 +158,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chatId ID of chat
    * @return chat's data. In this case, just the subject
    */
-  private[implementations] def getChatData(chatId: String): Future[Option[(String, String)]] = {
-    val query = ChatsTable.all.filter(_.chatId === chatId).map(row => (row.chatId, row.subject))
+  private[implementations] def getChatData(chatId: String, userId: String): Future[Option[(String, String)]] = {
+    val query = ChatsTable.all
+      .join(UserChatsTable.all)
+      .on((chat, userChat) => chat.chatId === chatId && chat.chatId === userChat.chatId && userChat.userId === userId)
+      .map { case (chat, _) => (chat.chatId, chat.subject) }
     db.run(query.result.headOption)
   }
 
