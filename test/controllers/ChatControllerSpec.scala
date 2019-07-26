@@ -11,7 +11,7 @@ import play.api.test.Helpers._
 import play.api.test._
 import services.ChatService
 import org.mockito.scalatest.IdiomaticMockito
-import services.{ ChatService, FakeChatService }
+import services.ChatService
 import org.mockito.Mockito.when
 import org.mockito.ArgumentMatchersSugar._
 import repositories.dtos.{ Chat, Email, Overseers }
@@ -21,10 +21,10 @@ import scala.util.Random
 
 class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
-  private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
-  private lazy val injector: Injector = appBuilder.injector()
+  //private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
+  // private lazy val injector: Injector = appBuilder.injector()
   private val cc: ControllerComponents = Helpers.stubControllerComponents()
-  private val chatService = injector.instanceOf[ChatService]
+  //private val chatService = injector.instanceOf[ChatService]
   implicit val ec: ExecutionContextExecutor = ExecutionContext.global
 
   //region ChatController#getChats
@@ -94,20 +94,29 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
   "ChatController#getChat" should {
     "return Json for ChatDTO" in {
+      val dto = ChatDTO(
+        "6c664490-eee9-4820-9eda-3110d794a998", "Subject", Set("address1", "address2"), Set(OverseersDTO("address1", Set("address3"))),
+        Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", true,
+          Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
+
       val mockChatService = mock[ChatService]
-      when(mockChatService.getChat(anyInt, anyInt))
-        .thenReturn(Future.successful(
+      mockChatService.getChat(*, *)
+        .returns(Future.successful(
           Some(
             ChatDTO(
-              1, "Subject", Set("address1", "address2"), Set(OverseersDTO("address1", Set("address3"))),
-              Seq(EmailDTO(1, "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", true, Set(1)))))))
-      val controller = new ChatController(cc, chatService)
-      val result: Future[Result] = controller.getChat(1).apply(FakeRequest())
-      val expectedResult =
-        """{"chatId": 1,"subject": "Subject","addresses": ["address1", "address2"],
-          |"overseers":[{"user": "address1","overseers": ["address3"]}],"emails": [{"emailId": 1,"from":"address1","to":
+              "6c664490-eee9-4820-9eda-3110d794a998", "Subject", Set("address1", "address2"), Set(OverseersDTO("address1", Set("address3"))),
+              Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", true,
+                Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0")))))))
+
+      val controller = new ChatController(cc, mockChatService)
+      val result: Future[Result] = controller.getChat("6c664490-eee9-4820-9eda-3110d794a998").apply(FakeRequest())
+      val expectedResult = //Json.toJson(dto)
+
+        """{"chatId": "6c664490-eee9-4820-9eda-3110d794a998","subject": "Subject","addresses": ["address1", "address2"],
+          |"overseers":[{"user": "address1","overseers": ["address3"]}],"emails": [{"emailId": "f15967e6-532c-40a6-9335-064d884d4906","from":"address1","to":
           |["address2"],"bcc":[],"cc": [],"body": "This is the body","date":"2019-07-19 10:00:00","sent":
-          |true,"attachments": [1]}]}""".stripMargin
+          |true,"attachments": ["65aeedbf-aedf-4b1e-b5d8-b348309a14e0"]}]}""".stripMargin
+
       result.map(_ mustBe Ok(expectedResult))
     }
   }
@@ -115,10 +124,11 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
   "ChatController#getChat" should {
     "return NotFound" in {
       val mockChatService = mock[ChatService]
-      when(mockChatService.getChat(anyInt, anyInt))
-        .thenReturn(Future.successful(None))
-      val controller = new ChatController(cc, chatService)
-      val result: Future[Result] = controller.getChat(1).apply(FakeRequest())
+      mockChatService.getChat(*, *)
+        .returns(Future.successful(None))
+
+      val controller = new ChatController(cc, mockChatService)
+      val result: Future[Result] = controller.getChat("6c664490-eee9-4820-9eda-3110d794a998").apply(FakeRequest())
       result.map(_ mustBe NotFound)
     }
   }

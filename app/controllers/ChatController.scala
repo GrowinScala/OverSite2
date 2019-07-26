@@ -18,8 +18,17 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
     Action.async {
       val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3"
 
+      /*
+         user 1 : 148a3b1b-8326-466d-8c27-1bd09b8378f3
+         user 3 : 25689204-5a8e-453d-bfbc-4180ff0f97b9
+         user 6 : 261c9094-6261-4704-bfd0-02821c235eff
+         user 2 : adcd6348-658a-4866-93c5-7e6d32271d8d
+         user 5 : e598ee8e-b459-499f-94d1-d4f66d583264
+         user 4 : ef63108c-8128-4294-8346-bd9b5143ff22
+       */
+
       chatService.getChat(id, userId).map {
-        case Some(chat) => Ok(Json.toJson(chat))
+        case Some(chatDTO) => Ok(Json.toJson(chatDTO))
         case None => NotFound
       }
     }

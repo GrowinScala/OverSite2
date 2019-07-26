@@ -34,20 +34,20 @@ class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
         .thenReturn(Future.successful(
           Some(
             Chat(
-              1, "Subject", Set("address1", "address2"),
+              "6c664490-eee9-4820-9eda-3110d794a998", "Subject", Set("address1", "address2"),
               Set(Overseers("address1", Set("address3"))),
-              Seq(Email(1, "address1", Set("address2"), Set(), Set(),
-                "This is the body", "2019-07-19 10:00:00", 1, Set(1)))))))
+              Seq(Email("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(),
+                "This is the body", "2019-07-19 10:00:00", 1, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0")))))))
 
-      val chatServiceImpl = new ChatServiceImpl(mockChatsRep)
-      val chatDTO = chatServiceImpl.getChat(chatId = 1, userId = 1)
+      val chatService = new ChatService(mockChatsRep)
+      val chatDTO = chatService.getChat(chatId = "6c664490-eee9-4820-9eda-3110d794a998", userId = "685c9120-6616-47ab-b1a7-c5bd9b11c32b")
       val expectedServiceResponse =
         Some(
           ChatDTO(
-            1, "Subject", Set("address1", "address2"),
+            "6c664490-eee9-4820-9eda-3110d794a998", "Subject", Set("address1", "address2"),
             Set(OverseersDTO("address1", Set("address3"))),
-            Seq(EmailDTO(1, "address1", Set("address2"), Set(), Set(),
-              "This is the body", "2019-07-19 10:00:00", true, Set(1)))))
+            Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(),
+              "This is the body", "2019-07-19 10:00:00", true, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0")))))
       chatDTO.map(_ mustBe expectedServiceResponse)
     }
   }

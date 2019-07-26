@@ -32,7 +32,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       UserChatsTable.all.schema.create,
       OversightsTable.all.schema.create,
       AttachmentsTable.all.schema.create,
-      AttachmentsTable.all.schema.create,
 
       AddressesTable.all ++= Seq(
         AddressRow("02e196e2-631c-43a2-9e8d-cadf88a40ef6", "beatriz@mail.com"),
@@ -46,17 +45,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         AddressRow("e0288899-de22-46ad-bda7-1579861d44fc", "ivo@mail.com"),
         AddressRow("6af24197-9f1f-4aa3-9399-875bb9bccc41", "joana@mail.com"),
         AddressRow("6c11c217-73a1-405a-be14-2c77045260a7", "daniel@mail.com")),
-        AddressRow(1, "beatriz@mail.com"),
-        AddressRow(2, "joao@mail.com"),
-        AddressRow(3, "valter@mail.com"),
-        AddressRow(4, "pedrol@mail.com"),
-        AddressRow(5, "pedroc@mail.com"),
-        AddressRow(6, "rui@mail.com"),
-        AddressRow(7, "margarida@mail.com"),
-        AddressRow(8, "ricardo@mail.com"),
-        AddressRow(9, "ivo@mail.com"),
-        AddressRow(10, "joana@mail.com"),
-        AddressRow(11, "daniel@mail.com")),
 
       UsersTable.all ++= Seq(
         UserRow("148a3b1b-8326-466d-8c27-1bd09b8378f3", "02e196e2-631c-43a2-9e8d-cadf88a40ef6", "Beatriz", "Santos"),
@@ -65,22 +53,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         UserRow("ef63108c-8128-4294-8346-bd9b5143ff22", "ee4a4a6c-3bdc-423a-a610-185b10f6beef", "Pedro", "Luís"),
         UserRow("e598ee8e-b459-499f-94d1-d4f66d583264", "68bfd7ed-bf34-4c56-99ff-8cf46b7f530d", "Pedro", "Correia"),
         UserRow("261c9094-6261-4704-bfd0-02821c235eff", "55876dad-3155-4d0d-804c-0c1726961b63", "Rui", "Valente")),
-        UserRow(1, 1, "Beatriz", "Santos"),
-        UserRow(2, 2, "João", "Simões"),
-        UserRow(3, 3, "Valter", "Fernandes"),
-        UserRow(4, 4, "Pedro", "Luís"),
-        UserRow(5, 5, "Pedro", "Correia"),
-        UserRow(6, 6, "Rui", "Valente")),
 
       ChatsTable.all ++= Seq(
-        ChatRow(1, "Projeto Oversite2"),
-        ChatRow(2, "Laser Tag Quarta-feira"),
-        ChatRow(3, "Vencimento"),
-        ChatRow(4, "Location")),
-
         ChatRow("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2"),
         ChatRow("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira"),
-        ChatRow("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento")),
+        ChatRow("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento"),
+
+        ChatRow("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location")),
+
       EmailsTable.all ++= Seq(
         EmailRow("1f325a6a-d56c-400f-adf3-cdddf742f50f", "b87041c7-9044-41a0-99d7-666ce71bbe8d", "Olá Beatriz e João! Vamos começar o projeto.", "2019-06-17 10:00:00", 1),
         EmailRow("a7402c9c-2eeb-46f5-adef-5a36d6fb0d0a", "b87041c7-9044-41a0-99d7-666ce71bbe8d", "Okay! Onde nos reunimos?", "2019-06-17 10:01:00", 1),
@@ -99,27 +79,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         EmailRow("a4e4d8f5-ff60-40e1-a2d3-330088412f81", "303c2b72-304e-4bac-84d7-385acb64a616", "Sim!", "2019-06-27 11:01:00", 1),
         EmailRow("d0de5388-8808-40d7-9c8b-38bd1059662d", "303c2b72-304e-4bac-84d7-385acb64a616", "Não...", "2019-06-27 11:02:00", 1),
         EmailRow("3ab53906-5353-4a58-a102-c81128aa6ddb", "303c2b72-304e-4bac-84d7-385acb64a616", "Já vou resolver o assunto!", "2019-06-27 11:03:00", 1),
-        EmailRow("f203c270-5f37-4437-956a-3cf478f5f28f", "303c2b72-304e-4bac-84d7-385acb64a616", "Okay, obrigada!", "2019-06-27 11:04:00", 0)),
-        EmailRow(1, 1, "Olá Beatriz e João! Vamos começar o projeto.", "2019-06-17 10:00:00", 1),
-        EmailRow(2, 1, "Okay! Onde nos reunimos?", "2019-06-17 10:01:00", 1),
-        EmailRow(3, 1, "Scrum room", "2019-06-17 10:02:00", 1),
-        EmailRow(4, 1, "Valter, tive um imprevisto. Chego às 10h30", "2019-06-17 10:03:00", 1),
-        EmailRow(5, 1, "Okay, não há problema.", "2019-06-17 10:04:00", 1),
-        EmailRow(6, 1, "Estou a chegar!", "2019-06-17 10:05:00", 0),
-        EmailRow(7, 2, "Vamos ao laser tag na quarta?", "2019-06-19 11:00:00", 1),
-        EmailRow(8, 2, "Bora!", "2019-06-19 11:01:00", 1),
-        EmailRow(9, 2, "Valter, não posso...", "2019-06-19 11:02:00", 1),
-        EmailRow(10, 2, "A que horas?", "2019-06-19 11:03:00", 1),
-        EmailRow(11, 2, "18h00", "2019-06-19 11:04:00", 1),
-        EmailRow(12, 2, "Também vou!", "2019-06-19 11:05:00", 0),
-        EmailRow(13, 2, "Talvez vá", "2019-06-19 11:06:00", 0),
-        EmailRow(14, 3, "Olá Beatriz e João! Já receberam o vosso vencimento?", "2019-06-27 11:00:00", 1),
-        EmailRow(15, 3, "Sim!", "2019-06-27 11:01:00", 1),
-        EmailRow(16, 3, "Não...", "2019-06-27 11:02:00", 1),
-        EmailRow(17, 3, "Já vou resolver o assunto!", "2019-06-27 11:03:00", 1),
-        EmailRow(18, 3, "Okay, obrigada!", "2019-06-27 11:04:00", 0),
-        EmailRow(19, 4, "Where are you?", "2019-06-17 10:00:00", 1),
-        EmailRow(20, 4, "Here", "2019-06-17 10:05:00", 0)),
+        EmailRow("f203c270-5f37-4437-956a-3cf478f5f28f", "303c2b72-304e-4bac-84d7-385acb64a616", "Okay, obrigada!", "2019-06-27 11:04:00", 0),
+
+        EmailRow("42508cff-a4cf-47e4-9b7d-db91e010b87a", "825ee397-f36e-4023-951e-89d6e43a8e7d", "Where are you?", "2019-06-17 10:00:00", 1),
+        EmailRow("fe4ff891-144a-4f61-af35-6d4a5ec76314", "825ee397-f36e-4023-951e-89d6e43a8e7d", "Here", "2019-06-17 10:06:00", 0)),
 
       EmailAddressesTable.all ++= Seq(
         EmailAddressRow("19631e5d-7a77-4839-b2bd-93403e2b405f", "1f325a6a-d56c-400f-adf3-cdddf742f50f", "b87041c7-9044-41a0-99d7-666ce71bbe8d", "e29f98cf-01be-4ac9-ac46-66364efa57c3", "from"),
@@ -198,104 +161,23 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         EmailAddressRow("bc004d4f-472f-4c5a-a93e-77168b818293", "3ab53906-5353-4a58-a102-c81128aa6ddb", "303c2b72-304e-4bac-84d7-385acb64a616", "6af24197-9f1f-4aa3-9399-875bb9bccc41", "from"),
         EmailAddressRow("0206778e-df24-40a6-b084-aa2c62268005", "3ab53906-5353-4a58-a102-c81128aa6ddb", "303c2b72-304e-4bac-84d7-385acb64a616", "02e196e2-631c-43a2-9e8d-cadf88a40ef6", "to"),
         EmailAddressRow("b2af5ae9-6dcb-4e58-8057-ae4bc8175822", "f203c270-5f37-4437-956a-3cf478f5f28f", "303c2b72-304e-4bac-84d7-385acb64a616", "02e196e2-631c-43a2-9e8d-cadf88a40ef6", "from"),
-        EmailAddressRow("0ba9d3a6-4aec-4546-bee8-c856d57bcf6f", "f203c270-5f37-4437-956a-3cf478f5f28f", "303c2b72-304e-4bac-84d7-385acb64a616", "6af24197-9f1f-4aa3-9399-875bb9bccc41", "to")),
-        EmailAddressRow(1, 1, 1, 3, "from"),
-        EmailAddressRow(2, 1, 1, 1, "to"),
-        EmailAddressRow(3, 1, 1, 2, "to"),
-        EmailAddressRow(4, 2, 1, 2, "from"),
-        EmailAddressRow(5, 2, 1, 1, "to"),
-        EmailAddressRow(6, 2, 1, 3, "to"),
-        EmailAddressRow(7, 3, 1, 3, "from"),
-        EmailAddressRow(8, 3, 1, 1, "to"),
-        EmailAddressRow(9, 3, 1, 2, "to"),
-        EmailAddressRow(10, 4, 1, 1, "from"),
-        EmailAddressRow(11, 4, 1, 3, "to"),
-        EmailAddressRow(12, 5, 1, 3, "from"),
-        EmailAddressRow(13, 5, 1, 1, "to"),
-        EmailAddressRow(14, 6, 1, 1, "from"),
-        EmailAddressRow(15, 6, 1, 3, "to"),
-        EmailAddressRow(16, 7, 2, 3, "from"),
-        EmailAddressRow(17, 7, 2, 1, "to"),
-        EmailAddressRow(18, 7, 2, 2, "to"),
-        EmailAddressRow(19, 7, 2, 4, "to"),
-        EmailAddressRow(20, 7, 2, 5, "to"),
-        EmailAddressRow(21, 7, 2, 6, "to"),
-        EmailAddressRow(22, 7, 2, 7, "to"),
-        EmailAddressRow(23, 7, 2, 8, "to"),
-        EmailAddressRow(24, 7, 2, 9, "to"),
-        EmailAddressRow(25, 7, 2, 10, "cc"),
-        EmailAddressRow(26, 7, 2, 11, "bcc"),
-        EmailAddressRow(27, 8, 2, 7, "from"),
-        EmailAddressRow(28, 8, 2, 1, "to"),
-        EmailAddressRow(29, 8, 2, 2, "to"),
-        EmailAddressRow(30, 8, 2, 3, "to"),
-        EmailAddressRow(31, 8, 2, 4, "to"),
-        EmailAddressRow(32, 8, 2, 5, "to"),
-        EmailAddressRow(33, 8, 2, 6, "to"),
-        EmailAddressRow(34, 8, 2, 8, "to"),
-        EmailAddressRow(35, 8, 2, 9, "to"),
-        EmailAddressRow(36, 9, 2, 1, "from"),
-        EmailAddressRow(37, 9, 2, 3, "to"),
-        EmailAddressRow(38, 10, 2, 2, "from"),
-        EmailAddressRow(39, 10, 2, 1, "to"),
-        EmailAddressRow(40, 10, 2, 3, "to"),
-        EmailAddressRow(41, 10, 2, 4, "to"),
-        EmailAddressRow(42, 10, 2, 5, "to"),
-        EmailAddressRow(43, 10, 2, 6, "to"),
-        EmailAddressRow(44, 10, 2, 7, "to"),
-        EmailAddressRow(45, 10, 2, 8, "to"),
-        EmailAddressRow(46, 10, 2, 9, "to"),
-        EmailAddressRow(47, 11, 2, 3, "from"),
-        EmailAddressRow(48, 11, 2, 1, "to"),
-        EmailAddressRow(49, 11, 2, 2, "to"),
-        EmailAddressRow(50, 11, 2, 4, "to"),
-        EmailAddressRow(51, 11, 2, 5, "to"),
-        EmailAddressRow(52, 11, 2, 6, "to"),
-        EmailAddressRow(53, 11, 2, 7, "to"),
-        EmailAddressRow(54, 11, 2, 8, "to"),
-        EmailAddressRow(55, 11, 2, 9, "to"),
-        EmailAddressRow(56, 12, 2, 4, "from"),
-        EmailAddressRow(57, 12, 2, 1, "to"),
-        EmailAddressRow(58, 12, 2, 2, "to"),
-        EmailAddressRow(59, 12, 2, 3, "to"),
-        EmailAddressRow(60, 12, 2, 5, "to"),
-        EmailAddressRow(61, 12, 2, 6, "to"),
-        EmailAddressRow(62, 12, 2, 7, "to"),
-        EmailAddressRow(63, 12, 2, 8, "to"),
-        EmailAddressRow(64, 12, 2, 9, "to"),
-        EmailAddressRow(65, 13, 2, 5, "from"),
-        EmailAddressRow(66, 13, 2, 3, "to"),
-        EmailAddressRow(67, 14, 3, 10, "from"),
-        EmailAddressRow(68, 14, 3, 1, "to"),
-        EmailAddressRow(69, 14, 3, 2, "to"),
-        EmailAddressRow(70, 15, 3, 2, "from"),
-        EmailAddressRow(71, 15, 3, 10, "to"),
-        EmailAddressRow(72, 16, 3, 1, "from"),
-        EmailAddressRow(73, 16, 3, 10, "to"),
-        EmailAddressRow(74, 17, 3, 10, "from"),
-        EmailAddressRow(75, 17, 3, 1, "to"),
-        EmailAddressRow(76, 18, 3, 1, "from"),
-        EmailAddressRow(77, 18, 3, 10, "to"),
+        EmailAddressRow("0ba9d3a6-4aec-4546-bee8-c856d57bcf6f", "f203c270-5f37-4437-956a-3cf478f5f28f", "303c2b72-304e-4bac-84d7-385acb64a616", "6af24197-9f1f-4aa3-9399-875bb9bccc41", "to"),
 
-        EmailAddressRow(78, 19, 4, 2, "from"),
-        EmailAddressRow(79, 19, 4, 1, "to"),
-        EmailAddressRow(80, 19, 4, 4, "bcc"),
-        EmailAddressRow(81, 19, 4, 5, "cc"),
-        EmailAddressRow(82, 20, 4, 1, "from"),
-        EmailAddressRow(83, 20, 4, 2, "to")),
+        EmailAddressRow("363c14e9-13cd-4cb0-83a5-360a00a70fda", "42508cff-a4cf-47e4-9b7d-db91e010b87a", "825ee397-f36e-4023-951e-89d6e43a8e7d", "56da0e3f-a8eb-4c90-a110-726410a44c4b", "from"),
+        EmailAddressRow("bab3c756-2656-4326-9aaa-66f86065099a", "42508cff-a4cf-47e4-9b7d-db91e010b87a", "825ee397-f36e-4023-951e-89d6e43a8e7d", "02e196e2-631c-43a2-9e8d-cadf88a40ef6", "to"),
+        EmailAddressRow("e58cc6ec-bb0d-46f9-9336-0952c75eb92e", "42508cff-a4cf-47e4-9b7d-db91e010b87a", "825ee397-f36e-4023-951e-89d6e43a8e7d", "ee4a4a6c-3bdc-423a-a610-185b10f6beef", "bcc"),
+        EmailAddressRow("0aab6f1c-154b-4966-b74e-153ce6d9a20a", "42508cff-a4cf-47e4-9b7d-db91e010b87a", "825ee397-f36e-4023-951e-89d6e43a8e7d", "68bfd7ed-bf34-4c56-99ff-8cf46b7f530d", "cc"),
+
+        EmailAddressRow("4df2297f-c63d-43b4-ac4d-57612faacf75", "fe4ff891-144a-4f61-af35-6d4a5ec76314", "825ee397-f36e-4023-951e-89d6e43a8e7d", "02e196e2-631c-43a2-9e8d-cadf88a40ef6", "from"),
+        EmailAddressRow("d4476a39-1542-473a-9f63-881481614001", "fe4ff891-144a-4f61-af35-6d4a5ec76314", "825ee397-f36e-4023-951e-89d6e43a8e7d", "56da0e3f-a8eb-4c90-a110-726410a44c4b", "to")),
 
       AttachmentsTable.all ++= Seq(
         AttachmentRow("9e8d51c6-e903-4760-84a7-6d67e6dd80b2", "1f325a6a-d56c-400f-adf3-cdddf742f50f"),
         AttachmentRow("1e419d9b-e604-4060-b28e-3bca42d106b6", "1f325a6a-d56c-400f-adf3-cdddf742f50f"),
         AttachmentRow("a83db7d5-8ae1-48ef-a1eb-e6a788173b4a", "1f325a6a-d56c-400f-adf3-cdddf742f50f"),
         AttachmentRow("15709f05-5142-44b7-93b7-1c7d8b5d327c", "07181ad2-4b49-4bd8-98ee-2b559e97ffc4"),
-        AttachmentRow("a6f95aa1-a662-4a50-a0cd-d5379375a6c2", "a4e4d8f5-ff60-40e1-a2d3-330088412f81")),
-        AttachmentRow(1, 1),
-        AttachmentRow(2, 1),
-        AttachmentRow(3, 1),
-        AttachmentRow(4, 7),
-        AttachmentRow(5, 15),
-        AttachmentRow(6, 20)),
+        AttachmentRow("a6f95aa1-a662-4a50-a0cd-d5379375a6c2", "a4e4d8f5-ff60-40e1-a2d3-330088412f81"),
+        AttachmentRow("b8c313cc-90a1-4f2f-81c6-e61a64fb0b16", "fe4ff891-144a-4f61-af35-6d4a5ec76314")),
 
       UserChatsTable.all ++= Seq(
         UserChatRow("39ec4eed-e3cd-4088-b053-38726b6643ad", "148a3b1b-8326-466d-8c27-1bd09b8378f3", "b87041c7-9044-41a0-99d7-666ce71bbe8d", 1, 1, 1, 0),
@@ -313,45 +195,16 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         UserChatRow("d67a3383-a838-414f-924d-ffc1b3448986", "148a3b1b-8326-466d-8c27-1bd09b8378f3", "303c2b72-304e-4bac-84d7-385acb64a616", 1, 1, 1, 0),
         UserChatRow("b881f291-6d57-46bf-9eb2-4d2fe6f9476a", "adcd6348-658a-4866-93c5-7e6d32271d8d", "303c2b72-304e-4bac-84d7-385acb64a616", 1, 1, 0, 0),
         UserChatRow("68ccfa80-0226-4ff6-8b76-33aa60cd4aa0", "25689204-5a8e-453d-bfbc-4180ff0f97b9", "303c2b72-304e-4bac-84d7-385acb64a616", 1, 0, 0, 0),
-        UserChatRow("ec4344bb-d68a-4f0b-b407-eb4a7a83eb5d", "ef63108c-8128-4294-8346-bd9b5143ff22", "303c2b72-304e-4bac-84d7-385acb64a616", 1, 0, 0, 0)),
-        UserChatRow(1, 1, 1, 1, 1, 1, 0),
-        UserChatRow(2, 2, 1, 1, 1, 0, 0),
-        UserChatRow(3, 3, 1, 1, 1, 0, 0),
-        UserChatRow(4, 4, 1, 1, 0, 0, 0),
-        UserChatRow(5, 5, 1, 1, 0, 0, 0),
-        UserChatRow(6, 6, 1, 1, 0, 0, 0),
-        UserChatRow(7, 1, 2, 1, 1, 0, 0),
-        UserChatRow(8, 2, 2, 1, 0, 1, 0),
-        UserChatRow(9, 3, 2, 1, 1, 0, 0),
-        UserChatRow(10, 4, 2, 1, 1, 1, 0),
-        UserChatRow(11, 5, 2, 1, 1, 1, 0),
-        UserChatRow(12, 6, 2, 1, 0, 0, 0),
-        UserChatRow(13, 1, 3, 1, 1, 1, 0),
-        UserChatRow(14, 2, 3, 1, 1, 0, 0),
-        UserChatRow(15, 3, 3, 1, 0, 0, 0),
-        UserChatRow(16, 4, 3, 1, 0, 0, 0),
-        UserChatRow(17, 1, 4, 1, 0, 1, 0),
-        UserChatRow(18, 2, 4, 0, 1, 0, 0),
-        UserChatRow(19, 3, 4, 1, 0, 0, 0),
-        UserChatRow(20, 4, 4, 1, 0, 0, 0),
-        UserChatRow(21, 5, 4, 1, 0, 0, 0),
-        UserChatRow(22, 6, 4, 1, 0, 0, 0)),
+        UserChatRow("ec4344bb-d68a-4f0b-b407-eb4a7a83eb5d", "ef63108c-8128-4294-8346-bd9b5143ff22", "303c2b72-304e-4bac-84d7-385acb64a616", 1, 0, 0, 0),
+
+        UserChatRow("853c4fce-845d-4ac5-b3be-6c6dbafa1989", "148a3b1b-8326-466d-8c27-1bd09b8378f3", "825ee397-f36e-4023-951e-89d6e43a8e7d", 1, 0, 1, 0),
+        UserChatRow("a437d9b6-143f-4e17-9ac5-266fb80f425c", "adcd6348-658a-4866-93c5-7e6d32271d8d", "825ee397-f36e-4023-951e-89d6e43a8e7d", 0, 1, 0, 0),
+        UserChatRow("4918c199-a788-44ca-ae6b-58f2123240c1", "25689204-5a8e-453d-bfbc-4180ff0f97b9", "825ee397-f36e-4023-951e-89d6e43a8e7d", 1, 0, 0, 0),
+        UserChatRow("0090bc5e-a259-43c1-bc31-0b48cb3e0393", "ef63108c-8128-4294-8346-bd9b5143ff22", "825ee397-f36e-4023-951e-89d6e43a8e7d", 1, 0, 0, 0),
+        UserChatRow("3c04e7d0-11e2-4281-b06a-1aae6bde4113", "e598ee8e-b459-499f-94d1-d4f66d583264", "825ee397-f36e-4023-951e-89d6e43a8e7d", 1, 0, 0, 0),
+        UserChatRow("d0f9b6bc-1544-4565-b592-0d53bf51dd5d", "261c9094-6261-4704-bfd0-02821c235eff", "825ee397-f36e-4023-951e-89d6e43a8e7d", 1, 0, 0, 0)),
 
       OversightsTable.all ++= Seq(
-        OversightRow(1, 1, 4, 3),
-        OversightRow(2, 1, 5, 3),
-        OversightRow(3, 1, 6, 3),
-        OversightRow(4, 2, 2, 1),
-        OversightRow(5, 2, 4, 1),
-        OversightRow(6, 3, 3, 1),
-        OversightRow(7, 3, 3, 2),
-        OversightRow(8, 3, 4, 1),
-        OversightRow(9, 4, 3, 1),
-        OversightRow(10, 4, 6, 4)))), Duration.Inf)
-  }
-
-  override def beforeEach(): Unit = {
-
         OversightRow("b4c87d59-7f96-471b-b992-19f256540ed1", "b87041c7-9044-41a0-99d7-666ce71bbe8d", "ef63108c-8128-4294-8346-bd9b5143ff22", "25689204-5a8e-453d-bfbc-4180ff0f97b9"),
         OversightRow("c70e5b54-653c-48cd-bb36-5ea85b130859", "b87041c7-9044-41a0-99d7-666ce71bbe8d", "e598ee8e-b459-499f-94d1-d4f66d583264", "25689204-5a8e-453d-bfbc-4180ff0f97b9"),
         OversightRow("bfbc536c-fc6c-44c8-b34f-e6e8bed78a0d", "b87041c7-9044-41a0-99d7-666ce71bbe8d", "261c9094-6261-4704-bfd0-02821c235eff", "25689204-5a8e-453d-bfbc-4180ff0f97b9"),
@@ -359,12 +212,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         OversightRow("ab83f5a5-804f-4def-924e-3fac9e6f8698", "83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "ef63108c-8128-4294-8346-bd9b5143ff22", "148a3b1b-8326-466d-8c27-1bd09b8378f3"),
         OversightRow("71e42cee-7402-4cab-84a7-b6202a9da3be", "303c2b72-304e-4bac-84d7-385acb64a616", "25689204-5a8e-453d-bfbc-4180ff0f97b9", "148a3b1b-8326-466d-8c27-1bd09b8378f3"),
         OversightRow("200ed11e-dce5-49de-9b88-2a5a1b8a67cb", "303c2b72-304e-4bac-84d7-385acb64a616", "25689204-5a8e-453d-bfbc-4180ff0f97b9", "adcd6348-658a-4866-93c5-7e6d32271d8d"),
-        OversightRow("67d48292-6e93-43c5-ab30-b150873bd7da", "303c2b72-304e-4bac-84d7-385acb64a616", "ef63108c-8128-4294-8346-bd9b5143ff22", "148a3b1b-8326-466d-8c27-1bd09b8378f3")))), Duration.Inf)
+        OversightRow("67d48292-6e93-43c5-ab30-b150873bd7da", "303c2b72-304e-4bac-84d7-385acb64a616", "ef63108c-8128-4294-8346-bd9b5143ff22", "148a3b1b-8326-466d-8c27-1bd09b8378f3"),
+
+        OversightRow("3c8d875e-fccc-4afe-9e05-401bee445adb", "825ee397-f36e-4023-951e-89d6e43a8e7d", "25689204-5a8e-453d-bfbc-4180ff0f97b9", "148a3b1b-8326-466d-8c27-1bd09b8378f3"),
+        OversightRow("2ce4b40c-614f-4a42-8b6f-a75c056712e7", "825ee397-f36e-4023-951e-89d6e43a8e7d", "261c9094-6261-4704-bfd0-02821c235eff", "ef63108c-8128-4294-8346-bd9b5143ff22")))), Duration.Inf)
   }
 
-  override def beforeEach(): Unit = {}
+  override def beforeEach(): Unit = {
+  }
 
-  override def afterEach(): Unit = {}
   override def afterEach(): Unit = {
   }
 
@@ -390,6 +246,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       chatsPreview.map(_ mustBe Seq(
         ChatPreview("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento", "beatriz@mail.com", "2019-06-27 11:04:00", "Okay, obrigada!"),
         ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
+        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "beatriz@mail.com", "2019-06-17 10:06:00", "Here"),
         ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "beatriz@mail.com", "2019-06-17 10:05:00", "Estou a chegar!")))
     }
   }
@@ -414,7 +271,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       chatsPreview.map(_ mustBe Seq(
         ChatPreview("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento", "joana@mail.com", "2019-06-27 11:03:00", "Já vou resolver o assunto!"),
         ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema.")))
+        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema."),
+        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "joao@mail.com", "2019-06-17 10:00:00", "Where are you?")))
     }
   }
 
@@ -426,7 +284,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       chatsPreview.map(_ mustBe Seq(
         ChatPreview("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento", "joana@mail.com", "2019-06-27 11:03:00", "Já vou resolver o assunto!"),
         ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "pedrol@mail.com", "2019-06-19 11:05:00", "Também vou!"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema.")))
+        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema."),
+        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "joao@mail.com", "2019-06-17 10:00:00", "Where are you?")))
     }
   }
 
@@ -437,7 +296,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
 
       chatsPreview.map(_ mustBe Seq(
         ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "pedroc@mail.com", "2019-06-19 11:06:00", "Talvez vá"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema.")))
+        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema."),
+        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "joao@mail.com", "2019-06-17 10:00:00", "Where are you?")))
     }
   }
 
@@ -448,7 +308,20 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
 
       chatsPreview.map(_ mustBe Seq(
         ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema.")))
+        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema."),
+        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "joao@mail.com", "2019-06-17 10:00:00", "Where are you?")))
+    }
+  }
+
+  "SlickChatsRepository#getChatsPreview" should {
+    "be valid for User: 1 Mailbox: Drafts" in {
+      val chatsRep = new SlickChatsRepository(db)
+      val chatsPreview = chatsRep.getChatsPreview(Drafts, "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+
+      chatsPreview.map(_ mustBe Seq(
+        ChatPreview("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento", "beatriz@mail.com", "2019-06-27 11:04:00", "Okay, obrigada!"),
+        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "beatriz@mail.com", "2019-06-17 10:06:00", "Here"),
+        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "beatriz@mail.com", "2019-06-17 10:05:00", "Estou a chegar!")))
     }
   }
 
@@ -463,105 +336,114 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
   }
   //endregion
 
+  //region getChat tests
+
   "SlickChatsRepository#getChat" should {
-    "return a chat for a user that has received an email and has a draft (chat 4, user 1)" in {
-      val chatsRep = new SlickChatsRepository(db)
-      val chat = chatsRep.getChat(4, 1)
+    "return a chat for a user that has received an email and has a draft " +
+      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (1) 148a3b1b-8326-466d-8c27-1bd09b8378f3)" in {
+        val chatsRep = new SlickChatsRepository(db)
+        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
 
-      val expectedRepositoryResponse: Option[Chat] =
-        Some(
-          Chat(
-            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
-            Set(
-              Overseers("beatriz@mail.com", Set("valter@mail.com")),
-              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-            Seq(
-              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
-                "Where are you?", "2019-06-17 10:00:00", 1, Set()),
-              Email(20, "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(),
-                "Here", "2019-06-17 10:05:00", 0, Set(6)))))
+        val expectedRepositoryResponse: Option[Chat] =
+          Some(
+            Chat(
+              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
+              Set(
+                Overseers("beatriz@mail.com", Set("valter@mail.com")),
+                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+              Seq(
+                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
+                  "Where are you?", "2019-06-17 10:00:00", 1, Set()),
+                Email("fe4ff891-144a-4f61-af35-6d4a5ec76314", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(),
+                  "Here", "2019-06-17 10:06:00", 0, Set("b8c313cc-90a1-4f2f-81c6-e61a64fb0b16")))))
 
-      chat.map(_ mustBe expectedRepositoryResponse)
-    }
+        chat.map(_ mustBe expectedRepositoryResponse)
+      }
   }
 
   "SlickChatsRepository#getChat" should {
-    "return a chat for a user that sent an email (with a bcc) (chat 4, user 2)" in {
-      val chatsRep = new SlickChatsRepository(db)
-      val chat = chatsRep.getChat(4, 2)
+    "return a chat for a user that sent an email (with a bcc) " +
+      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (2) adcd6348-658a-4866-93c5-7e6d32271d8d)" in {
+        val chatsRep = new SlickChatsRepository(db)
+        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "adcd6348-658a-4866-93c5-7e6d32271d8d")
 
-      val expectedRepositoryResponse: Option[Chat] =
-        Some(
-          Chat(
-            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
-            Set(
-              Overseers("beatriz@mail.com", Set("valter@mail.com")),
-              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-            Seq(
-              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
-                "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+        val expectedRepositoryResponse: Option[Chat] =
+          Some(
+            Chat(
+              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
+              Set(
+                Overseers("beatriz@mail.com", Set("valter@mail.com")),
+                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+              Seq(
+                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
+                  "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
 
-      chat.map(_ mustBe expectedRepositoryResponse)
-    }
+        chat.map(_ mustBe expectedRepositoryResponse)
+      }
   }
 
   "SlickChatsRepository#getChat" should {
-    "return a chat for an overseer of a user (sees what their oversee sees, except for their drafts)(chat 4, user 3)" in {
-      val chatsRep = new SlickChatsRepository(db)
-      val chat = chatsRep.getChat(4, 3)
+    "return a chat for an overseer of a user (sees what their oversee sees, except for their drafts)" +
+      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (3) 25689204-5a8e-453d-bfbc-4180ff0f97b9)" in {
+        val chatsRep = new SlickChatsRepository(db)
+        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "25689204-5a8e-453d-bfbc-4180ff0f97b9")
 
-      val expectedRepositoryResponse: Option[Chat] =
-        Some(
-          Chat(
-            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
-            Set(
-              Overseers("beatriz@mail.com", Set("valter@mail.com")),
-              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-            Seq(
-              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
-                "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+        val expectedRepositoryResponse: Option[Chat] =
+          Some(
+            Chat(
+              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
+              Set(
+                Overseers("beatriz@mail.com", Set("valter@mail.com")),
+                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+              Seq(
+                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
+                  "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
 
-      chat.map(_ mustBe expectedRepositoryResponse)
-    }
+        chat.map(_ mustBe expectedRepositoryResponse)
+      }
   }
 
   "SlickChatsRepository#getChat" should {
-    "return a chat for a user that is a BCC of an email of that chat (chat 4, user 4)" in {
-      val chatsRep = new SlickChatsRepository(db)
-      val chat = chatsRep.getChat(4, 4)
+    "return a chat for a user that is a BCC of an email of that chat " +
+      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (4) ef63108c-8128-4294-8346-bd9b5143ff22)" in {
+        val chatsRep = new SlickChatsRepository(db)
+        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "ef63108c-8128-4294-8346-bd9b5143ff22")
 
-      val expectedRepositoryResponse: Option[Chat] =
-        Some(
-          Chat(
-            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
-            Set(
-              Overseers("beatriz@mail.com", Set("valter@mail.com")),
-              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-            Seq(
-              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
-                "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+        val expectedRepositoryResponse: Option[Chat] =
+          Some(
+            Chat(
+              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
+              Set(
+                Overseers("beatriz@mail.com", Set("valter@mail.com")),
+                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+              Seq(
+                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
+                  "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
 
-      chat.map(_ mustBe expectedRepositoryResponse)
-    }
+        chat.map(_ mustBe expectedRepositoryResponse)
+      }
   }
 
   "SlickChatsRepository#getChat" should {
-    "return a chat for an overseer of a user that appear as BCC (chat 4, user 6)" in {
-      val chatsRep = new SlickChatsRepository(db)
-      val chat = chatsRep.getChat(4, 6)
+    "return a chat for an overseer of a user that appear as BCC " +
+      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (6) 261c9094-6261-4704-bfd0-02821c235eff)" in {
+        val chatsRep = new SlickChatsRepository(db)
+        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "261c9094-6261-4704-bfd0-02821c235eff")
 
-      val expectedRepositoryResponse: Option[Chat] =
-        Some(
-          Chat(
-            4, "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
-            Set(
-              Overseers("beatriz@mail.com", Set("valter@mail.com")),
-              Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-            Seq(
-              Email(19, "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
-                "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+        val expectedRepositoryResponse: Option[Chat] =
+          Some(
+            Chat(
+              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
+              Set(
+                Overseers("beatriz@mail.com", Set("valter@mail.com")),
+                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+              Seq(
+                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
+                  "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
 
-      chat.map(_ mustBe expectedRepositoryResponse)
-    }
+        chat.map(_ mustBe expectedRepositoryResponse)
+      }
   }
+
+  //endregion
 }

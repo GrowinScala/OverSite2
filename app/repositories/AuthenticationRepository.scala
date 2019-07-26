@@ -1,7 +1,7 @@
 package repositories
 
 trait AuthenticationRepository {
-	
-	def insertPassword
-	
+
+  def insertPassword
+
 }
