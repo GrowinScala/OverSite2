@@ -1,6 +1,7 @@
 package repositories.slick.implementations
 
 import javax.inject.Inject
+import model.dtos.CreateChatDTO
 import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
@@ -124,7 +125,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   }
 
-  //region getChat and auxiliary methods
   /**
    * Method to get the emails and other data of a specific chat of a user
    * @param chatId ID of the chat requested
@@ -152,6 +152,13 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     }
 
   }
+
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
+
+    Future.successful(Some(createChatDTO))
+  }
+
+  //region getChat auxiliary methods
 
   /**
    * Method to get data of a specific chat
