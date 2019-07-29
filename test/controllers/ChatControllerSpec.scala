@@ -1,31 +1,24 @@
 package controllers
 
-import model.dtos.{ ChatDTO, ChatPreviewDTO, EmailDTO, OverseersDTO }
+import model.dtos._
 import model.types.Mailbox._
 import org.scalatestplus.play._
-import play.api.inject.Injector
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.json.{ JsValue, Json }
+import play.api.libs.json._
 import play.api.mvc._
 import play.api.test.Helpers._
 import play.api.test._
-import services.ChatService
 import org.mockito.scalatest.IdiomaticMockito
 import services.ChatService
-import org.mockito.Mockito.when
-import org.mockito.ArgumentMatchersSugar._
-import repositories.dtos.{ Chat, Email, Overseers }
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 import scala.util.Random
 
 class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
-  //private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
-  // private lazy val injector: Injector = appBuilder.injector()
+  private val LOCALHOST = "localhost:9000"
+
   private val cc: ControllerComponents = Helpers.stubControllerComponents()
-  //private val chatService = injector.instanceOf[ChatService]
-  implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+  private implicit val ec: ExecutionContextExecutor = ExecutionContext.global
 
   //region ChatController#getChats
   "ChatController#getChats" should {
@@ -92,6 +85,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
   }
   //endregion
 
+  //region ChatController#getChat
+
   "ChatController#getChat" should {
     "return Json for ChatDTO" in {
       val dto = ChatDTO(
@@ -132,4 +127,92 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       result.map(_ mustBe NotFound)
     }
   }
+
+  //endregion
+
+  //region ChatController#postChat
+
+  "ChatController#postChat" should {
+    "return Json with the chat received plus a new chatId and a new emailId" in {
+
+      val mockChatService: ChatService = mock[ChatService]
+
+      val createChatDTO =
+        CreateChatDTO(Some("newChatId"), "Subject",
+          CreateEmailDTO(Some("newEmailId"), "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
+            Some(Set("")), Some("This is the body"), "2019-07-26 15:00:00"))
+
+      mockChatService.createChat(*, *)
+        .returns(Future.successful(createChatDTO))
+
+      val chatJsonRequest = Json.parse(
+        """{
+          |    "subject": "Subject",
+          |    "email": {
+          |        "from": "beatriz@mail.com",
+          |        "to": ["joao@mail.com"],
+          |        "cc": [""],
+          |        "body": "This is the body",
+          |        "date": "2019-07-26 15:00:00"
+          |   }
+          |}""".stripMargin)
+
+      val chatJsonResponse = Json.parse(
+        """{
+          |    "chatId": "newChatId",
+          |    "subject": "Subject",
+          |    "email": {
+          |        "emailId": "newEmailId",
+          |        "from": "beatriz@mail.com",
+          |        "to": ["joao@mail.com"],
+          |        "cc": [""],
+          |        "body": "This is the body",
+          |        "date": "2019-07-26 15:00:00"
+          |   }
+          |}""".stripMargin)
+
+      val controller = new ChatController(cc, mockChatService)
+
+      val request = FakeRequest(POST, "/chats")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(chatJsonRequest)
+
+      val result: Future[Result] = controller.postChat.apply(request)
+
+      val json = contentAsJson(result)
+
+      status(result) mustBe OK
+      json mustBe chatJsonResponse
+    }
+  }
+
+  "ChatController#postChat" should {
+    "return 400 Bad Request if any of the non-optional fields is missing" in {
+
+      val mockChatService = mock[ChatService]
+
+      val chatWithMissingSubject = Json.parse(
+        """{
+          |    "email": {
+          |        "from": "beatriz@mail.com",
+          |        "to": ["joao@mail.com"],
+          |        "cc": [""],
+          |        "body": "This is the body",
+          |        "date": "2019-07-26 15:00:00"
+          |   }
+          |}""".stripMargin)
+
+      val controller = new ChatController(cc, mockChatService)
+
+      val request = FakeRequest(POST, "/chats")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(chatWithMissingSubject)
+
+      val result: Future[Result] = controller.postChat.apply(request)
+
+      status(result) mustBe BAD_REQUEST
+    }
+  }
+
+  //endregion
 }

@@ -8,6 +8,8 @@ GET     /chats                   controllers.ChatController.getChats(mailbox: St
 
 GET     /chats/:id               controllers.ChatController.getChat(id : String)
 
+POST    /chats                   controllers.ChatController.postChat
+
 
 # Authentication
 
