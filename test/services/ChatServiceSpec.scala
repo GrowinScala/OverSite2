@@ -52,4 +52,11 @@ class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
     }
   }
 
+  "ChatService#postChat" should {
+    "return a CreateChatDTO equal to the input plus a new chatId and a new emailID" in {
+
+      1 mustBe 1
+    }
+  }
+
 }
