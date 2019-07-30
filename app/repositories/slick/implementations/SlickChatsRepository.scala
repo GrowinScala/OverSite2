@@ -184,7 +184,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   def insertAddressIfNotExists(address: String): DBIO[String] = for {
-    existing <- AddressesTable.all.filter(_.address === address).result.headOption
+    existing <- AddressesTable.selectByAddress(address).result.headOption
 
     row = existing //.map(_.copy(address = address))
       .getOrElse(AddressRow(UUID.randomUUID().toString, address))
@@ -195,8 +195,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def insertEmailAddressIfNotExists(emailId: String, chatId: String, address: DBIO[String], participantType: String): DBIO[String] =
     for {
       addressId <- address
-      existing <- EmailAddressesTable.all
-        .filter(ea => ea.emailId === emailId && ea.addressId === addressId && ea.participantType === participantType)
+      existing <- EmailAddressesTable.selectByEmailIdAddressAndType(emailId, addressId, participantType)
+        //.all.filter(ea => ea.emailId === emailId && ea.addressId === addressId && ea.participantType === participantType)
         .result.headOption
 
       row = existing //.map(_.copy(emailId = emailId, addressId = addressId, participantType = participantType))
