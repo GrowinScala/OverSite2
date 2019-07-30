@@ -441,4 +441,29 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       }
 
   }
+
+  "SlickChatsRepository#insertAddressIfNotExists" should {
+    "insert a new address if it does not exist and return its addressId" in {
+      val chatsRep = new SlickChatsRepository(db)
+
+      val address = "alice@mail.com"
+      for {
+        inserted <- db.run(chatsRep.insertAddressIfNotExists(address))
+        selected <- db.run(AddressesTable.all.filter(_.address === address).map(_.addressId).result.head)
+      } yield inserted mustBe selected
+
+      //val debugPrint = db.run(AddressesTable.all.result).map(_.map(a => println(a.addressId + "-" + a.address)))
+    }
+
+    "return the addressId if the address already exists in the table" in {
+      val chatsRep = new SlickChatsRepository(db)
+
+      val address = "beatriz@mail.com"
+      for {
+        inserted <- db.run(chatsRep.insertAddressIfNotExists(address))
+        selected <- db.run(AddressesTable.all.filter(_.address === address).map(_.addressId).result.head)
+      } yield inserted mustBe selected
+    }
+  }
+
 }

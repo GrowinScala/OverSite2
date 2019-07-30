@@ -61,7 +61,7 @@ class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
       val expectedResponse = createChatDTO.copy(chatId = Some("newChatId"), email = createChatDTO.email.copy(emailId = Some("newEmailId")))
 
       val mockChatsRep = mock[ChatsRepository]
-      when(mockChatsRep.postChat(any, any))
+      when(mockChatsRep.createChat(any, any))
         .thenReturn(
           Future.successful(Some(expectedResponse)))
 

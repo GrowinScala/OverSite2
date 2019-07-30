@@ -1,5 +1,7 @@
 package repositories.slick.implementations
 
+import java.util.UUID
+
 import javax.inject.Inject
 import model.dtos.CreateChatDTO
 import model.types.Mailbox
@@ -7,6 +9,7 @@ import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
 import repositories.dtos._
+import slick.dbio.DBIOAction
 import slick.jdbc.JdbcProfile
 import slick.jdbc.MySQLProfile.api._
 
@@ -153,10 +156,54 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   }
 
-  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
+  def createChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
+    val emailDTO = createChatDTO.email
 
-    Future.successful(Some(createChatDTO))
+    val chatId = UUID.randomUUID().toString
+    val insertChat = ChatsTable.all += ChatRow(chatId, createChatDTO.subject)
+    val emailId = UUID.randomUUID().toString
+    val insertEmail = EmailsTable.all += EmailRow(
+      UUID.randomUUID().toString,
+      chatId,
+      emailDTO.body.getOrElse(""),
+      emailDTO.date,
+      0)
+
+    val fromInsert = DBIO.seq(insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(emailDTO.from), "from"))
+    val toInsert = emailDTO.to.get.toSeq.map(
+      to => DBIO.seq(insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to")))
+    val bccInsert = emailDTO.bcc.get.toSeq.map(
+      bcc => DBIO.seq(insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(bcc), "bcc")))
+    val ccInsert = emailDTO.cc.get.toSeq.map(
+      cc => DBIO.seq(insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(cc), "cc")))
+
+    Await.result(db.run(DBIOAction.seq(insertChat, insertEmail).transactionally), Duration.Inf)
+
+    Future.successful(
+      Some(createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId)))))
   }
+
+  def insertAddressIfNotExists(address: String): DBIO[String] = for {
+    existing <- AddressesTable.all.filter(_.address === address).result.headOption
+
+    row = existing //.map(_.copy(address = address))
+      .getOrElse(AddressRow(UUID.randomUUID().toString, address))
+
+    _ <- AddressesTable.all.insertOrUpdate(row)
+  } yield row.addressId
+
+  def insertEmailAddressIfNotExists(emailId: String, chatId: String, address: DBIO[String], participantType: String): DBIO[String] =
+    for {
+      addressId <- address
+      existing <- EmailAddressesTable.all
+        .filter(ea => ea.emailId === emailId && ea.addressId === addressId && ea.participantType === participantType)
+        .result.headOption
+
+      row = existing //.map(_.copy(emailId = emailId, addressId = addressId, participantType = participantType))
+        .getOrElse(EmailAddressRow(UUID.randomUUID().toString, emailId, chatId, addressId, participantType))
+
+      _ <- EmailAddressesTable.all.insertOrUpdate(row)
+    } yield row.emailAddressId
 
   //region getChat auxiliary methods
 
