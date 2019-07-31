@@ -1,13 +1,18 @@
 package model.dtos
 
-import play.api.libs.json.{ Json, OFormat, OWrites, Reads }
+import play.api.libs.json._
+import play.api.libs.json.Reads._
+import play.api.libs.functional.syntax._
 
 case class CreateChatDTO(chatId: Option[String], subject: String, email: CreateEmailDTO)
 
 object CreateChatDTO {
-  implicit val createChatFormat: OFormat[CreateChatDTO] = Json.format[CreateChatDTO]
-  //implicit val createChatReads: Reads[CreateChatDTO] = Json.reads[CreateChatDTO]
-  //implicit val createChatWrites: OWrites[CreateChatDTO] = Json.writes[CreateChatDTO]
+  implicit val createChatWrites: OWrites[CreateChatDTO] = Json.writes[CreateChatDTO]
+
+  implicit val createChatDTOReads: Reads[CreateChatDTO] = (
+    (JsPath \ "chatId").readNullable[String] and
+    (JsPath \ "subject").read[String] and
+    (JsPath \ "email").read[CreateEmailDTO])(CreateChatDTO.apply _)
 
   def tupled = (CreateChatDTO.apply _).tupled
 

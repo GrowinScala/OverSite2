@@ -189,17 +189,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   private[implementations] def insertAddressIfNotExists(address: String): DBIO[String] = {
-    //TODO address validation?
-    if (address != "")
-      for {
-        existing <- AddressesTable.selectByAddress(address).result.headOption
+    for {
+      existing <- AddressesTable.selectByAddress(address).result.headOption
 
-        row = existing
-          .getOrElse(AddressRow(UUID.randomUUID().toString, address))
+      row = existing
+        .getOrElse(AddressRow(UUID.randomUUID().toString, address))
 
-        _ <- AddressesTable.all.insertOrUpdate(row)
-      } yield row.addressId
-    else throw new Exception("The address \"" + address + "\" is not valid")
+      _ <- AddressesTable.all.insertOrUpdate(row)
+    } yield row.addressId
   }
 
   private[implementations] def insertEmailAddressIfNotExists(emailId: String, chatId: String, address: DBIO[String], participantType: String) /*: DBIO[String]*/ =
@@ -212,7 +209,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .getOrElse(EmailAddressRow(UUID.randomUUID().toString, emailId, chatId, addressId, participantType))
 
       _ <- EmailAddressesTable.all.insertOrUpdate(row)
-    } yield println("emailId: " + emailId + " emailAddressId: " + row.emailAddressId /*+ " address: " + address*/ ) //row.emailAddressId
+    } yield ()
 
   //region getChat auxiliary methods
 

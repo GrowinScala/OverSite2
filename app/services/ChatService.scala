@@ -21,7 +21,6 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
 
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
     chatsRep.postChat(createChatDTO, userId)
-    //Future.successful(createChatDTO.copy(chatId = Some("newChatId"), email = createChatDTO.email.copy(emailId = Some("newEmailId"))))
   }
 
   //region Auxiliary conversion methods
