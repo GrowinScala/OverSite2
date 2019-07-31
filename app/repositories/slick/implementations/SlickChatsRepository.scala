@@ -156,54 +156,63 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   }
 
-  def createChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
     val emailDTO = createChatDTO.email
 
+    /** Generate chatId and emailId **/
     val chatId = UUID.randomUUID().toString
-    val insertChat = ChatsTable.all += ChatRow(chatId, createChatDTO.subject)
     val emailId = UUID.randomUUID().toString
-    val insertEmail = EmailsTable.all += EmailRow(
-      UUID.randomUUID().toString,
-      chatId,
-      emailDTO.body.getOrElse(""),
-      emailDTO.date,
-      0)
 
-    val fromInsert = DBIO.seq(insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(emailDTO.from), "from"))
-    val toInsert = emailDTO.to.get.toSeq.map(
-      to => DBIO.seq(insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to")))
-    val bccInsert = emailDTO.bcc.get.toSeq.map(
-      bcc => DBIO.seq(insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(bcc), "bcc")))
-    val ccInsert = emailDTO.cc.get.toSeq.map(
-      cc => DBIO.seq(insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(cc), "cc")))
+    /** Insert ChatRow and EmailRow **/
+    val chatInsert = ChatsTable.all +=
+      ChatRow(chatId, createChatDTO.subject)
+    val emailInsert = EmailsTable.all +=
+      EmailRow(emailId, chatId, emailDTO.body.getOrElse(""),
+        emailDTO.date, 0)
 
-    Await.result(db.run(DBIOAction.seq(insertChat, insertEmail).transactionally), Duration.Inf)
+    /** Insert EmailAddresses Rows (from, to, bcc and cc) **/
+    val fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(emailDTO.from), "from")
+    val toInsert = emailDTO.to.getOrElse(Set()).map(
+      to => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to"))
+    val bccInsert = emailDTO.bcc.getOrElse(Set()).map(
+      bcc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(bcc), "bcc"))
+    val ccInsert = emailDTO.cc.getOrElse(Set()).map(
+      cc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(cc), "cc"))
+
+    val addressesInsert = DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
+
+    /** Run the DBIOAction **/
+    db.run(DBIO.seq(chatInsert, emailInsert, addressesInsert).transactionally)
 
     Future.successful(
       Some(createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId)))))
   }
 
-  def insertAddressIfNotExists(address: String): DBIO[String] = for {
-    existing <- AddressesTable.selectByAddress(address).result.headOption
+  private[implementations] def insertAddressIfNotExists(address: String): DBIO[String] = {
+    //TODO address validation?
+    if (address != "")
+      for {
+        existing <- AddressesTable.selectByAddress(address).result.headOption
 
-    row = existing //.map(_.copy(address = address))
-      .getOrElse(AddressRow(UUID.randomUUID().toString, address))
+        row = existing
+          .getOrElse(AddressRow(UUID.randomUUID().toString, address))
 
-    _ <- AddressesTable.all.insertOrUpdate(row)
-  } yield row.addressId
+        _ <- AddressesTable.all.insertOrUpdate(row)
+      } yield row.addressId
+    else throw new Exception("The address \"" + address + "\" is not valid")
+  }
 
-  def insertEmailAddressIfNotExists(emailId: String, chatId: String, address: DBIO[String], participantType: String): DBIO[String] =
+  private[implementations] def insertEmailAddressIfNotExists(emailId: String, chatId: String, address: DBIO[String], participantType: String) /*: DBIO[String]*/ =
     for {
       addressId <- address
       existing <- EmailAddressesTable.selectByEmailIdAddressAndType(emailId, addressId, participantType)
-        //.all.filter(ea => ea.emailId === emailId && ea.addressId === addressId && ea.participantType === participantType)
         .result.headOption
 
-      row = existing //.map(_.copy(emailId = emailId, addressId = addressId, participantType = participantType))
+      row = existing
         .getOrElse(EmailAddressRow(UUID.randomUUID().toString, emailId, chatId, addressId, participantType))
 
       _ <- EmailAddressesTable.all.insertOrUpdate(row)
-    } yield row.emailAddressId
+    } yield println("emailId: " + emailId + " emailAddressId: " + row.emailAddressId /*+ " address: " + address*/ ) //row.emailAddressId
 
   //region getChat auxiliary methods
 

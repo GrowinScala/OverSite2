@@ -125,7 +125,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           CreateEmailDTO(Some("newEmailId"), "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
             Some(Set("")), Some("This is the body"), "2019-07-26 15:00:00"))
 
-      mockChatService.createChat(*, *)
+      mockChatService.postChat(*, *)
         .returns(Future.successful(Some(createChatDTO)))
 
       val chatJsonRequest = Json.parse(

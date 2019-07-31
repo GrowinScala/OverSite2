@@ -51,7 +51,7 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
 
       jsonValue.validate[CreateChatDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        createChatDTO => chatService.createChat(createChatDTO, "userID")
+        createChatDTO => chatService.postChat(createChatDTO, "userID")
           .map(result => Ok(Json.toJson(result))))
     }
   }
