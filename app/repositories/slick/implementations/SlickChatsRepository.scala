@@ -9,12 +9,10 @@ import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
 import repositories.dtos._
-import slick.dbio.DBIOAction
-import slick.jdbc.JdbcProfile
 import slick.jdbc.MySQLProfile.api._
+import utils.DateUtils
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future }
 
 class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
   extends ChatsRepository {
@@ -158,6 +156,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
     val emailDTO = createChatDTO.email
+    val date = DateUtils.getCurrentDate
 
     /** Generate chatId and emailId **/
     val chatId = UUID.randomUUID().toString
@@ -168,7 +167,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       ChatRow(chatId, createChatDTO.subject)
     val emailInsert = EmailsTable.all +=
       EmailRow(emailId, chatId, emailDTO.body.getOrElse(""),
-        emailDTO.date, 0)
+        date, 0)
 
     /** Insert EmailAddresses Rows (from, to, bcc and cc) **/
     val fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(emailDTO.from), "from")
@@ -185,7 +184,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(DBIO.seq(chatInsert, emailInsert, addressesInsert).transactionally)
 
     Future.successful(
-      Some(createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId)))))
+      Some(createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date)))))
   }
 
   private[implementations] def insertAddressIfNotExists(address: String): DBIO[String] = {

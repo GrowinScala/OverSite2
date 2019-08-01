@@ -7,13 +7,12 @@ import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
 import repositories.dtos.ChatPreview
-import repositories.slick.mappings._
 import repositories.dtos.{ Chat, Email, Overseers }
 import repositories.slick.mappings.{ EmailRow, _ }
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor, Future }
+import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor }
 
 class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
