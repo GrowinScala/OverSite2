@@ -158,13 +158,18 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val emailDTO = createChatDTO.email
     val date = DateUtils.getCurrentDate
 
-    /** Generate chatId and emailId **/
+    //val userAddress = UsersTable.all.join(AddressesTable.all).on((user, address) => user.addressId === address.addressId && user.userId === userId)
+
+    /** Generate chatId, userChatId and emailId **/
     val chatId = UUID.randomUUID().toString
+    val userChatId = UUID.randomUUID().toString
     val emailId = UUID.randomUUID().toString
 
-    /** Insert ChatRow and EmailRow **/
+    /** Insert ChatRow, UserChatRow and EmailRow **/
     val chatInsert = ChatsTable.all +=
       ChatRow(chatId, createChatDTO.subject)
+    val userChatInsert = UserChatsTable.all +=
+      UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
     val emailInsert = EmailsTable.all +=
       EmailRow(emailId, chatId, emailDTO.body.getOrElse(""),
         date, 0)
@@ -181,7 +186,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val addressesInsert = DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
 
     /** Run the DBIOAction **/
-    db.run(DBIO.seq(chatInsert, emailInsert, addressesInsert).transactionally)
+    db.run(DBIO.seq(chatInsert, userChatInsert, emailInsert, addressesInsert).transactionally)
 
     Future.successful(
       Some(createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date)))))

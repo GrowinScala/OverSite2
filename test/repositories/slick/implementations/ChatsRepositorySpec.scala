@@ -2,17 +2,18 @@ package repositories.slick.implementations
 
 import java.util.UUID
 
-import model.types.Mailbox.{ Drafts, Inbox }
+import model.dtos.{CreateChatDTO, CreateEmailDTO}
+import model.types.Mailbox.{Drafts, Inbox}
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
 import repositories.dtos.ChatPreview
-import repositories.dtos.{ Chat, Email, Overseers }
-import repositories.slick.mappings.{ EmailRow, _ }
+import repositories.dtos.{Chat, Email, Overseers}
+import repositories.slick.mappings.{EmailRow, _}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor }
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 
 class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
@@ -462,6 +463,28 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         inserted <- db.run(chatsRep.insertAddressIfNotExists(address))
         selected <- db.run(AddressesTable.selectAddressId(address).result.head)
       } yield inserted mustBe selected
+    }
+  }
+
+  "SlickChatsRepository#postChat" should {
+    " " in {
+
+      val chatsRep = new SlickChatsRepository(db)
+
+
+      val createChatDTO =
+        CreateChatDTO(
+          None, "Subject",
+          CreateEmailDTO(
+            None, "from@mail.com",
+            Some(Set("to1@mail.com", "to2@mail.com")),
+            Some(Set("bcc1@mail.com", "bcc2@mail.com")),
+            Some(Set("cc1@mail.com", "cc2@mail.com")),
+            Some("Body"), None))
+
+      chatsRep.postChat(createChatDTO, "userId")
+
+      true mustBe true
     }
   }
 

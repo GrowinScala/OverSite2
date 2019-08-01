@@ -16,8 +16,8 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
   extends AbstractController(cc) {
 
   private def userId = {
-    //"148a3b1b-8326-466d-8c27-1bd09b8378f3" //user 1 Beatriz
-    "adcd6348-658a-4866-93c5-7e6d32271d8d" //user 2 João
+    "148a3b1b-8326-466d-8c27-1bd09b8378f3" //user 1 Beatriz
+    //"adcd6348-658a-4866-93c5-7e6d32271d8d" //user 2 João
     //"25689204-5a8e-453d-bfbc-4180ff0f97b9" //user 3 Valter
     //"ef63108c-8128-4294-8346-bd9b5143ff22" //user 4 Pedro L
     //"e598ee8e-b459-499f-94d1-d4f66d583264" //user 5 Pedro C
@@ -51,7 +51,7 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
 
       jsonValue.validate[CreateChatDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        createChatDTO => chatService.postChat(createChatDTO, "userID")
+        createChatDTO => chatService.postChat(createChatDTO, userId)
           .map(result => Ok(Json.toJson(result))))
     }
   }
