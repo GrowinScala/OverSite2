@@ -11,7 +11,9 @@ GET     /chats/:id               controllers.ChatController.getChat(id : String)
 
 # Authentication
 
-# POST    /user                    controllers.AuthenticationController.insertUser
+POST    /signup                  controllers.AuthenticationController.signUpUser
+
+POST    /signin                  controllers.AuthenticationController.signInUser
 
 
 

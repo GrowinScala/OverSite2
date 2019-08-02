@@ -3,7 +3,7 @@ package controllers
 import javax.inject._
 import play.api.mvc._
 import play.api.libs.json.Json
-import services.ChatService
+import services.{ AuthenticationService, ChatService }
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -11,28 +11,28 @@ import model.types.Mailbox
 import validations.CategoryNames
 
 @Singleton
-class ChatController @Inject() (cc: ControllerComponents, chatService: ChatService)
+class ChatController @Inject() (cc: ControllerComponents, chatService: ChatService,
+  authenticatedUserAction: AuthenticatedUserAction)
   extends AbstractController(cc) {
 
-  def getChat(id: String): Action[AnyContent] =
-    Action.async {
-      val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3"
+  def getChat(id: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
 
-      chatService.getChat(id, userId).map {
+      chatService.getChat(id, authenticatedRequest.userId).map {
         case Some(chat) => Ok(Json.toJson(chat))
         case None => NotFound
       }
-    }
+  }
 
-  def getChats(mailboxString: String): Action[AnyContent] = {
-    Action.async {
+  def getChats(mailboxString: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
       if (CategoryNames.validMailboxes.contains(mailboxString)) {
         val mailbox = Mailbox(mailboxString)
-        val user = "148a3b1b-8326-466d-8c27-1bd09b8378f3"
-        chatService.getChats(mailbox, user).map(seq => Ok(Json.toJson(seq)))
+        chatService.getChats(mailbox, authenticatedRequest.userId).map(seq => Ok(Json.toJson(seq)))
       } else Future.successful(NotFound)
-    }
+
   }
+
 }
 
 //region Old

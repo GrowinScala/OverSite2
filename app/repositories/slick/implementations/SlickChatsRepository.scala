@@ -6,7 +6,6 @@ import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
 import repositories.dtos.{ Chat, Email, Overseer, ChatPreview }
-import slick.jdbc.JdbcProfile
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.duration.Duration

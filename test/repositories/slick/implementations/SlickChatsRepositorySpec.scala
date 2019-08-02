@@ -11,7 +11,7 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor, Future }
 
-class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach {
+class SlickChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
   private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
   private lazy val injector: Injector = appBuilder.injector()
