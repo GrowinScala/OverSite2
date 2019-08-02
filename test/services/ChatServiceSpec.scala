@@ -1,6 +1,6 @@
 package services
 
-import model.dtos.{ ChatDTO, ChatPreviewDTO, EmailDTO, OverseersDTO }
+import model.dtos._
 import model.types.Mailbox.Inbox
 import org.mockito.ArgumentMatchersSugar._
 import org.mockito.Mockito.when
@@ -8,7 +8,6 @@ import org.scalatest.{ AsyncWordSpec, MustMatchers }
 import org.scalatest.mockito.MockitoSugar._
 import repositories.ChatsRepository
 import repositories.dtos._
-
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 
 class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
@@ -49,6 +48,27 @@ class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
             Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(),
               "This is the body", "2019-07-19 10:00:00", true, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0")))))
       chatDTO.map(_ mustBe expectedServiceResponse)
+    }
+  }
+
+  "ChatService#postChat" should {
+    "return a CreateChatDTO equal to the input plus a new chatId and a new emailID" in {
+      val createChatDTO =
+        CreateChatDTO(None, Some("Subject"),
+          CreateEmailDTO(None, "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
+            Some(Set("")), Some("This is the body"), Some("2019-07-26 15:00:00")))
+
+      val expectedResponse = createChatDTO.copy(chatId = Some("newChatId"), email = createChatDTO.email.copy(emailId = Some("newEmailId")))
+
+      val mockChatsRep = mock[ChatsRepository]
+      when(mockChatsRep.postChat(any, any))
+        .thenReturn(
+          Future.successful(expectedResponse))
+
+      val chatService = new ChatService(mockChatsRep)
+      val serviceResponse = chatService.postChat(createChatDTO, userId = "randomUserId")
+
+      serviceResponse.map(_ mustBe expectedResponse)
     }
   }
 

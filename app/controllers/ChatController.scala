@@ -1,8 +1,9 @@
 package controllers
 
 import javax.inject._
+import model.dtos.CreateChatDTO
 import play.api.mvc._
-import play.api.libs.json.Json
+import play.api.libs.json.{ JsError, JsValue, Json }
 import services.ChatService
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -14,14 +15,17 @@ import validations.CategoryNames
 class ChatController @Inject() (cc: ControllerComponents, chatService: ChatService)
   extends AbstractController(cc) {
 
-  //val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //user 1 Beatriz
-  val userId = "adcd6348-658a-4866-93c5-7e6d32271d8d" //user 2 João
-  //val userId = "25689204-5a8e-453d-bfbc-4180ff0f97b9" //user 3 Valter
-  //val userId = "ef63108c-8128-4294-8346-bd9b5143ff22" //user 4 Pedro L
-  //val userId = "e598ee8e-b459-499f-94d1-d4f66d583264" //user 5 Pedro C
-  //val userId = "261c9094-6261-4704-bfd0-02821c235eff" //user 6 Rui
+  private def userId = {
+    "148a3b1b-8326-466d-8c27-1bd09b8378f3" //user 1 Beatriz
+    //"adcd6348-658a-4866-93c5-7e6d32271d8d" //user 2 João
+    //"25689204-5a8e-453d-bfbc-4180ff0f97b9" //user 3 Valter
+    //"ef63108c-8128-4294-8346-bd9b5143ff22" //user 4 Pedro L
+    //"e598ee8e-b459-499f-94d1-d4f66d583264" //user 5 Pedro C
+    //"261c9094-6261-4704-bfd0-02821c235eff" //user 6 Rui
 
-  //val userId = "12345678-1234-5678-9012-123456789100" //Non existing user
+    //"12345678-1234-5678-9012-123456789100" //Non existing user
+
+  }
 
   def getChat(id: String): Action[AnyContent] =
     Action.async {
@@ -40,6 +44,18 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
       } else Future.successful(NotFound)
     }
   }
+
+  def postChat: Action[JsValue] = {
+    Action.async(parse.json) { implicit request: Request[JsValue] =>
+      val jsonValue = request.body
+
+      jsonValue.validate[CreateChatDTO].fold(
+        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        createChatDTO => chatService.postChat(createChatDTO, userId)
+          .map(result => Ok(Json.toJson(result))))
+    }
+  }
+
 }
 
 //region Old

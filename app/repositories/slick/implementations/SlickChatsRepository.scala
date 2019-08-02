@@ -1,16 +1,18 @@
 package repositories.slick.implementations
 
+import java.util.UUID
+
 import javax.inject.Inject
+import model.dtos.CreateChatDTO
 import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
 import repositories.dtos._
-import slick.jdbc.JdbcProfile
 import slick.jdbc.MySQLProfile.api._
+import utils.DateUtils
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future }
 
 class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
   extends ChatsRepository {
@@ -124,7 +126,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   }
 
-  //region getChat and auxiliary methods
   /**
    * Method to get the emails and other data of a specific chat of a user
    * @param chatId ID of the chat requested
@@ -152,6 +153,83 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     }
 
   }
+
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
+    //TODO AFTER AUTHENTICATION MERGE: delete userId and only receive user address through the "from" field of the createChatDTO
+    val emailDTO = createChatDTO.email
+    val date = DateUtils.getCurrentDate
+
+    /** Generate chatId, userChatId and emailId **/
+    val chatId = UUID.randomUUID().toString
+    val userChatId = UUID.randomUUID().toString
+    val emailId = UUID.randomUUID().toString
+
+    val inserts = for {
+      _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
+      _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
+      _ <- EmailsTable.all += EmailRow(emailId, chatId, emailDTO.body.getOrElse(""), date, 0)
+
+      fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(emailDTO.from), "from")
+      toInsert = emailDTO.to.getOrElse(Set()).map(
+        to => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to"))
+      bccInsert = emailDTO.bcc.getOrElse(Set()).map(
+        bcc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(bcc), "bcc"))
+      ccInsert = emailDTO.cc.getOrElse(Set()).map(
+        cc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(cc), "cc"))
+
+      _ <- DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
+
+    } yield ()
+
+    db.run(inserts.transactionally).map(_ =>
+      createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date))))
+  }
+
+  private[implementations] def insertAddressIfNotExists(address: String): DBIO[String] = {
+    for {
+      existing <- AddressesTable.selectByAddress(address).result.headOption
+
+      row = existing
+        .getOrElse(AddressRow(UUID.randomUUID().toString, address))
+
+      _ <- AddressesTable.all.insertOrUpdate(row)
+    } yield row.addressId
+  }
+
+  private[implementations] def insertEmailAddressIfNotExists(emailId: String, chatId: String, address: DBIO[String], participantType: String) /*: DBIO[String]*/ =
+    for {
+      addressId <- address
+      existing <- EmailAddressesTable.selectByEmailIdAddressAndType(emailId, addressId, participantType)
+        .result.headOption
+
+      row = existing
+        .getOrElse(EmailAddressRow(UUID.randomUUID().toString, emailId, chatId, addressId, participantType))
+
+      _ <- EmailAddressesTable.all.insertOrUpdate(row)
+    } yield ()
+
+  private[implementations] def fromCreateChatDTOtoChatDTO(chat: CreateChatDTO): Chat = {
+    val email = chat.email
+
+    Chat(
+      chatId = chat.chatId.getOrElse(""),
+      subject = chat.subject.getOrElse(""),
+      addresses = Set(email.from) ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++ email.cc.getOrElse(Set()),
+      overseers = Set(),
+      emails = Seq(
+        Email(
+          emailId = email.emailId.getOrElse(""),
+          from = email.from,
+          to = email.to.getOrElse(Set()),
+          bcc = email.bcc.getOrElse(Set()),
+          cc = email.cc.getOrElse(Set()),
+          body = email.body.getOrElse(""),
+          date = email.date.getOrElse(""),
+          sent = 0,
+          attachments = Set())))
+  }
+
+  //region getChat auxiliary methods
 
   /**
    * Method to get data of a specific chat

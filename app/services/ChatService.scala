@@ -1,9 +1,8 @@
 package services
 
 import javax.inject.Inject
-import model.dtos.ChatPreviewDTO
+import model.dtos._
 import model.types.Mailbox
-import model.dtos.{ ChatDTO, EmailDTO, OverseersDTO }
 import repositories.dtos.{ Chat, ChatPreview }
 import repositories.ChatsRepository
 
@@ -18,6 +17,10 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
 
   def getChat(chatId: String, userId: String): Future[Option[ChatDTO]] = {
     chatsRep.getChat(chatId, userId).map(toChatDTO)
+  }
+
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
+    chatsRep.postChat(createChatDTO, userId)
   }
 
   //region Auxiliary conversion methods

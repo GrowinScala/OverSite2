@@ -19,5 +19,16 @@ class ChatsTable(tag: Tag) extends Table[ChatRow](tag, "chats") {
 
 object ChatsTable {
   val all = TableQuery[ChatsTable]
+  //val insert = (all.returning(all.map(_.chatId)))
+
+  /*
+  val userId =
+  (users returning users.map(_.id)) += User(None, "Stefan", "Zeiger")
+
+  val userWithId =
+  (users returning users.map(_.id)
+         into ((user,id) => user.copy(id=Some(id)))
+  ) += User(None, "Stefan", "Zeiger")
+   */
 
 }

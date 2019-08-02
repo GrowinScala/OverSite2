@@ -1,33 +1,25 @@
 package controllers
 
-import model.dtos.{ ChatDTO, ChatPreviewDTO, EmailDTO, OverseersDTO }
+import model.dtos._
 import model.types.Mailbox._
 import org.scalatestplus.play._
-import play.api.inject.Injector
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.json.{ JsValue, Json }
+import play.api.libs.json._
 import play.api.mvc._
 import play.api.test.Helpers._
 import play.api.test._
-import services.ChatService
 import org.mockito.scalatest.IdiomaticMockito
 import services.ChatService
-import org.mockito.Mockito.when
-import org.mockito.ArgumentMatchersSugar._
-import repositories.dtos.{ Chat, Email, Overseers }
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 import scala.util.Random
 
 class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
-  //private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
-  // private lazy val injector: Injector = appBuilder.injector()
-  private val cc: ControllerComponents = Helpers.stubControllerComponents()
-  //private val chatService = injector.instanceOf[ChatService]
-  implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+  private val LOCALHOST = "localhost:9000"
 
-  //region ChatController#getChats
+  private val cc: ControllerComponents = Helpers.stubControllerComponents()
+  private implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+
   "ChatController#getChats" should {
     "return Json for inbox" in {
       val mockChatService = mock[ChatService]
@@ -41,9 +33,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       json mustBe Json.parse(
         """[{"chatId": "00000000-0000-0000-0000-000000000000","subject": "Ok","lastAddress": "Ok","lastEmailDate": "Ok","contentPreview": "Ok"}]""")
     }
-  }
 
-  "ChatController#getChats" should {
     "return Json for sent" in {
       val mockChatService = mock[ChatService]
       mockChatService.getChats(Sent, *)
@@ -54,9 +44,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val json: JsValue = contentAsJson(result)
       json mustBe Json.parse("""[{"chatId": "00000000-0000-0000-0000-000000000000","subject": "Ok","lastAddress": "Ok","lastEmailDate": "Ok","contentPreview": "Ok"}]""")
     }
-  }
 
-  "ChatController#getChats" should {
     "return Json for trash" in {
       val mockChatService = mock[ChatService]
       mockChatService.getChats(Trash, *)
@@ -67,9 +55,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val json: JsValue = contentAsJson(result)
       json mustBe Json.parse("""[{"chatId": "00000000-0000-0000-0000-000000000000","subject": "Ok","lastAddress": "Ok","lastEmailDate": "Ok","contentPreview": "Ok"}]""")
     }
-  }
 
-  "ChatController#getChats" should {
     "return Json for drafts" in {
       val mockChatService = mock[ChatService]
       mockChatService.getChats(Drafts, *)
@@ -80,9 +66,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val json: JsValue = contentAsJson(result)
       json mustBe Json.parse("""[{"chatId": "00000000-0000-0000-0000-000000000000","subject": "Ok","lastAddress": "Ok","lastEmailDate": "Ok","contentPreview": "Ok"}]""")
     }
-  }
 
-  "ChatController#getChats" should {
     "return Not Found" in {
       val mockChatService = mock[ChatService]
       val controller = new ChatController(cc, mockChatService)
@@ -90,7 +74,6 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       result.map(_ mustBe NotFound)
     }
   }
-  //endregion
 
   "ChatController#getChat" should {
     "return Json for ChatDTO" in {
@@ -119,9 +102,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
       result.map(_ mustBe Ok(expectedResult))
     }
-  }
 
-  "ChatController#getChat" should {
     "return NotFound" in {
       val mockChatService = mock[ChatService]
       mockChatService.getChat(*, *)
@@ -130,6 +111,83 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val controller = new ChatController(cc, mockChatService)
       val result: Future[Result] = controller.getChat("6c664490-eee9-4820-9eda-3110d794a998").apply(FakeRequest())
       result.map(_ mustBe NotFound)
+    }
+
+  }
+
+  "ChatController#postChat" should {
+    "return Json with the chat received plus a new chatId and a new emailId" in {
+
+      val mockChatService: ChatService = mock[ChatService]
+
+      val createChatDTO =
+        CreateChatDTO(Some("newChatId"), Some("Subject"),
+          CreateEmailDTO(Some("newEmailId"), "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
+            Some(Set()), Some("This is the body"), Some("2019-07-26 15:00:00")))
+
+      mockChatService.postChat(*, *)
+        .returns(Future.successful(createChatDTO))
+
+      val chatJsonRequest = Json.parse(
+        """{
+          |    "subject": "Subject",
+          |    "email": {
+          |        "from": "beatriz@mail.com",
+          |        "to": ["joao@mail.com"],
+          |        "cc": [],
+          |        "body": "This is the body"
+          |   }
+          |}""".stripMargin)
+
+      val chatJsonResponse = Json.parse(
+        """{
+          |    "chatId": "newChatId",
+          |    "subject": "Subject",
+          |    "email": {
+          |        "emailId": "newEmailId",
+          |        "from": "beatriz@mail.com",
+          |        "to": ["joao@mail.com"],
+          |        "cc": [],
+          |        "body": "This is the body",
+          |        "date": "2019-07-26 15:00:00"
+          |   }
+          |}""".stripMargin)
+
+      val controller = new ChatController(cc, mockChatService)
+
+      val request = FakeRequest(POST, "/chats")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(chatJsonRequest)
+
+      val result: Future[Result] = controller.postChat.apply(request)
+
+      val json = contentAsJson(result)
+
+      status(result) mustBe OK
+      json mustBe chatJsonResponse
+    }
+
+    "return 400 Bad Request if any of the email addresses is not a valid address" in {
+      val mockChatService = mock[ChatService]
+
+      val chatWithInvalidFromAddress = Json.parse(
+        """{
+          |    "email": {
+          |        "from": "beatrizmailcom",
+          |        "to": ["joao@mail.com"],
+          |        "body": "This is the body"
+          |   }
+          |}""".stripMargin)
+
+      val controller = new ChatController(cc, mockChatService)
+
+      val request = FakeRequest(POST, "/chats")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(chatWithInvalidFromAddress)
+
+      val result: Future[Result] = controller.postChat.apply(request)
+
+      status(result) mustBe BAD_REQUEST
     }
   }
 }
