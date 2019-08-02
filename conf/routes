@@ -10,6 +10,8 @@ GET     /chats/:id               controllers.ChatController.getChat(id : String)
 
 POST    /chats                   controllers.ChatController.postChat
 
+POST    /chats/:id/emails        controllers.ChatController.postEmail(id : String)
+
 
 # Authentication
 

@@ -1,6 +1,6 @@
 package repositories
 
-import model.dtos.CreateChatDTO
+import model.dtos.{ CreateChatDTO, CreateEmailDTO }
 import model.types.Mailbox
 import repositories.dtos.{ Chat, ChatPreview }
 
@@ -14,4 +14,5 @@ trait ChatsRepository {
 
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO]
 
+  def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[CreateChatDTO]
 }

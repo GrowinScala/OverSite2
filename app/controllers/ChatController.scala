@@ -1,7 +1,7 @@
 package controllers
 
 import javax.inject._
-import model.dtos.CreateChatDTO
+import model.dtos.{ CreateChatDTO, CreateEmailDTO }
 import play.api.mvc._
 import play.api.libs.json.{ JsError, JsValue, Json }
 import services.ChatService
@@ -52,6 +52,17 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
       jsonValue.validate[CreateChatDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
         createChatDTO => chatService.postChat(createChatDTO, userId)
+          .map(result => Ok(Json.toJson(result))))
+    }
+  }
+
+  def postEmail(chatId: String): Action[JsValue] = {
+    Action.async(parse.json) { implicit request: Request[JsValue] =>
+      val jsonValue = request.body
+
+      jsonValue.validate[CreateEmailDTO].fold(
+        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        createEmailDTO => chatService.postEmail(createEmailDTO, chatId, userId)
           .map(result => Ok(Json.toJson(result))))
     }
   }

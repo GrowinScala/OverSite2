@@ -3,7 +3,7 @@ package repositories.slick.implementations
 import java.util.UUID
 
 import javax.inject.Inject
-import model.dtos.CreateChatDTO
+import model.dtos.{ CreateChatDTO, CreateEmailDTO }
 import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
@@ -167,22 +167,58 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val inserts = for {
       _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
       _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
-      _ <- EmailsTable.all += EmailRow(emailId, chatId, emailDTO.body.getOrElse(""), date, 0)
 
-      fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(emailDTO.from), "from")
-      toInsert = emailDTO.to.getOrElse(Set()).map(
-        to => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to"))
-      bccInsert = emailDTO.bcc.getOrElse(Set()).map(
-        bcc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(bcc), "bcc"))
-      ccInsert = emailDTO.cc.getOrElse(Set()).map(
-        cc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(cc), "cc"))
-
-      _ <- DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
+      _ <- insertEmail(emailDTO, chatId, emailId, date)
 
     } yield ()
 
     db.run(inserts.transactionally).map(_ =>
       createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date))))
+  }
+
+  def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[CreateChatDTO] = {
+    val date = DateUtils.getCurrentDate
+
+    val emailId = UUID.randomUUID().toString
+
+    val insertAndUpdate = for {
+      //TODO explodes if chat does not exist
+      chat <- (for { chatQuery <- getChatDataQuery(chatId, userId) } yield chatQuery).result.headOption
+
+      _ <- insertEmail(createEmailDTO, chatId, emailId, date)
+
+      _ <- UserChatsTable.updateDraftField(userId, chatId, 1)
+    } yield chat //(chatId, subject)
+
+    for {
+      chat <- db.run(insertAndUpdate.transactionally)
+    } yield CreateChatDTO(
+      chatId = chat.map(_._1),
+      subject = chat.map(_._2),
+      CreateEmailDTO(
+        emailId = Some(emailId),
+        from = createEmailDTO.from,
+        to = createEmailDTO.to,
+        bcc = createEmailDTO.bcc,
+        cc = createEmailDTO.cc,
+        body = createEmailDTO.body,
+        date = Some(date)))
+  }
+
+  private[implementations] def insertEmail(createEmailDTO: CreateEmailDTO, chatId: String, emailId: String, date: String) = {
+    for {
+      _ <- EmailsTable.all += EmailRow(emailId, chatId, createEmailDTO.body.getOrElse(""), date, 0)
+
+      fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(createEmailDTO.from), "from")
+      toInsert = createEmailDTO.to.getOrElse(Set()).map(
+        to => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to"))
+      bccInsert = createEmailDTO.bcc.getOrElse(Set()).map(
+        bcc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(bcc), "bcc"))
+      ccInsert = createEmailDTO.cc.getOrElse(Set()).map(
+        cc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(cc), "cc"))
+
+      _ <- DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
+    } yield ()
   }
 
   private[implementations] def insertAddressIfNotExists(address: String): DBIO[String] = {
@@ -237,11 +273,16 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @return chat's data. In this case, just the subject
    */
   private[implementations] def getChatData(chatId: String, userId: String): Future[Option[(String, String)]] = {
-    val query = ChatsTable.all
+    val query = getChatDataQuery(chatId, userId)
+    db.run(query.result.headOption)
+  }
+
+  //TODO Document this
+  private[implementations] def getChatDataQuery(chatId: String, userId: String): Query[(Rep[String], Rep[String]), (String, String), scala.Seq] = {
+    ChatsTable.all
       .join(UserChatsTable.all)
       .on((chat, userChat) => chat.chatId === chatId && chat.chatId === userChat.chatId && userChat.userId === userId)
       .map { case (chat, _) => (chat.chatId, chat.subject) }
-    db.run(query.result.headOption)
   }
 
   /**
