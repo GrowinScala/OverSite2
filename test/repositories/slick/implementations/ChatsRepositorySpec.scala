@@ -475,7 +475,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
     val createChatDTO =
       CreateChatDTO(
         chatId = None,
-        subject = "Test Subject",
+        subject = Some("Test Subject"),
         CreateEmailDTO(
           emailId = None,
           from = "beatriz@mail.com",
@@ -490,12 +490,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       for {
         postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
         getResponse <- chatsRep.getChat(postResponse.chatId.get, senderUserId)
-      } yield getResponse mustBe Some(fromCreateChatDTOtoChatDTO(postResponse))
+      } yield getResponse mustBe Some(chatsRep.fromCreateChatDTOtoChatDTO(postResponse))
 
     }
 
-    "NOT show a chat for a user that is a receiver of the email (to) because it was not sent yet (it's a draft, only the owner can see it)" +
-      "" in {
+    "NOT show a chat for a user that is a receiver of the email (to) " +
+      "because it was not sent yet (it's a draft, only the owner can see it)" in {
 
         for {
           postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
@@ -503,31 +503,28 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         } yield getResponse mustBe None
 
       }
+
+    "create a chat with an EMPTY draft for a user and then get the same chat for the same user: results must match" in {
+      val chatWithEmptyDraft =
+        CreateChatDTO(
+          chatId = None,
+          subject = None,
+          CreateEmailDTO(
+            emailId = None,
+            from = "beatriz@mail.com",
+            to = None,
+            bcc = None,
+            cc = None,
+            body = None,
+            date = None))
+
+      for {
+        postResponse <- chatsRep.postChat(chatWithEmptyDraft, senderUserId)
+        getResponse <- chatsRep.getChat(postResponse.chatId.get, senderUserId)
+      } yield getResponse mustBe Some(chatsRep.fromCreateChatDTOtoChatDTO(postResponse))
+
+    }
+
   }
-
-  //region Auxiliary methods
-
-  private def fromCreateChatDTOtoChatDTO(chat: CreateChatDTO): Chat = {
-    val email = chat.email
-
-    Chat(
-      chatId = chat.chatId.getOrElse(""),
-      subject = chat.subject,
-      addresses = Set(email.from) ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++ email.cc.getOrElse(Set()),
-      overseers = Set(),
-      emails = Seq(
-        Email(
-          emailId = email.emailId.getOrElse(""),
-          from = email.from,
-          to = email.to.getOrElse(Set()),
-          bcc = email.bcc.getOrElse(Set()),
-          cc = email.cc.getOrElse(Set()),
-          body = email.body.getOrElse(""),
-          date = email.date.getOrElse(""),
-          sent = 0,
-          attachments = Set())))
-  }
-
-  //endregion
 
 }

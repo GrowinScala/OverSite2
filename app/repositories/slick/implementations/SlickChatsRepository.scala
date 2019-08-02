@@ -155,6 +155,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
+    //TODO AFTER AUTHENTICATION MERGE: delete userId and only receive user address through the "from" field of the createChatDTO
     val emailDTO = createChatDTO.email
     val date = DateUtils.getCurrentDate
 
@@ -164,7 +165,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val emailId = UUID.randomUUID().toString
 
     val inserts = for {
-      _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject)
+      _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
       _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
       _ <- EmailsTable.all += EmailRow(emailId, chatId, emailDTO.body.getOrElse(""), date, 0)
 
@@ -206,6 +207,27 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       _ <- EmailAddressesTable.all.insertOrUpdate(row)
     } yield ()
+
+  private[implementations] def fromCreateChatDTOtoChatDTO(chat: CreateChatDTO): Chat = {
+    val email = chat.email
+
+    Chat(
+      chatId = chat.chatId.getOrElse(""),
+      subject = chat.subject.getOrElse(""),
+      addresses = Set(email.from) ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++ email.cc.getOrElse(Set()),
+      overseers = Set(),
+      emails = Seq(
+        Email(
+          emailId = email.emailId.getOrElse(""),
+          from = email.from,
+          to = email.to.getOrElse(Set()),
+          bcc = email.bcc.getOrElse(Set()),
+          cc = email.cc.getOrElse(Set()),
+          body = email.body.getOrElse(""),
+          date = email.date.getOrElse(""),
+          sent = 0,
+          attachments = Set())))
+  }
 
   //region getChat auxiliary methods
 

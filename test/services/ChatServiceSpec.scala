@@ -54,7 +54,7 @@ class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
   "ChatService#postChat" should {
     "return a CreateChatDTO equal to the input plus a new chatId and a new emailID" in {
       val createChatDTO =
-        CreateChatDTO(None, "Subject",
+        CreateChatDTO(None, Some("Subject"),
           CreateEmailDTO(None, "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
             Some(Set("")), Some("This is the body"), Some("2019-07-26 15:00:00")))
 
