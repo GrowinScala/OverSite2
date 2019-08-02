@@ -2,18 +2,18 @@ package repositories.slick.implementations
 
 import java.util.UUID
 
-import model.dtos.{CreateChatDTO, CreateEmailDTO}
-import model.types.Mailbox.{Drafts, Inbox}
+import model.dtos.{ CreateChatDTO, CreateEmailDTO }
+import model.types.Mailbox.{ Drafts, Inbox }
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
 import repositories.dtos.ChatPreview
-import repositories.dtos.{Chat, Email, Overseers}
-import repositories.slick.mappings.{EmailRow, _}
+import repositories.dtos.{ Chat, Email, Overseers }
+import repositories.slick.mappings.{ EmailRow, _ }
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
+import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor }
 
 class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
@@ -466,26 +466,68 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
     }
   }
 
-  "SlickChatsRepository#postChat" should {
-    " " in {
+  "SlickChatsRepository#postChat+getChat" should {
+    val chatsRep = new SlickChatsRepository(db)
 
-      val chatsRep = new SlickChatsRepository(db)
+    val senderUserId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
+    val receiverUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d" //joao@mail.com
 
+    val createChatDTO =
+      CreateChatDTO(
+        chatId = None,
+        subject = "Test Subject",
+        CreateEmailDTO(
+          emailId = None,
+          from = "beatriz@mail.com",
+          to = Some(Set("joao@mail.com", "notuser@mail.com")),
+          bcc = Some(Set("spy@mail.com")),
+          cc = Some(Set("observer@mail.com")),
+          body = Some("Test Body"),
+          date = None))
 
-      val createChatDTO =
-        CreateChatDTO(
-          None, "Subject",
-          CreateEmailDTO(
-            None, "from@mail.com",
-            Some(Set("to1@mail.com", "to2@mail.com")),
-            Some(Set("bcc1@mail.com", "bcc2@mail.com")),
-            Some(Set("cc1@mail.com", "cc2@mail.com")),
-            Some("Body"), None))
+    "create a chat with an email draft for a user and then get the same chat for the same user: results must match" in {
 
-      chatsRep.postChat(createChatDTO, "userId")
+      for {
+        postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
+        getResponse <- chatsRep.getChat(postResponse.chatId.get, senderUserId)
+      } yield getResponse mustBe Some(fromCreateChatDTOtoChatDTO(postResponse))
 
-      true mustBe true
     }
+
+    "NOT show a chat for a user that is a receiver of the email (to) because it was not sent yet (it's a draft, only the owner can see it)" +
+      "" in {
+
+        for {
+          postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
+          getResponse <- chatsRep.getChat(postResponse.chatId.get, receiverUserId)
+        } yield getResponse mustBe None
+
+      }
   }
+
+  //region Auxiliary methods
+
+  private def fromCreateChatDTOtoChatDTO(chat: CreateChatDTO): Chat = {
+    val email = chat.email
+
+    Chat(
+      chatId = chat.chatId.getOrElse(""),
+      subject = chat.subject,
+      addresses = Set(email.from) ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++ email.cc.getOrElse(Set()),
+      overseers = Set(),
+      emails = Seq(
+        Email(
+          emailId = email.emailId.getOrElse(""),
+          from = email.from,
+          to = email.to.getOrElse(Set()),
+          bcc = email.bcc.getOrElse(Set()),
+          cc = email.cc.getOrElse(Set()),
+          body = email.body.getOrElse(""),
+          date = email.date.getOrElse(""),
+          sent = 0,
+          attachments = Set())))
+  }
+
+  //endregion
 
 }

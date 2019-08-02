@@ -56,19 +56,19 @@ class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
       val createChatDTO =
         CreateChatDTO(None, "Subject",
           CreateEmailDTO(None, "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
-            Some(Set("")), Some("This is the body"), "2019-07-26 15:00:00"))
+            Some(Set("")), Some("This is the body"), Some("2019-07-26 15:00:00")))
 
       val expectedResponse = createChatDTO.copy(chatId = Some("newChatId"), email = createChatDTO.email.copy(emailId = Some("newEmailId")))
 
       val mockChatsRep = mock[ChatsRepository]
       when(mockChatsRep.postChat(any, any))
         .thenReturn(
-          Future.successful(Some(expectedResponse)))
+          Future.successful(expectedResponse))
 
       val chatService = new ChatService(mockChatsRep)
       val serviceResponse = chatService.postChat(createChatDTO, userId = "randomUserId")
 
-      serviceResponse.map(_ mustBe Some(expectedResponse))
+      serviceResponse.map(_ mustBe expectedResponse)
     }
   }
 

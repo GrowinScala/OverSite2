@@ -123,10 +123,10 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val createChatDTO =
         CreateChatDTO(Some("newChatId"), "Subject",
           CreateEmailDTO(Some("newEmailId"), "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
-            Some(Set("")), Some("This is the body"), "2019-07-26 15:00:00"))
+            Some(Set()), Some("This is the body"), Some("2019-07-26 15:00:00")))
 
       mockChatService.postChat(*, *)
-        .returns(Future.successful(Some(createChatDTO)))
+        .returns(Future.successful(createChatDTO))
 
       val chatJsonRequest = Json.parse(
         """{
@@ -134,9 +134,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           |    "email": {
           |        "from": "beatriz@mail.com",
           |        "to": ["joao@mail.com"],
-          |        "cc": [""],
-          |        "body": "This is the body",
-          |        "date": "2019-07-26 15:00:00"
+          |        "cc": [],
+          |        "body": "This is the body"
           |   }
           |}""".stripMargin)
 
@@ -148,7 +147,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           |        "emailId": "newEmailId",
           |        "from": "beatriz@mail.com",
           |        "to": ["joao@mail.com"],
-          |        "cc": [""],
+          |        "cc": [],
           |        "body": "This is the body",
           |        "date": "2019-07-26 15:00:00"
           |   }
@@ -177,7 +176,30 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           |    "email": {
           |        "from": "beatriz@mail.com",
           |        "to": ["joao@mail.com"],
-          |        "cc": [""],
+          |        "cc": [],
+          |        "body": "This is the body"
+          |   }
+          |}""".stripMargin)
+
+      val controller = new ChatController(cc, mockChatService)
+
+      val request = FakeRequest(POST, "/chats")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(chatWithMissingSubject)
+
+      val result: Future[Result] = controller.postChat.apply(request)
+
+      status(result) mustBe BAD_REQUEST
+    }
+
+    "return 400 Bad Request if any of the email addresses is not a valid address" in {
+      val mockChatService = mock[ChatService]
+
+      val chatWithInvalidFromAddress = Json.parse(
+        """{
+          |    "email": {
+          |        "from": "beatrizmailcom",
+          |        "to": ["joao@mail.com"],
           |        "body": "This is the body",
           |        "date": "2019-07-26 15:00:00"
           |   }
@@ -187,7 +209,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
       val request = FakeRequest(POST, "/chats")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
-        .withBody(chatWithMissingSubject)
+        .withBody(chatWithInvalidFromAddress)
 
       val result: Future[Result] = controller.postChat.apply(request)
 

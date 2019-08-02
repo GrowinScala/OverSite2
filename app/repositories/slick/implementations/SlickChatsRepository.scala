@@ -154,42 +154,34 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   }
 
-  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
     val emailDTO = createChatDTO.email
     val date = DateUtils.getCurrentDate
-
-    //val userAddress = UsersTable.all.join(AddressesTable.all).on((user, address) => user.addressId === address.addressId && user.userId === userId)
 
     /** Generate chatId, userChatId and emailId **/
     val chatId = UUID.randomUUID().toString
     val userChatId = UUID.randomUUID().toString
     val emailId = UUID.randomUUID().toString
 
-    /** Insert ChatRow, UserChatRow and EmailRow **/
-    val chatInsert = ChatsTable.all +=
-      ChatRow(chatId, createChatDTO.subject)
-    val userChatInsert = UserChatsTable.all +=
-      UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
-    val emailInsert = EmailsTable.all +=
-      EmailRow(emailId, chatId, emailDTO.body.getOrElse(""),
-        date, 0)
+    val inserts = for {
+      _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject)
+      _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
+      _ <- EmailsTable.all += EmailRow(emailId, chatId, emailDTO.body.getOrElse(""), date, 0)
 
-    /** Insert EmailAddresses Rows (from, to, bcc and cc) **/
-    val fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(emailDTO.from), "from")
-    val toInsert = emailDTO.to.getOrElse(Set()).map(
-      to => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to"))
-    val bccInsert = emailDTO.bcc.getOrElse(Set()).map(
-      bcc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(bcc), "bcc"))
-    val ccInsert = emailDTO.cc.getOrElse(Set()).map(
-      cc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(cc), "cc"))
+      fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(emailDTO.from), "from")
+      toInsert = emailDTO.to.getOrElse(Set()).map(
+        to => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to"))
+      bccInsert = emailDTO.bcc.getOrElse(Set()).map(
+        bcc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(bcc), "bcc"))
+      ccInsert = emailDTO.cc.getOrElse(Set()).map(
+        cc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(cc), "cc"))
 
-    val addressesInsert = DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
+      _ <- DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
 
-    /** Run the DBIOAction **/
-    db.run(DBIO.seq(chatInsert, userChatInsert, emailInsert, addressesInsert).transactionally)
+    } yield ()
 
-    Future.successful(
-      Some(createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date)))))
+    db.run(inserts.transactionally).map(_ =>
+      createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date))))
   }
 
   private[implementations] def insertAddressIfNotExists(address: String): DBIO[String] = {

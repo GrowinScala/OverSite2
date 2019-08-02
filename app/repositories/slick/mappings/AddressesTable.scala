@@ -20,14 +20,14 @@ class AddressesTable(tag: Tag) extends Table[AddressRow](tag, "addresses") {
 object AddressesTable {
   val all = TableQuery[AddressesTable]
 
-  def selectByAddressId(addressId: String): Query[AddressesTable, AddressesTable#TableElementType, scala.Seq] =
+  def selectByAddressId(addressId: Rep[String]): Query[AddressesTable, AddressesTable#TableElementType, scala.Seq] =
     all.filter(_.addressId === addressId)
-  def selectByAddress(address: String): Query[AddressesTable, AddressesTable#TableElementType, scala.Seq] =
+  def selectByAddress(address: Rep[String]): Query[AddressesTable, AddressesTable#TableElementType, scala.Seq] =
     all.filter(_.address === address)
 
-  def selectAddressId(address: String): Query[Rep[String], String, scala.Seq] =
+  def selectAddressId(address: Rep[String]): Query[Rep[String], String, scala.Seq] =
     selectByAddress(address).map(_.addressId)
-  def selectAddress(addressId: String): Query[Rep[String], String, scala.Seq] =
+  def selectAddress(addressId: Rep[String]): Query[Rep[String], String, scala.Seq] =
     selectByAddressId(addressId).map(_.address)
 
 }

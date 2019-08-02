@@ -19,7 +19,7 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
     chatsRep.getChat(chatId, userId).map(toChatDTO)
   }
 
-  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
     chatsRep.postChat(createChatDTO, userId)
   }
 
