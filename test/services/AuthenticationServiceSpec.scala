@@ -28,17 +28,17 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
         _._2 mustBe Some(repeatedUser))
     }
 
-/*    "return token" in {
+    "return token" in {
       val mockAuthenticationRep = mock[AuthenticationRepository]
       when(mockAuthenticationRep.checkUser(*))
         .thenReturn(Future.successful(false))
       when(mockAuthenticationRep.signUpUser(*, *))
-        .thenReturn("test")
+        .thenReturn(Future.successful("test"))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
       authenticationService.signUpUser(UserAccessDTO.test).map(
         _ mustBe (UserAccessDTO.test.copy(token = Some("test")), None))
-    }*/
+    }
   }
 
   "AuthenticationService#signInUser" should {
