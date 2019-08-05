@@ -8,7 +8,7 @@ import utils.DatabaseUtils.DEFAULT_DB
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class Module extends AbstractModule {
-  def configure(): Unit = {
+  override def configure(): Unit = {
 
     val chatsRep = new SlickChatsRepository(DEFAULT_DB)
     val authenticationRep = new SlickAuthenticationRepository(DEFAULT_DB)

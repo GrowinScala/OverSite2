@@ -1,12 +1,9 @@
 package services
 
 import javax.inject.Inject
-import model.dtos.ChatPreviewDTO
+import model.dtos._
 import model.types.Mailbox
-import model.types.Mailbox._
-import model.dtos.{ ChatDTO, EmailDTO, OverseersDTO }
-import repositories.dtos.Chat
-import repositories.slick.implementations.SlickChatsRepository
+import repositories.dtos.{ Chat, ChatPreview }
 import repositories.ChatsRepository
 
 import scala.concurrent.Future
@@ -15,19 +12,20 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class ChatService @Inject() (chatsRep: ChatsRepository) {
 
   def getChats(mailbox: Mailbox, user: String): Future[Seq[ChatPreviewDTO]] = {
-
-    val chatsPreview = chatsRep.getChatsPreview(mailbox, user)
-
-    chatsPreview.map(_.map(chatPreview =>
-      ChatPreviewDTO(chatPreview.chatId, chatPreview.subject, chatPreview.lastAddress, chatPreview.lastEmailDate,
-        chatPreview.contentPreview)))
+    chatsRep.getChatsPreview(mailbox, user).map(toSeqChatPreviewDTO)
   }
 
   def getChat(chatId: String, userId: String): Future[Option[ChatDTO]] = {
     chatsRep.getChat(chatId, userId).map(toChatDTO)
   }
 
-  private def toChatDTO(optionChat: Option[Chat]) = {
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
+    chatsRep.postChat(createChatDTO, userId)
+  }
+
+  //region Auxiliary conversion methods
+
+  private def toChatDTO(optionChat: Option[Chat]): Option[ChatDTO] = {
     optionChat.map {
       chat =>
         ChatDTO(
@@ -47,11 +45,22 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
               email.cc,
               email.body,
               email.date,
-              intToBoolean(email.sent),
+              email.sent != 0,
               email.attachments)).sortBy(_.date))
     }
 
   }
-  private def intToBoolean(i: Int): Boolean = i != 0
+
+  private def toSeqChatPreviewDTO(chatPreviews: Seq[ChatPreview]): Seq[ChatPreviewDTO] = {
+    chatPreviews.map(chatPreview =>
+      ChatPreviewDTO(
+        chatPreview.chatId,
+        chatPreview.subject,
+        chatPreview.lastAddress,
+        chatPreview.lastEmailDate,
+        chatPreview.contentPreview))
+  }
+
+  //endregion
 
 }

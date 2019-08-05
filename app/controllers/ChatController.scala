@@ -1,8 +1,9 @@
 package controllers
 
 import javax.inject._
+import model.dtos.CreateChatDTO
 import play.api.mvc._
-import play.api.libs.json.Json
+import play.api.libs.json.{ JsError, JsValue, Json }
 import services.{ AuthenticationService, ChatService }
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -19,7 +20,7 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
     authenticatedRequest =>
 
       chatService.getChat(id, authenticatedRequest.userId).map {
-        case Some(chat) => Ok(Json.toJson(chat))
+        case Some(chatDTO) => Ok(Json.toJson(chatDTO))
         case None => NotFound
       }
   }
@@ -41,19 +42,25 @@ Action.async {
   addressService.getAddress(id).map {
   case Some(addressDTO: AddressDTO) => Ok(Json.toJson(addressDTO))
   case None => NotFound
-}
+    }
+  }
+
+  def postChat: Action[JsValue] = {
+    Action.async(parse.json) { implicit request: Request[JsValue] =>
+      val jsonValue = request.body
+
+      jsonValue.validate[CreateChatDTO].fold(
+        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        createChatDTO => chatService.postChat(createChatDTO, userId)
+          .map(result => Ok(Json.toJson(result))))
+    }
+  }
+
 }
 
-  def postAddress(): Action[JsValue] =
-  Action.async(parse.json) { implicit request: Request[JsValue] =>
-  val jsonValue = request.body
-  jsonValue.validate[AddressDTO].fold(
-  errors => Future.successful(BadRequest(JsError.toJson(errors))),
-  addressDTO => addressService.postAddress(addressDTO.address).map(result =>
-  Ok(Json.toJson(result))))
-}
-
-  def deleteAddress(id: String): Action[AnyContent] =
+//region Old
+/*
+	def deleteAddress(id: String): Action[AnyContent] =
   Action.async {
   addressService.deleteAddress(id).map {
   case true => NoContent
