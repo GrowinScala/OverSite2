@@ -144,7 +144,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
       overseers <- getOverseersData(chatId)
     } yield chatData.map {
-      case (id, subject) =>
+      case (id, subject, _) =>
         Chat(
           id,
           subject,
@@ -177,21 +177,34 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date))))
   }
 
-  def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[CreateChatDTO] = {
+  def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
     val date = DateUtils.getCurrentDate
 
     val emailId = UUID.randomUUID().toString
 
     val insertAndUpdate = for {
-      //TODO explodes if chat does not exist
-      chat <- (for { chatQuery <- getChatDataQuery(chatId, userId) } yield chatQuery).result.headOption
+      chat_Address <- (for { chatQuery <- getChatDataAddressQuery(chatId, userId) } yield chatQuery).result.headOption
 
       _ <- insertEmail(createEmailDTO, chatId, emailId, date)
 
       _ <- UserChatsTable.updateDraftField(userId, chatId, 1)
-    } yield chat //(chatId, subject)
+    } yield chat_Address
 
-    for {
+    db.run(insertAndUpdate.transactionally).map(_.map {
+      case (chatID, subject, fromAddress) => CreateChatDTO(
+        Some(chatID),
+        Some(subject),
+        CreateEmailDTO(
+          emailId = Some(emailId),
+          from = fromAddress,
+          to = createEmailDTO.to,
+          bcc = createEmailDTO.bcc,
+          cc = createEmailDTO.cc,
+          body = createEmailDTO.body,
+          date = Some(date)))
+    })
+
+    /*  for {
       chat <- db.run(insertAndUpdate.transactionally)
     } yield CreateChatDTO(
       chatId = chat.map(_._1),
@@ -203,7 +216,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         bcc = createEmailDTO.bcc,
         cc = createEmailDTO.cc,
         body = createEmailDTO.body,
-        date = Some(date)))
+        date = Some(date)))*/
   }
 
   private[implementations] def insertEmail(createEmailDTO: CreateEmailDTO, chatId: String, emailId: String, date: String) = {
@@ -273,18 +286,24 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chatId ID of chat
    * @return chat's data. In this case, just the subject
    */
-  private[implementations] def getChatData(chatId: String, userId: String): Future[Option[(String, String)]] = {
-    val query = getChatDataQuery(chatId, userId)
+  private[implementations] def getChatData(chatId: String, userId: String): Future[Option[(String, String, String)]] = {
+    val query = getChatDataAddressQuery(chatId, userId)
     db.run(query.result.headOption)
   }
 
-  //TODO Document this
-  private[implementations] def getChatDataQuery(chatId: String, userId: String): Query[(Rep[String], Rep[String]), (String, String), scala.Seq] = {
-    ChatsTable.all
-      .join(UserChatsTable.all)
-      .on((chat, userChat) => chat.chatId === chatId && chat.chatId === userChat.chatId && userChat.userId === userId)
-      .map { case (chat, _) => (chat.chatId, chat.subject) }
-  }
+  /**
+   * Method that takes a chat and user and gives a query for the chat's id and subject and the user's address
+   * @param chatId The chat's id
+   * @param userId The user's id
+   * @return A query for the chat's id, it's subject and the user's address
+   */
+  private[implementations] def getChatDataAddressQuery(chatId: String, userId: String): Query[(ConstColumn[String], Rep[String], Rep[String]), (String, String, String), scala.Seq] =
+    for {
+      subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
+      _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId)
+      addressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
+      address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
+    } yield (chatId, subject, address)
 
   /**
    * Method that retrieves the emails of a specific chat that a user can see:

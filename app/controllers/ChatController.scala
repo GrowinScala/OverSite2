@@ -4,7 +4,8 @@ import javax.inject._
 import model.dtos.{ CreateChatDTO, CreateEmailDTO }
 import play.api.mvc._
 import play.api.libs.json.{ JsError, JsValue, Json }
-import services.{ AuthenticationService, ChatService }
+import services.ChatService
+import utils.Jsons._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -45,14 +46,18 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
     }
   }
 
+  // Note that this method will return NotFound if the chatId exists but the user does not have access to it
   def postEmail(chatId: String): Action[JsValue] = {
-    Action.async(parse.json) { implicit request: Request[JsValue] =>
-      val jsonValue = request.body
+    authenticatedUserAction.async(parse.json) { authenticatedRequest =>
+      val jsonValue = authenticatedRequest.request.body
 
       jsonValue.validate[CreateEmailDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        createEmailDTO => chatService.postEmail(createEmailDTO, chatId, userId)
-          .map(result => Ok(Json.toJson(result))))
+        createEmailDTO => chatService.postEmail(createEmailDTO, chatId, authenticatedRequest.userId)
+          .map {
+            case Some(result) => Ok(Json.toJson(result))
+            case None => NotFound(chatNotFound)
+          })
     }
   }
 

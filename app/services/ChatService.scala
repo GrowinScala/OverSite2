@@ -24,7 +24,7 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
   }
 
   //Receives a CreateEmailDTO, returns a CreateChatDTO with the email plus chatId and subject
-  def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[CreateChatDTO] = {
+  def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
     chatsRep.postEmail(createEmailDTO, chatId, userId)
   }
 
