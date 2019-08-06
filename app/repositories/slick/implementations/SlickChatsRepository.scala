@@ -126,6 +126,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   }
 
+  //region getChat and auxiliary methods
   /**
    * Method to get the emails and other data of a specific chat of a user
    * @param chatId ID of the chat requested

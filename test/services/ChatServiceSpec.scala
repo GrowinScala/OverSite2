@@ -4,20 +4,21 @@ import model.dtos._
 import model.types.Mailbox.Inbox
 import org.mockito.ArgumentMatchersSugar._
 import org.mockito.Mockito.when
+import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalatest.{ AsyncWordSpec, MustMatchers }
 import org.scalatest.mockito.MockitoSugar._
 import repositories.ChatsRepository
 import repositories.dtos._
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 
-class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
+class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with MustMatchers {
 
   implicit val ec: ExecutionContextExecutor = ExecutionContext.global
 
   "ChatService#getChats" should {
     "map ChatPreview DTO" in {
       val mockChatsRep = mock[ChatsRepository]
-      when(mockChatsRep.getChatsPreview(any, any))
+      when(mockChatsRep.getChatsPreview(*, *))
         .thenReturn(Future.successful(Seq(ChatPreview("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok"))))
 
       val chatServiceImpl = new ChatService(mockChatsRep)

@@ -15,7 +15,12 @@ POST    /chats/:id/emails        controllers.ChatController.postEmail(id : Strin
 
 # Authentication
 
-# POST    /user                    controllers.AuthenticationController.insertUser
+POST    /signup                  controllers.AuthenticationController.signUpUser
+
+POST    /signin                  controllers.AuthenticationController.signInUser
+
+
+
 
 
 
