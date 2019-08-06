@@ -16,14 +16,13 @@ import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 import scala.util.Random
 
 class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
-	
-	private val LOCALHOST = "localhost:9000"
-	private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
+
+  private val LOCALHOST = "localhost:9000"
+  private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
   private lazy val injector: Injector = appBuilder.injector()
   private val cc: ControllerComponents = Helpers.stubControllerComponents()
   private implicit val ec: ExecutionContextExecutor = ExecutionContext.global
 
-  
   "ChatController#getChats" should {
     "return Json for inbox" in {
       val mockChatService = mock[ChatService]
@@ -105,7 +104,9 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
               Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", true,
                 Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0")))))))
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
       val result: Future[Result] = controller.getChat("6c664490-eee9-4820-9eda-3110d794a998").apply(FakeRequest())
       val expectedResult = //Json.toJson(dto)
 
@@ -122,7 +123,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       mockChatService.getChat(*, *)
         .returns(Future.successful(None))
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
       val result: Future[Result] = controller.getChat("6c664490-eee9-4820-9eda-3110d794a998").apply(FakeRequest())
       result.map(_ mustBe NotFound)
     }
@@ -167,7 +169,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           |   }
           |}""".stripMargin)
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
 
       val request = FakeRequest(POST, "/chats")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
@@ -193,7 +196,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           |   }
           |}""".stripMargin)
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
 
       val request = FakeRequest(POST, "/chats")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")

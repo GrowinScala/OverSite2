@@ -34,24 +34,13 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
 
   }
 
-}
-
-//region Old
-/*def getAddress(id: String): Action[AnyContent] =
-Action.async {
-  addressService.getAddress(id).map {
-  case Some(addressDTO: AddressDTO) => Ok(Json.toJson(addressDTO))
-  case None => NotFound
-    }
-  }
-
   def postChat: Action[JsValue] = {
-    Action.async(parse.json) { implicit request: Request[JsValue] =>
-      val jsonValue = request.body
+    authenticatedUserAction.async(parse.json) { authenticatedRequest =>
+      val jsonValue = authenticatedRequest.request.body
 
       jsonValue.validate[CreateChatDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        createChatDTO => chatService.postChat(createChatDTO, userId)
+        createChatDTO => chatService.postChat(createChatDTO, authenticatedRequest.userId)
           .map(result => Ok(Json.toJson(result))))
     }
   }
