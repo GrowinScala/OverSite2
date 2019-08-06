@@ -22,4 +22,3 @@ object CreateEmailDTO {
   def tupled = (CreateEmailDTO.apply _).tupled
 
 }
-

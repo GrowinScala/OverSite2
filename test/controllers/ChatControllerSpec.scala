@@ -3,12 +3,14 @@ package controllers
 import model.dtos._
 import model.types.Mailbox._
 import org.scalatestplus.play._
+import play.api.inject.Injector
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json._
 import play.api.mvc._
 import play.api.test.Helpers._
 import play.api.test._
-import org.mockito.scalatest.IdiomaticMockito
 import services.ChatService
+import org.mockito.scalatest.IdiomaticMockito
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 import scala.util.Random
@@ -16,7 +18,8 @@ import scala.util.Random
 class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
   private val LOCALHOST = "localhost:9000"
-
+  private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
+  private lazy val injector: Injector = appBuilder.injector()
   private val cc: ControllerComponents = Helpers.stubControllerComponents()
   private implicit val ec: ExecutionContextExecutor = ExecutionContext.global
 
@@ -27,7 +30,9 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
         .returns(Future.successful(Seq(
           ChatPreviewDTO("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok"))))
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
       val result: Future[Result] = controller.getChats("inbox").apply(FakeRequest())
       val json: JsValue = contentAsJson(result)
       json mustBe Json.parse(
@@ -39,7 +44,9 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       mockChatService.getChats(Sent, *)
         .returns(Future.successful(Seq(ChatPreviewDTO("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok"))))
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
       val result: Future[Result] = controller.getChats("sent").apply(FakeRequest())
       val json: JsValue = contentAsJson(result)
       json mustBe Json.parse("""[{"chatId": "00000000-0000-0000-0000-000000000000","subject": "Ok","lastAddress": "Ok","lastEmailDate": "Ok","contentPreview": "Ok"}]""")
@@ -50,7 +57,9 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       mockChatService.getChats(Trash, *)
         .returns(Future.successful(Seq(ChatPreviewDTO("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok"))))
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
       val result: Future[Result] = controller.getChats("trash").apply(FakeRequest())
       val json: JsValue = contentAsJson(result)
       json mustBe Json.parse("""[{"chatId": "00000000-0000-0000-0000-000000000000","subject": "Ok","lastAddress": "Ok","lastEmailDate": "Ok","contentPreview": "Ok"}]""")
@@ -61,7 +70,9 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       mockChatService.getChats(Drafts, *)
         .returns(Future.successful(Seq(ChatPreviewDTO("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok"))))
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
       val result: Future[Result] = controller.getChats("drafts").apply(FakeRequest())
       val json: JsValue = contentAsJson(result)
       json mustBe Json.parse("""[{"chatId": "00000000-0000-0000-0000-000000000000","subject": "Ok","lastAddress": "Ok","lastEmailDate": "Ok","contentPreview": "Ok"}]""")
@@ -69,9 +80,11 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
     "return Not Found" in {
       val mockChatService = mock[ChatService]
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
       val result: Future[Result] = controller.getChats(Random.alphanumeric.take(10).mkString).apply(FakeRequest())
-      result.map(_ mustBe NotFound)
+      status(result) mustBe NOT_FOUND
     }
   }
 
@@ -91,7 +104,9 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
               Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", true,
                 Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0")))))))
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
       val result: Future[Result] = controller.getChat("6c664490-eee9-4820-9eda-3110d794a998").apply(FakeRequest())
       val expectedResult = //Json.toJson(dto)
 
@@ -108,7 +123,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       mockChatService.getChat(*, *)
         .returns(Future.successful(None))
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
       val result: Future[Result] = controller.getChat("6c664490-eee9-4820-9eda-3110d794a998").apply(FakeRequest())
       result.map(_ mustBe NotFound)
     }
@@ -153,7 +169,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           |   }
           |}""".stripMargin)
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
 
       val request = FakeRequest(POST, "/chats")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
@@ -179,7 +196,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           |   }
           |}""".stripMargin)
 
-      val controller = new ChatController(cc, mockChatService)
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
 
       val request = FakeRequest(POST, "/chats")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
