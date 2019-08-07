@@ -9,10 +9,11 @@ import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
 import repositories.dtos._
-import repositories.slick.mappings
-import slick.dbio.{ DBIOAction, FutureAction }
+
+import slick.dbio.DBIOAction
 import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
+import utils.Generators._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -162,9 +163,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val date = DateUtils.getCurrentDate
 
     /** Generate chatId, userChatId and emailId **/
-    val chatId = UUID.randomUUID().toString
-    val userChatId = UUID.randomUUID().toString
-    val emailId = UUID.randomUUID().toString
+    val chatId = genUUID
+    val userChatId = genUUID
+    val emailId = genUUID
 
     val inserts = for {
       _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
@@ -185,7 +186,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
     val date = DateUtils.getCurrentDate
 
-    val emailId = UUID.randomUUID().toString
+    val emailId = genUUID
 
     val insertAndUpdate = for {
       chat_Address <- getChatDataAddressQuery(chatId, userId).result.headOption
@@ -239,7 +240,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       existing <- AddressesTable.selectByAddress(address).result.headOption
 
       row = existing
-        .getOrElse(AddressRow(UUID.randomUUID().toString, address))
+        .getOrElse(AddressRow(genUUID, address))
 
       _ <- AddressesTable.all.insertOrUpdate(row)
     } yield row.addressId
@@ -252,7 +253,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .result.headOption
 
       row = existing
-        .getOrElse(EmailAddressRow(UUID.randomUUID().toString, emailId, chatId, addressId, participantType))
+        .getOrElse(EmailAddressRow(genUUID, emailId, chatId, addressId, participantType))
 
       _ <- EmailAddressesTable.all.insertOrUpdate(row)
     } yield ()

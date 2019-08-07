@@ -1,7 +1,5 @@
 package repositories.slick.implementations
 
-import java.util.UUID
-
 import model.dtos.{ CreateChatDTO, CreateEmailDTO }
 import model.types.Mailbox.{ Drafts, Inbox }
 import org.scalatest._
@@ -11,6 +9,7 @@ import repositories.dtos.ChatPreview
 import repositories.dtos.{ Chat, Email, Overseers }
 import repositories.slick.mappings.{ EmailRow, _ }
 import slick.jdbc.MySQLProfile.api._
+import utils.Generators._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor }
@@ -423,7 +422,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
     "NOT return a chat for a user that does not exist " +
       "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user with random UUID)" in {
         val chatsRep = new SlickChatsRepository(db)
-        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", UUID.randomUUID().toString)
+        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", genUUID)
 
         //val expectedRepositoryResponse: Option[Chat] = NONE
 
@@ -433,7 +432,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
     "NOT return a chat that does not exist " +
       "(chat with random UUID, user (1) 148a3b1b-8326-466d-8c27-1bd09b8378f3)" in {
         val chatsRep = new SlickChatsRepository(db)
-        val chat = chatsRep.getChat(UUID.randomUUID().toString, "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+        val chat = chatsRep.getChat(genUUID, "148a3b1b-8326-466d-8c27-1bd09b8378f3")
 
         //val expectedRepositoryResponse: Option[Chat] = NONE
 

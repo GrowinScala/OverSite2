@@ -2,11 +2,8 @@ package services
 
 import model.dtos._
 import model.types.Mailbox.Inbox
-import org.mockito.ArgumentMatchersSugar._
-import org.mockito.Mockito.when
 import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalatest.{ AsyncWordSpec, MustMatchers }
-import org.scalatest.mockito.MockitoSugar._
 import repositories.ChatsRepository
 import repositories.dtos._
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
@@ -18,8 +15,8 @@ class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with Must
   "ChatService#getChats" should {
     "map ChatPreview DTO" in {
       val mockChatsRep = mock[ChatsRepository]
-      when(mockChatsRep.getChatsPreview(*, *))
-        .thenReturn(Future.successful(Seq(ChatPreview("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok"))))
+      mockChatsRep.getChatsPreview(*, *)
+        .returns(Future.successful(Seq(ChatPreview("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok"))))
 
       val chatServiceImpl = new ChatService(mockChatsRep)
       val chatsPreviewDTO = chatServiceImpl.getChats(Inbox, "00000000-0000-0000-0000-000000000000")
@@ -30,8 +27,8 @@ class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with Must
   "ChatService#getChat" should {
     "map Chat DTO" in {
       val mockChatsRep = mock[ChatsRepository]
-      when(mockChatsRep.getChat(any, any))
-        .thenReturn(Future.successful(
+      mockChatsRep.getChat(*, *)
+        .returns(Future.successful(
           Some(
             Chat(
               "6c664490-eee9-4820-9eda-3110d794a998", "Subject", Set("address1", "address2"),
@@ -62,8 +59,8 @@ class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with Must
       val expectedResponse = createChatDTO.copy(chatId = Some("newChatId"), email = createChatDTO.email.copy(emailId = Some("newEmailId")))
 
       val mockChatsRep = mock[ChatsRepository]
-      when(mockChatsRep.postChat(any, any))
-        .thenReturn(
+      mockChatsRep.postChat(*, *)
+        .returns(
           Future.successful(expectedResponse))
 
       val chatService = new ChatService(mockChatsRep)
