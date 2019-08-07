@@ -11,6 +11,7 @@ import play.api.test.Helpers._
 import play.api.test._
 import services.ChatService
 import org.mockito.scalatest.IdiomaticMockito
+import utils.Jsons._
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 import scala.util.Random
@@ -92,7 +93,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
     "return Json for ChatDTO" in {
       val dto = ChatDTO(
         "6c664490-eee9-4820-9eda-3110d794a998", "Subject", Set("address1", "address2"), Set(OverseersDTO("address1", Set("address3"))),
-        Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", true,
+        Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", sent = true,
           Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
 
       val mockChatService = mock[ChatService]
@@ -101,7 +102,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           Some(
             ChatDTO(
               "6c664490-eee9-4820-9eda-3110d794a998", "Subject", Set("address1", "address2"), Set(OverseersDTO("address1", Set("address3"))),
-              Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", true,
+              Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", sent = true,
                 Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0")))))))
 
       val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
@@ -207,5 +208,109 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
       status(result) mustBe BAD_REQUEST
     }
+  }
+
+  "ChatController#postEmail" should {
+    "return Json with the email received plus the chat data and a new emailId" in {
+
+      val mockChatService: ChatService = mock[ChatService]
+
+      val createChatDTO =
+        CreateChatDTO(Some("ChatId"), Some("Subject"),
+          CreateEmailDTO(Some("newEmailId"), "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
+            Some(Set()), Some("This is the body"), Some("2019-07-26 15:00:00")))
+
+      mockChatService.postEmail(*, *, *)
+        .returns(Future.successful(Some(createChatDTO)))
+
+      val emailJsonRequest = Json.parse(
+        """{
+          |        "from": "beatriz@mail.com",
+          |        "to": ["joao@mail.com"],
+          |        "cc": [],
+          |        "body": "This is the body"
+          |}""".stripMargin)
+
+      val chatJsonResponse = Json.parse(
+        """{
+          |    "chatId":  "ChatId",
+          |    "subject": "Subject",
+          |    "email": {
+          |        "emailId": "newEmailId",
+          |        "from": "beatriz@mail.com",
+          |        "to": ["joao@mail.com"],
+          |        "cc": [],
+          |        "body": "This is the body",
+          |        "date": "2019-07-26 15:00:00"
+          |   }
+          |}""".stripMargin)
+
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+
+      val request = FakeRequest()
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(emailJsonRequest)
+
+      val result: Future[Result] = controller.postEmail("").apply(request)
+
+      val json = contentAsJson(result)
+
+      status(result) mustBe OK
+      json mustBe chatJsonResponse
+    }
+
+    "return 400 Bad Request if any of the email addresses is not a valid address" in {
+      val mockChatService = mock[ChatService]
+
+      val emailWithInvalidFromAddress = Json.parse(
+        """{
+          |        "from": "beatrizmailcom",
+          |        "to": ["joao@mail.com"],
+          |        "body": "This is the body"
+          |}""".stripMargin)
+
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+
+      val request = FakeRequest()
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(emailWithInvalidFromAddress)
+
+      val result: Future[Result] = controller.postChat.apply(request)
+
+      status(result) mustBe BAD_REQUEST
+    }
+
+    "return Notfound if the service return None" in {
+
+      val mockChatService: ChatService = mock[ChatService]
+
+      mockChatService.postEmail(*, *, *)
+        .returns(Future.successful(None))
+
+      val emailJsonRequest = Json.parse(
+        """{
+          |        "from": "beatriz@mail.com",
+          |        "to": ["joao@mail.com"],
+          |        "cc": [],
+          |        "body": "This is the body"
+          |}""".stripMargin)
+
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+
+      val request = FakeRequest()
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(emailJsonRequest)
+
+      val result: Future[Result] = controller.postEmail("").apply(request)
+
+      val json = contentAsJson(result)
+
+      status(result) mustBe NOT_FOUND
+      json mustBe chatNotFound
+    }
+
   }
 }

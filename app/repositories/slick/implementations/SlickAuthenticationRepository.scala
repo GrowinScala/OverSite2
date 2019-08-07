@@ -64,7 +64,6 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
       } yield tokenId).result.head
       // Assumes that the previous verification for the password/user/address will give a result here
 
-      
       newToken = genUUID
       _ <- upsertTokenDBIO(tokenId, newToken)
 

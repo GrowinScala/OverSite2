@@ -166,16 +166,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val userChatId = UUID.randomUUID().toString
     val emailId = UUID.randomUUID().toString
 
-
-    
     val inserts = for {
       _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
       _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
-      
+
       // This assumes that the authentication guarantees that the user exists and has a correct address
       fromAddress <- UsersTable.all.filter(_.userId === userId).join(AddressesTable.all)
         .on(_.addressId === _.addressId).map(_._2.address).result.head
-      
+
       _ <- insertEmail(emailDTO, chatId, emailId, fromAddress, date)
 
     } yield ()
@@ -196,7 +194,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         case Some((chatID, subject, fromAddress)) => insertEmail(createEmailDTO, chatId, emailId, fromAddress, date)
           .andThen(UserChatsTable.updateDraftField(userId, chatId, 1))
         case None => DBIOAction.successful(None)
-    }
+      }
 
     } yield chat_Address
 
