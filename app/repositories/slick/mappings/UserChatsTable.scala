@@ -25,4 +25,10 @@ class UserChatsTable(tag: Tag) extends Table[UserChatRow](tag, "user_chats") {
 object UserChatsTable {
   val all = TableQuery[UserChatsTable]
 
+  def updateDraftField(userId: String, chatId: String, draft: Int) = {
+    (for {
+      uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
+    } yield uc.draft).update(draft)
+  }
+
 }

@@ -20,8 +20,8 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
     "point out repeated user" in {
       val mockAuthenticationRep = mock[AuthenticationRepository]
-      when(mockAuthenticationRep.checkUser(*))
-        .thenReturn(Future.successful(true))
+      mockAuthenticationRep.checkUser(*)
+        .returns(Future.successful(true))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
       authenticationService.signUpUser(UserAccessDTO.test).map(
@@ -30,10 +30,10 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
     "return token" in {
       val mockAuthenticationRep = mock[AuthenticationRepository]
-      when(mockAuthenticationRep.checkUser(*))
-        .thenReturn(Future.successful(false))
-      when(mockAuthenticationRep.signUpUser(*, *))
-        .thenReturn(Future.successful("test"))
+      mockAuthenticationRep.checkUser(*)
+        .returns(Future.successful(false))
+      mockAuthenticationRep.signUpUser(*, *)
+        .returns(Future.successful("test"))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
       authenticationService.signUpUser(UserAccessDTO.test).map(
@@ -45,8 +45,8 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
     "point out missing address" in {
       val mockAuthenticationRep = mock[AuthenticationRepository]
-      when(mockAuthenticationRep.getPassword(*))
-        .thenReturn(Future.successful(None))
+      mockAuthenticationRep.getPassword(*)
+        .returns(Future.successful(None))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
       authenticationService.signInUser(UserAccessDTO.test).map(
@@ -55,8 +55,8 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
     "point out wrong password" in {
       val mockAuthenticationRep = mock[AuthenticationRepository]
-      when(mockAuthenticationRep.getPassword(*))
-        .thenReturn(Future.successful(Some("password".bcrypt)))
+      mockAuthenticationRep.getPassword(*)
+        .returns(Future.successful(Some("password".bcrypt)))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
       authenticationService.signInUser(UserAccessDTO.test).map(
@@ -65,10 +65,10 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
     "return token" in {
       val mockAuthenticationRep = mock[AuthenticationRepository]
-      when(mockAuthenticationRep.getPassword(*))
-        .thenReturn(Future.successful(Some("test".bcrypt)))
-      when(mockAuthenticationRep.updateToken(*))
-        .thenReturn(Future.successful("test"))
+      mockAuthenticationRep.getPassword(*)
+        .returns(Future.successful(Some("test".bcrypt)))
+      mockAuthenticationRep.updateToken(*)
+        .returns(Future.successful("test"))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
       authenticationService.signInUser(UserAccessDTO.test).map(
@@ -81,8 +81,8 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
     "point out invalid Token" in {
       val mockAuthenticationRep = mock[AuthenticationRepository]
-      when(mockAuthenticationRep.getTokenExpirationDate(*))
-        .thenReturn(Future.successful(None))
+      mockAuthenticationRep.getTokenExpirationDate(*)
+        .returns(Future.successful(None))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
       authenticationService.validateToken("test").map(
@@ -91,8 +91,8 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
     "point out expired Token" in {
       val mockAuthenticationRep = mock[AuthenticationRepository]
-      when(mockAuthenticationRep.getTokenExpirationDate(*))
-        .thenReturn(Future.successful(Some(new Timestamp(1))))
+      mockAuthenticationRep.getTokenExpirationDate(*)
+        .returns(Future.successful(Some(new Timestamp(1))))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
       authenticationService.validateToken("test").map(
@@ -101,10 +101,10 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
     "return userId" in {
       val mockAuthenticationRep = mock[AuthenticationRepository]
-      when(mockAuthenticationRep.getTokenExpirationDate(*))
-        .thenReturn(Future.successful(Some(new Timestamp(year2525))))
-      when(mockAuthenticationRep.getUser(*))
-        .thenReturn(Future.successful("test"))
+      mockAuthenticationRep.getTokenExpirationDate(*)
+        .returns(Future.successful(Some(new Timestamp(year2525))))
+      mockAuthenticationRep.getUser(*)
+        .returns(Future.successful("test"))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
       authenticationService.validateToken("test").map(
