@@ -9,6 +9,8 @@ import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
 import repositories.dtos._
+import repositories.slick.mappings
+import slick.dbio.{ DBIOAction, FutureAction }
 import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
 
@@ -156,7 +158,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
-    //TODO AFTER AUTHENTICATION MERGE: delete userId and only receive user address through the "from" field of the createChatDTO
     val emailDTO = createChatDTO.email
     val date = DateUtils.getCurrentDate
 
@@ -165,11 +166,17 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val userChatId = UUID.randomUUID().toString
     val emailId = UUID.randomUUID().toString
 
+
+    
     val inserts = for {
       _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
       _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
-
-      _ <- insertEmail(emailDTO, chatId, emailId, date)
+      
+      // This assumes that the authentication guarantees that the user exists and has a correct address
+      fromAddress <- UsersTable.all.filter(_.userId === userId).join(AddressesTable.all)
+        .on(_.addressId === _.addressId).map(_._2.address).result.head
+      
+      _ <- insertEmail(emailDTO, chatId, emailId, fromAddress, date)
 
     } yield ()
 
@@ -183,47 +190,41 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val emailId = UUID.randomUUID().toString
 
     val insertAndUpdate = for {
-      chat_Address <- (for { chatQuery <- getChatDataAddressQuery(chatId, userId) } yield chatQuery).result.headOption
+      chat_Address <- getChatDataAddressQuery(chatId, userId).result.headOption
 
-      _ <- insertEmail(createEmailDTO, chatId, emailId, date)
+      _ <- chat_Address match {
+        case Some((chatID, subject, fromAddress)) => insertEmail(createEmailDTO, chatId, emailId, fromAddress, date)
+          .andThen(UserChatsTable.updateDraftField(userId, chatId, 1))
+        case None => DBIOAction.successful(None)
+    }
 
-      _ <- UserChatsTable.updateDraftField(userId, chatId, 1)
     } yield chat_Address
 
-    db.run(insertAndUpdate.transactionally).map(_.map {
-      case (chatID, subject, fromAddress) => CreateChatDTO(
-        Some(chatID),
-        Some(subject),
-        CreateEmailDTO(
-          emailId = Some(emailId),
-          from = fromAddress,
-          to = createEmailDTO.to,
-          bcc = createEmailDTO.bcc,
-          cc = createEmailDTO.cc,
-          body = createEmailDTO.body,
-          date = Some(date)))
-    })
+    db.run(insertAndUpdate.transactionally).map {
+      case Some(tuple) => tuple match {
+        case (chatID, subject, fromAddress) => Some(CreateChatDTO(
+          Some(chatID),
+          Some(subject),
+          CreateEmailDTO(
+            emailId = Some(emailId),
+            from = fromAddress,
+            to = createEmailDTO.to,
+            bcc = createEmailDTO.bcc,
+            cc = createEmailDTO.cc,
+            body = createEmailDTO.body,
+            date = Some(date))))
+      }
+      case None => None
+    }
 
-    /*  for {
-      chat <- db.run(insertAndUpdate.transactionally)
-    } yield CreateChatDTO(
-      chatId = chat.map(_._1),
-      subject = chat.map(_._2),
-      CreateEmailDTO(
-        emailId = Some(emailId),
-        from = createEmailDTO.from,
-        to = createEmailDTO.to,
-        bcc = createEmailDTO.bcc,
-        cc = createEmailDTO.cc,
-        body = createEmailDTO.body,
-        date = Some(date)))*/
   }
 
-  private[implementations] def insertEmail(createEmailDTO: CreateEmailDTO, chatId: String, emailId: String, date: String) = {
+  private[implementations] def insertEmail(createEmailDTO: CreateEmailDTO, chatId: String,
+    emailId: String, fromAddress: String, date: String) = {
     for {
       _ <- EmailsTable.all += EmailRow(emailId, chatId, createEmailDTO.body.getOrElse(""), date, 0)
 
-      fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(createEmailDTO.from), "from")
+      fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(fromAddress), "from")
       toInsert = createEmailDTO.to.getOrElse(Set()).map(
         to => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to"))
       bccInsert = createEmailDTO.bcc.getOrElse(Set()).map(

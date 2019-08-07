@@ -62,7 +62,9 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
         userId <- UsersTable.all.filter(_.addressId === addressId).map(_.userId)
         tokenId <- PasswordsTable.all.filter(_.userId === userId).map(_.tokenId)
       } yield tokenId).result.head
+      // Assumes that the previous verification for the password/user/address will give a result here
 
+      
       newToken = genUUID
       _ <- upsertTokenDBIO(tokenId, newToken)
 
