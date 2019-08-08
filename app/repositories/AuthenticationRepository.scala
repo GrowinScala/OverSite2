@@ -2,13 +2,13 @@ package repositories
 
 import java.sql.Timestamp
 
-import play.api.libs.json.JsValue
+import model.dtos.UserAccessDTO
 
 import scala.concurrent.Future
 
 trait AuthenticationRepository {
 
-  def signUpUser(address: String, password: String): Future[String]
+  def signUpUser(userAccessDTO: UserAccessDTO): Future[String]
 
   def checkUser(address: String): Future[Boolean]
 

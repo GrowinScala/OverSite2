@@ -20,7 +20,7 @@ class AuthenticationService @Inject() (authenticationRep: AuthenticationReposito
           Future.successful(userAccessDTO, Some(repeatedUser))
         else {
           val encryptedPassword = userAccessDTO.password.bcrypt
-          val token = authenticationRep.signUpUser(userAccessDTO.address, encryptedPassword)
+          val token = authenticationRep.signUpUser(userAccessDTO.copy(password = encryptedPassword))
           token.map(token => (userAccessDTO.copy(token = Some(token)), None))
         })
 

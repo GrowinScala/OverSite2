@@ -25,7 +25,7 @@ class AuthenticationControllerSpec extends PlaySpec with Results with IdiomaticM
       val mockAuthenticationService = mock[AuthenticationService]
       val authenticationController = new AuthenticationController(cc, mockAuthenticationService)
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.parse(
-        """{"badfield" : "test", "password": "test"} """))
+        """{"address" : "inmproper address", "password": "test"} """))
       val result = authenticationController.signUpUser.apply(request)
       status(result) mustBe BAD_REQUEST
     }
@@ -33,11 +33,11 @@ class AuthenticationControllerSpec extends PlaySpec with Results with IdiomaticM
     "transmit the service error message" in {
       val mockAuthenticationService = mock[AuthenticationService]
       mockAuthenticationService.signUpUser(*)
-        .returns(Future.successful((UserAccessDTO("", "", None), Some(testMessage))))
+        .returns(Future.successful((UserAccessDTO("", "", None, None, None), Some(testMessage))))
 
       val authenticationController = new AuthenticationController(cc, mockAuthenticationService)
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.parse(
-        """{"address" : "test", "password": "test"} """))
+        """{"address" : "test@mail.com", "password": "test"} """))
       val result = authenticationController.signUpUser.apply(request)
       status(result) mustBe BAD_REQUEST
       contentAsJson(result) mustBe testMessage
@@ -46,16 +46,16 @@ class AuthenticationControllerSpec extends PlaySpec with Results with IdiomaticM
     "return userAccessDto" in {
       val mockAuthenticationService = mock[AuthenticationService]
       mockAuthenticationService.signUpUser(*)
-        .returns(Future.successful((UserAccessDTO("test", "test", Some("test")), None)))
+        .returns(Future.successful((UserAccessDTO("test@mail.com", "test", None, None, Some("test")), None)))
 
       val authenticationController = new AuthenticationController(cc, mockAuthenticationService)
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.parse(
-        """{"address" : "test", "password": "test"} """))
+        """{"address" : "test@mail.com", "password": "test"} """))
       val result = authenticationController.signUpUser.apply(request)
       status(result) mustBe OK
       contentAsJson(result) mustBe Json.parse(
         """ {
-              |"address": "test",
+              |"address": "test@mail.com",
               |"password": "test",
               |"token": "test"
               |} """.stripMargin)
@@ -70,7 +70,7 @@ class AuthenticationControllerSpec extends PlaySpec with Results with IdiomaticM
       val mockAuthenticationService = mock[AuthenticationService]
       val authenticationController = new AuthenticationController(cc, mockAuthenticationService)
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.parse(
-        """{"badfield" : "test", "password": "test"} """))
+        """{"address" : "inmproper address", "password": "test"} """))
       val result = authenticationController.signInUser.apply(request)
       status(result) mustBe BAD_REQUEST
     }
@@ -78,11 +78,11 @@ class AuthenticationControllerSpec extends PlaySpec with Results with IdiomaticM
     "transmit the service error message" in {
       val mockAuthenticationService = mock[AuthenticationService]
       mockAuthenticationService.signInUser(*)
-        .returns(Future.successful((UserAccessDTO("", "", None), Some(testMessage))))
+        .returns(Future.successful((UserAccessDTO("", "", None, None, None), Some(testMessage))))
 
       val authenticationController = new AuthenticationController(cc, mockAuthenticationService)
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.parse(
-        """{"address" : "test", "password": "test"} """))
+        """{"address" : "test@mail.com", "password": "test"} """))
       val result = authenticationController.signInUser.apply(request)
       status(result) mustBe BAD_REQUEST
       contentAsJson(result) mustBe testMessage
@@ -91,16 +91,16 @@ class AuthenticationControllerSpec extends PlaySpec with Results with IdiomaticM
     "return userAccessDto" in {
       val mockAuthenticationService = mock[AuthenticationService]
       mockAuthenticationService.signInUser(*)
-        .returns(Future.successful((UserAccessDTO("test", "test", Some("test")), None)))
+        .returns(Future.successful((UserAccessDTO("test@mail.com", "test", None, None, Some("test")), None)))
 
       val authenticationController = new AuthenticationController(cc, mockAuthenticationService)
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.parse(
-        """{"address" : "test", "password": "test"} """))
+        """{"address" : "test@mail.com", "password": "test"} """))
       val result = authenticationController.signInUser.apply(request)
       status(result) mustBe OK
       contentAsJson(result) mustBe Json.parse(
         """ {
-          |"address": "test",
+          |"address": "test@mail.com",
           |"password": "test",
           |"token": "test"
           |} """.stripMargin)

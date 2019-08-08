@@ -1,7 +1,9 @@
 package repositories.slick.implementations
 
 import java.sql.Timestamp
+
 import javax.inject.Inject
+import model.dtos.UserAccessDTO
 import repositories.AuthenticationRepository
 import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
@@ -21,21 +23,22 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
     TokensTable.all.insertOrUpdate(TokenRow(tokenId, token, start_date, end_date))
   }
 
-  def signUpUser(address: String, password: String): Future[String] = {
+  def signUpUser(userAccessDTO: UserAccessDTO): Future[String] = {
     val signUpAction = for {
-      optionalAddress <- AddressesTable.all.filter(_.address === address).result.headOption
+      optionalAddress <- AddressesTable.all.filter(_.address === userAccessDTO.address).result.headOption
       addressUUID = genUUID
-      row = optionalAddress.getOrElse(AddressRow(addressUUID, address))
+      row = optionalAddress.getOrElse(AddressRow(addressUUID, userAccessDTO.address))
       _ <- AddressesTable.all.insertOrUpdate(row)
 
       userUUID = genUUID
-      _ <- UsersTable.all += UserRow(userUUID, row.addressId, "", "")
+      _ <- UsersTable.all += UserRow(userUUID, row.addressId, userAccessDTO.first_name.getOrElse(""),
+        userAccessDTO.last_name.getOrElse(""))
 
       token = genUUID
       tokenId = genUUID
       _ <- upsertTokenDBIO(tokenId, token)
       passwordUUID = genUUID
-      _ <- PasswordsTable.all += PasswordRow(passwordUUID, userUUID, password, tokenId)
+      _ <- PasswordsTable.all += PasswordRow(passwordUUID, userUUID, userAccessDTO.password, tokenId)
     } yield token
 
     db.run(signUpAction.transactionally)

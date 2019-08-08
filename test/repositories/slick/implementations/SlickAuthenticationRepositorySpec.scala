@@ -1,12 +1,13 @@
 package repositories.slick.implementations
 
+import model.dtos.UserAccessDTO
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
 import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
+import utils.DataValidators
 import utils.Generators._
-import utils.Values._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor, Future }
@@ -73,19 +74,21 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec with MustMatchers 
 
     "signUp user" in {
       val authenticationRep = new SlickAuthenticationRepository(db)
-      val address = "test@mail.com"
-      val password = "12345"
-      Await.result(authenticationRep.signUpUser(address, password), Duration.Inf)
+      val userAccessDTO: UserAccessDTO = UserAccessDTO("test@mail.com", "12345", Some("John"), Some("Doe"), None)
+      Await.result(authenticationRep.signUpUser(userAccessDTO), Duration.Inf)
 
       val testQuery = db.run((for {
-        addressRow <- AddressesTable.all.filter(_.address === address)
+        addressRow <- AddressesTable.all.filter(_.address === userAccessDTO.address)
         userRow <- UsersTable.all.filter(_.addressId === addressRow.addressId)
         passwordRow <- PasswordsTable.all.filter(_.userId === userRow.userId)
         tokenRow <- TokensTable.all.filter(_.tokenId === passwordRow.tokenId)
-      } yield (addressRow.address, passwordRow.password, tokenRow.token)).result.headOption)
+      } yield (addressRow.address, passwordRow.password, userRow.firstName, userRow.lastName, tokenRow.token))
+        .result.headOption)
 
       testQuery.map {
-        case Some(tuple) => assert(tuple._1 === address && tuple._2 === password)
+        case Some(tuple) => assert(tuple._1 === userAccessDTO.address &&
+          tuple._2 === userAccessDTO.password && tuple._3 === userAccessDTO.first_name.get &&
+          tuple._4 === userAccessDTO.last_name.get && DataValidators.isValidUUID(tuple._5))
 
         case None => fail("Test Query failed to find user info")
       }
