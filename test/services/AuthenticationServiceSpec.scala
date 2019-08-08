@@ -8,7 +8,6 @@ import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalatest.{ AsyncWordSpec, MustMatchers }
 import repositories.AuthenticationRepository
 import utils.Jsons._
-import org.mockito.Mockito.when
 import com.github.t3hnar.bcrypt._
 import utils.Values._
 
@@ -32,7 +31,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       val mockAuthenticationRep = mock[AuthenticationRepository]
       mockAuthenticationRep.checkUser(*)
         .returns(Future.successful(false))
-      mockAuthenticationRep.signUpUser(*, *)
+      mockAuthenticationRep.signUpUser(*)
         .returns(Future.successful("test"))
 
       val authenticationService = new AuthenticationService(mockAuthenticationRep)
