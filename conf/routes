@@ -4,7 +4,7 @@
 # ~~~~
 
 # Chats
-GET     /chats                   controllers.ChatController.getChats(mailbox: String ?= "inbox")
+GET     /chats                   controllers.ChatController.getChats(mailbox: Mailbox)
 
 GET     /chats/:id               controllers.ChatController.getChat(id : String)
 

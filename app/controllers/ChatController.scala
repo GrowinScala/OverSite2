@@ -26,13 +26,9 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
       }
   }
 
-  def getChats(mailboxString: String): Action[AnyContent] = authenticatedUserAction.async {
+  def getChats(mailbox: Mailbox): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      if (CategoryNames.validMailboxes.contains(mailboxString)) {
-        val mailbox = Mailbox(mailboxString)
-        chatService.getChats(mailbox, authenticatedRequest.userId).map(seq => Ok(Json.toJson(seq)))
-      } else Future.successful(NotFound)
-
+      chatService.getChats(mailbox, authenticatedRequest.userId).map(seq => Ok(Json.toJson(seq)))
   }
 
   def postChat: Action[JsValue] = {

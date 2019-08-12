@@ -19,3 +19,5 @@ libraryDependencies ++= Seq(
   "com.github.t3hnar" %% "scala-bcrypt" % "4.1"
 )
 
+routesImport ++= Seq("model.types.Mailbox")
+
