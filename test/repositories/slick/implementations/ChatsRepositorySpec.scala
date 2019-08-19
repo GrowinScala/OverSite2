@@ -1,6 +1,6 @@
 package repositories.slick.implementations
 
-import model.dtos.{ CreateChatDTO, CreateEmailDTO }
+import model.dtos.{ CreateChatDTO, UpsertEmailDTO }
 import model.types.Mailbox.{ Drafts, Inbox }
 import org.scalatest._
 import play.api.inject.Injector
@@ -475,7 +475,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
       CreateChatDTO(
         chatId = None,
         subject = Some("Test Subject"),
-        CreateEmailDTO(
+        UpsertEmailDTO(
           emailId = None,
           from = "beatriz@mail.com",
           to = Some(Set("joao@mail.com", "notuser@mail.com")),
@@ -508,7 +508,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
         CreateChatDTO(
           chatId = None,
           subject = None,
-          CreateEmailDTO(
+          UpsertEmailDTO(
             emailId = None,
             from = "beatriz@mail.com",
             to = None,

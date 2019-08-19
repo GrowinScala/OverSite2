@@ -3,7 +3,7 @@ package repositories.slick.implementations
 import java.util.UUID
 
 import javax.inject.Inject
-import model.dtos.{ CreateChatDTO, CreateEmailDTO }
+import model.dtos.{ CreateChatDTO, UpsertEmailDTO }
 import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
@@ -183,7 +183,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date))))
   }
 
-  def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
+  def postEmail(createEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
     val date = DateUtils.getCurrentDate
 
     val emailId = genUUID
@@ -204,7 +204,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         case (chatID, subject, fromAddress) => Some(CreateChatDTO(
           Some(chatID),
           Some(subject),
-          CreateEmailDTO(
+          UpsertEmailDTO(
             emailId = Some(emailId),
             from = fromAddress,
             to = createEmailDTO.to,
@@ -218,7 +218,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   }
 
-  private[implementations] def insertEmail(createEmailDTO: CreateEmailDTO, chatId: String,
+  private[implementations] def insertEmail(createEmailDTO: UpsertEmailDTO, chatId: String,
     emailId: String, fromAddress: String, date: String) = {
     for {
       _ <- EmailsTable.all += EmailRow(emailId, chatId, createEmailDTO.body.getOrElse(""), date, 0)

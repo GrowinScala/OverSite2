@@ -24,8 +24,12 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
   }
 
   //Receives a CreateEmailDTO, returns a CreateChatDTO with the email plus chatId and subject
-  def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
+  def postEmail(createEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
     chatsRep.postEmail(createEmailDTO, chatId, userId)
+  }
+
+  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[UpsertEmailDTO]] = {
+    chatsRep.patchEmail(upsertEmailDTO, chatId, emailId, userId)
   }
 
   //region Auxiliary conversion methods
