@@ -15,4 +15,6 @@ trait ChatsRepository {
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO]
 
   def postEmail(createEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]]
+
+  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[UpsertEmailDTO]]
 }

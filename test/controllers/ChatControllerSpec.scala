@@ -78,7 +78,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val json: JsValue = contentAsJson(result)
       json mustBe Json.parse("""[{"chatId": "00000000-0000-0000-0000-000000000000","subject": "Ok","lastAddress": "Ok","lastEmailDate": "Ok","contentPreview": "Ok"}]""")
     }
-    
+
   }
 
   "ChatController#getChat" should {
@@ -132,7 +132,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val createChatDTO =
         CreateChatDTO(Some("newChatId"), Some("Subject"),
           UpsertEmailDTO(Some("newEmailId"), "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
-            Some(Set()), Some("This is the body"), Some("2019-07-26 15:00:00")))
+            Some(Set()), Some("This is the body"), Some("2019-07-26 15:00:00"), Some(false)))
 
       mockChatService.postChat(*, *)
         .returns(Future.successful(createChatDTO))
@@ -158,7 +158,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
           |        "to": ["joao@mail.com"],
           |        "cc": [],
           |        "body": "This is the body",
-          |        "date": "2019-07-26 15:00:00"
+          |        "date": "2019-07-26 15:00:00",
+          |        "sent": false
           |   }
           |}""".stripMargin)
 
@@ -210,7 +211,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val createChatDTO =
         CreateChatDTO(Some("ChatId"), Some("Subject"),
           UpsertEmailDTO(Some("newEmailId"), "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
-            Some(Set()), Some("This is the body"), Some("2019-07-26 15:00:00")))
+            Some(Set()), Some("This is the body"), Some("2019-07-26 15:00:00"), None))
 
       mockChatService.postEmail(*, *, *)
         .returns(Future.successful(Some(createChatDTO)))

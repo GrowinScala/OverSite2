@@ -482,7 +482,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
           bcc = Some(Set("spy@mail.com")),
           cc = Some(Set("observer@mail.com")),
           body = Some("Test Body"),
-          date = None))
+          date = None,
+          sent = None))
 
     "create a chat with an email draft for a user and then get the same chat for the same user: results must match" in {
 
@@ -515,7 +516,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
             bcc = None,
             cc = None,
             body = None,
-            date = None))
+            date = None,
+            sent = None))
 
       for {
         postResponse <- chatsRep.postChat(chatWithEmptyDraft, senderUserId)

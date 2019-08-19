@@ -211,17 +211,26 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
             bcc = createEmailDTO.bcc,
             cc = createEmailDTO.cc,
             body = createEmailDTO.body,
-            date = Some(date))))
+            date = Some(date),
+            sent = Some(false))))
       }
       case None => None
     }
 
   }
 
+  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[UpsertEmailDTO]] = {
+
+    Future.successful(None)
+  }
+
   private[implementations] def insertEmail(createEmailDTO: UpsertEmailDTO, chatId: String,
     emailId: String, fromAddress: String, date: String) = {
+
+    val sent: Int = if (createEmailDTO.sent.getOrElse(false)) 1 else 0
+
     for {
-      _ <- EmailsTable.all += EmailRow(emailId, chatId, createEmailDTO.body.getOrElse(""), date, 0)
+      _ <- EmailsTable.all.insertOrUpdate(EmailRow(emailId, chatId, createEmailDTO.body.getOrElse(""), date, sent))
 
       fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(fromAddress), "from")
       toInsert = createEmailDTO.to.getOrElse(Set()).map(
