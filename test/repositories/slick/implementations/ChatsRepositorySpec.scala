@@ -526,4 +526,33 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
 
   }
 
+  "SlickChatsRepository#moveChatToTrash" should {
+    val chatsRep = new SlickChatsRepository(db)
+
+    val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
+
+    "remove the user's chat from inbox, sent and draft and move it to trash" in {
+      val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
+      for {
+        result <- chatsRep.moveChatToTrash(validChatId, userId)
+        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+        userChat = optionUserChat.get
+      } yield assert(
+        result &&
+          userChat.inbox === 0 &&
+          userChat.sent === 0 &&
+          userChat.draft === 0 &&
+          userChat.trash === 1)
+    }
+    "return false if the user does not have a chat with that id" in {
+      val invalidChatId = "00000000-0000-0000-0000-000000000000"
+      for {
+        result <- chatsRep.moveChatToTrash(invalidChatId, userId)
+        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === invalidChatId && uc.userId === userId).result.headOption)
+      } yield assert(
+        !result &&
+          optionUserChat === None)
+    }
+  }
+
 }

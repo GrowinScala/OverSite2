@@ -78,7 +78,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val json: JsValue = contentAsJson(result)
       json mustBe Json.parse("""[{"chatId": "00000000-0000-0000-0000-000000000000","subject": "Ok","lastAddress": "Ok","lastEmailDate": "Ok","contentPreview": "Ok"}]""")
     }
-    
+
   }
 
   "ChatController#getChat" should {
@@ -305,4 +305,34 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
     }
 
   }
+
+  "ChatController#moveChatToTrash" should {
+    "return NoContent if the response from the service is true" in {
+
+      val mockChatService = mock[ChatService]
+      mockChatService.moveChatToTrash(*, *)
+        .returns(Future.successful(true))
+
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+      val result: Future[Result] = controller.moveChatToTrash("303c2b72-304e-4bac-84d7-385acb64a616").apply(FakeRequest())
+
+      result.map(_ mustBe NoContent)
+    }
+    "return NotFound if the response from the service is NOT true" in {
+
+      val mockChatService = mock[ChatService]
+      mockChatService.moveChatToTrash(*, *)
+        .returns(Future.successful(false))
+
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+      val result: Future[Result] = controller.moveChatToTrash("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(FakeRequest())
+
+      result.map(_ mustBe NotFound)
+    }
+  }
+
 }
