@@ -175,7 +175,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       fromAddress <- UsersTable.all.filter(_.userId === userId).join(AddressesTable.all)
         .on(_.addressId === _.addressId).map(_._2.address).result.head
 
-      _ <- insertEmail(emailDTO, chatId, emailId, fromAddress, date)
+      _ <- upsertEmail(emailDTO, chatId, emailId, fromAddress, date)
 
     } yield ()
 
@@ -192,7 +192,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       chat_Address <- getChatDataAddressQuery(chatId, userId).result.headOption
 
       _ <- chat_Address match {
-        case Some((chatID, subject, fromAddress)) => insertEmail(createEmailDTO, chatId, emailId, fromAddress, date)
+        case Some((chatID, subject, fromAddress)) => upsertEmail(createEmailDTO, chatId, emailId, fromAddress, date)
           .andThen(UserChatsTable.updateDraftField(userId, chatId, 1))
         case None => DBIOAction.successful(None)
       }
@@ -221,10 +221,58 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[UpsertEmailDTO]] = {
 
+    /*
+    val sent = upsertEmailDTO.sent.getOrElse(false)
+
+    val receiversAddresses: Set[String] =
+      upsertEmailDTO.to.getOrElse(Set()) ++ upsertEmailDTO.bcc.getOrElse(Set()) ++ upsertEmailDTO.cc.getOrElse(Set())
+
+    val userChatQuery = UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === userId && uc.draft === 1)
+
+    val updateEmailRow = for {
+      fromAddress <- getChatDataAddressQuery(chatId, userId).result.head.map(_._3)
+      userChatQuery = UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === userId && uc.draft === 1)
+      userChat <- userChatQuery.result
+      date = DateUtils.getCurrentDate
+      updateEmailRow <- upsertEmail(upsertEmailDTO, chatId, emailId, fromAddress, DateUtils.getCurrentDate)
+      //Updates EmailsTable, adds addresses and email addresses if they do not exist
+    } yield updateEmailRow
+
+    val result = db.run(updateEmailRow.transactionally)
+
+
+    if (sent) {
+      for {
+        //if sent
+
+        updateUserChat <- userChatQuery.map(uc => (uc.sent, uc.draft)).update(1, 0)
+
+        //upsertEmailDTO.to.getOrElse(Set()) ++ upsertEmailDTO.bcc.getOrElse(Set()) ++ upsertEmailDTO.cc.getOrElse(Set())
+
+        receiverAddress <- receiversAddresses
+
+        receiverUserIdOption <- AddressesTable.all.join(UsersTable.all)
+          .on((address, user) => address.address === receiverAddress && address.addressId === user.addressId)
+          .map(_._2.userId) //.result.headOption
+
+        receiverUserId <- receiverUserIdOption
+
+        existing <- UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === receiverUserId).result.headOption
+
+        row = existing
+          .getOrElse(UserChatRow(genUUID, receiverUserId, chatId, 1, 0, 0, 0))
+
+        _ <- UserChatsTable.all.insertOrUpdate(row)
+
+      } yield ()
+    }
+
+    */
+
     Future.successful(None)
   }
 
-  private[implementations] def insertEmail(createEmailDTO: UpsertEmailDTO, chatId: String,
+  private[implementations] def upsertEmail(createEmailDTO: UpsertEmailDTO, chatId: String,
     emailId: String, fromAddress: String, date: String) = {
 
     val sent: Int = if (createEmailDTO.sent.getOrElse(false)) 1 else 0
@@ -232,19 +280,19 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     for {
       _ <- EmailsTable.all.insertOrUpdate(EmailRow(emailId, chatId, createEmailDTO.body.getOrElse(""), date, sent))
 
-      fromInsert = insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(fromAddress), "from")
+      fromInsert = upsertEmailAddress(emailId, chatId, upsertAddress(fromAddress), "from")
       toInsert = createEmailDTO.to.getOrElse(Set()).map(
-        to => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(to), "to"))
+        to => upsertEmailAddress(emailId, chatId, upsertAddress(to), "to"))
       bccInsert = createEmailDTO.bcc.getOrElse(Set()).map(
-        bcc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(bcc), "bcc"))
+        bcc => upsertEmailAddress(emailId, chatId, upsertAddress(bcc), "bcc"))
       ccInsert = createEmailDTO.cc.getOrElse(Set()).map(
-        cc => insertEmailAddressIfNotExists(emailId, chatId, insertAddressIfNotExists(cc), "cc"))
+        cc => upsertEmailAddress(emailId, chatId, upsertAddress(cc), "cc"))
 
       _ <- DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
     } yield ()
   }
 
-  private[implementations] def insertAddressIfNotExists(address: String): DBIO[String] = {
+  private[implementations] def upsertAddress(address: String): DBIO[String] = {
     for {
       existing <- AddressesTable.selectByAddress(address).result.headOption
 
@@ -255,7 +303,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield row.addressId
   }
 
-  private[implementations] def insertEmailAddressIfNotExists(emailId: String, chatId: String, address: DBIO[String], participantType: String) /*: DBIO[String]*/ =
+  private[implementations] def upsertEmailAddress(emailId: String, chatId: String, address: DBIO[String], participantType: String) /*: DBIO[String]*/ =
     for {
       addressId <- address
       existing <- EmailAddressesTable.selectByEmailIdAddressAndType(emailId, addressId, participantType)

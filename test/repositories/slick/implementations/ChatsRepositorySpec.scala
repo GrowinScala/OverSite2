@@ -447,7 +447,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
 
       val address = "alice@mail.com"
       for {
-        inserted <- db.run(chatsRep.insertAddressIfNotExists(address))
+        inserted <- db.run(chatsRep.upsertAddress(address))
         selected <- db.run(AddressesTable.selectAddressId(address).result.head)
       } yield inserted mustBe selected
 
@@ -459,7 +459,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAnd
 
       val address = "beatriz@mail.com"
       for {
-        inserted <- db.run(chatsRep.insertAddressIfNotExists(address))
+        inserted <- db.run(chatsRep.upsertAddress(address))
         selected <- db.run(AddressesTable.selectAddressId(address).result.head)
       } yield inserted mustBe selected
     }
