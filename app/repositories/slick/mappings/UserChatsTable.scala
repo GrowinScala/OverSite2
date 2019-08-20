@@ -31,4 +31,10 @@ object UserChatsTable {
     } yield uc.draft).update(draft)
   }
 
+  def moveChatToTrash(userId: String, chatId: String) = {
+    (for {
+      uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
+    } yield (uc.inbox, uc.sent, uc.draft, uc.trash)).update(0, 0, 0, 1)
+  }
+
 }

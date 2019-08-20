@@ -57,6 +57,11 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
     }
   }
 
+  def moveChatToTrash(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.moveChatToTrash(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
+  }
+
 }
 
 //region Old
