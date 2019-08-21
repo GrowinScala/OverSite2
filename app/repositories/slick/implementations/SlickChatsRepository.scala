@@ -221,7 +221,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[UpsertEmailDTO]] = {
 
-    /*
     val sent = upsertEmailDTO.sent.getOrElse(false)
 
     val receiversAddresses: Set[String] =
@@ -229,10 +228,18 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     val userChatQuery = UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === userId && uc.draft === 1)
 
+    //Query
+    val getFromAddress = for {
+      //user has to already have a userChat for that chat and have "draft permissions" for it
+      userChat <- UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === userId && uc.draft === 1)
+      fromAddress <- UsersTable.all.join(AddressesTable.all)
+        .on((user, address) => user.userId === userChat.userId && user.addressId === address.addressId)
+        .map(_._2.address)
+    } yield fromAddress
+
+    //Action
     val updateEmailRow = for {
-      fromAddress <- getChatDataAddressQuery(chatId, userId).result.head.map(_._3)
-      userChatQuery = UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === userId && uc.draft === 1)
-      userChat <- userChatQuery.result
+      fromAddress <- getFromAddress.result.head //TODO headOption
       date = DateUtils.getCurrentDate
       updateEmailRow <- upsertEmail(upsertEmailDTO, chatId, emailId, fromAddress, DateUtils.getCurrentDate)
       //Updates EmailsTable, adds addresses and email addresses if they do not exist
@@ -240,7 +247,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     val result = db.run(updateEmailRow.transactionally)
 
-
+    /*
     if (sent) {
       for {
         //if sent
@@ -266,19 +273,17 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       } yield ()
     }
-
-    */
+  */
 
     Future.successful(None)
   }
 
-  private[implementations] def upsertEmail(createEmailDTO: UpsertEmailDTO, chatId: String,
   def moveChatToTrash(chatId: String, userId: String): Future[Boolean] = {
     db.run(UserChatsTable.moveChatToTrash(userId, chatId))
       .map(_ != 0)
   }
 
-  private[implementations] def insertEmail(createEmailDTO: UpsertEmailDTO, chatId: String,
+  private[implementations] def upsertEmail(createEmailDTO: UpsertEmailDTO, chatId: String,
     emailId: String, fromAddress: String, date: String) = {
 
     val sent: Int = if (createEmailDTO.sent.getOrElse(false)) 1 else 0
