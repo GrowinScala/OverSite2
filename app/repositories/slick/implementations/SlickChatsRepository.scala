@@ -221,60 +221,71 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[UpsertEmailDTO]] = {
 
-    val sent = upsertEmailDTO.sent.getOrElse(false)
+    val sent: Boolean = upsertEmailDTO.sent.getOrElse(false)
 
     val receiversAddresses: Set[String] =
       upsertEmailDTO.to.getOrElse(Set()) ++ upsertEmailDTO.bcc.getOrElse(Set()) ++ upsertEmailDTO.cc.getOrElse(Set())
 
-    val userChatQuery = UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === userId && uc.draft === 1)
+    val senderUserChatQuery = UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === userId && uc.draft === 1)
 
     //Query
     val getFromAddress = for {
-      //user has to already have a userChat for that chat and have "draft permissions" for it
-      userChat <- UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === userId && uc.draft === 1)
+      //user needs to already have a userChat for that chat and have "draft permissions" for it
+      userChat <- senderUserChatQuery
       fromAddress <- UsersTable.all.join(AddressesTable.all)
         .on((user, address) => user.userId === userChat.userId && user.addressId === address.addressId)
         .map(_._2.address)
     } yield fromAddress
 
     //Action
-    val updateEmailRow = for {
+    val updateEmail = for {
       fromAddress <- getFromAddress.result.head //TODO headOption
       date = DateUtils.getCurrentDate
       updateEmailRow <- upsertEmail(upsertEmailDTO, chatId, emailId, fromAddress, DateUtils.getCurrentDate)
       //Updates EmailsTable, adds addresses and email addresses if they do not exist
     } yield updateEmailRow
 
-    val result = db.run(updateEmailRow.transactionally)
+    val sendEmail = if (sent) {
+      val receiverUserIdsOption = receiversAddresses.toSeq.map {
+        receiverAddress =>
+          AddressesTable.all.join(UsersTable.all)
+            .on((address, user) => address.address === receiverAddress && address.addressId === user.addressId)
+            .map(_._2.userId).result.headOption
+      }
 
-    /*
-    if (sent) {
-      for {
-        //if sent
+      val sendEmailAction = for {
+        receiverUserIds <- DBIO.sequence(receiverUserIdsOption)
 
-        updateUserChat <- userChatQuery.map(uc => (uc.sent, uc.draft)).update(1, 0)
+        rowAction <- DBIO.sequence(
+          receiverUserIds.flatten //to get rid of the Nones (addresses that did not have a user)
+            .map(receiverUserId =>
+              // get the userChat of the user that will receive the email (they might not have a userChat yet)
+              (UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === receiverUserId).result.headOption, receiverUserId))
+            .map {
+              case (userChatRowAction, receiverUserId) => userChatRowAction.flatMap {
+                case Some(userChatRow) => DBIO.successful(userChatRow.copy(inbox = 1)) //if the user was already part of the chat
+                case None => DBIO.successful(UserChatRow(genUUID, receiverUserId, chatId, 1, 0, 0, 0)) //if the user did not have the chat yet
+              }
+            }
+            .map(_.map(row => UserChatsTable.all.insertOrUpdate(row))))
+        //INSERT the row if the user did not have the chat yet. UPDATE the row if the user was already part of the chat
 
-        //upsertEmailDTO.to.getOrElse(Set()) ++ upsertEmailDTO.bcc.getOrElse(Set()) ++ upsertEmailDTO.cc.getOrElse(Set())
+        _ <- senderUserChatQuery.map(uc => (uc.sent, uc.draft)).update(1, 0)
 
-        receiverAddress <- receiversAddresses
+        //row = existing.getOrElse(UserChatRow(genUUID, receiverUserId, chatId, 1, 0, 0, 0))
 
-        receiverUserIdOption <- AddressesTable.all.join(UsersTable.all)
-          .on((address, user) => address.address === receiverAddress && address.addressId === user.addressId)
-          .map(_._2.userId) //.result.headOption
+        //_ <- rowAction.flatMap(row => UserChatsTable.all.insertOrUpdate(row))
 
-        receiverUserId <- receiverUserIdOption
+      } yield rowAction
 
-        existing <- UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === receiverUserId).result.headOption
+      Some(sendEmailAction)
 
-        row = existing
-          .getOrElse(UserChatRow(genUUID, receiverUserId, chatId, 1, 0, 0, 0))
+    } else None
 
-        _ <- UserChatsTable.all.insertOrUpdate(row)
 
-      } yield ()
-    }
-  */
-
+    val result = db.run(
+      DBIO.seq(updateEmail, sendEmail.getOrElse(DBIO.successful())).transactionally)
+    
     Future.successful(None)
   }
 
