@@ -14,6 +14,8 @@ POST    /chats/:id/emails                  controllers.ChatController.postEmail(
 
 PATCH   /chats/:chatId/emails/:emailId     controllers.ChatController.patchEmail(chatId : String, emailId : String)
 
+PATCH   /chats/:id               controllers.ChatController.moveChatToTrash(id : String)
+
 
 # Authentication
 

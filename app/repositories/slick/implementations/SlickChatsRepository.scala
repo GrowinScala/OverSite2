@@ -189,15 +189,15 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val emailId = genUUID
 
     val insertAndUpdate = for {
-      chat_Address <- getChatDataAddressQuery(chatId, userId).result.headOption
+      chatAddress <- getChatDataAddressQuery(chatId, userId).result.headOption
 
-      _ <- chat_Address match {
+      _ <- chatAddress match {
         case Some((chatID, subject, fromAddress)) => upsertEmail(createEmailDTO, chatId, emailId, fromAddress, date)
           .andThen(UserChatsTable.updateDraftField(userId, chatId, 1))
         case None => DBIOAction.successful(None)
       }
 
-    } yield chat_Address
+    } yield chatAddress
 
     db.run(insertAndUpdate.transactionally).map {
       case Some(tuple) => tuple match {
@@ -273,6 +273,12 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   private[implementations] def upsertEmail(createEmailDTO: UpsertEmailDTO, chatId: String,
+  def moveChatToTrash(chatId: String, userId: String): Future[Boolean] = {
+    db.run(UserChatsTable.moveChatToTrash(userId, chatId))
+      .map(_ != 0)
+  }
+
+  private[implementations] def insertEmail(createEmailDTO: UpsertEmailDTO, chatId: String,
     emailId: String, fromAddress: String, date: String) = {
 
     val sent: Int = if (createEmailDTO.sent.getOrElse(false)) 1 else 0
