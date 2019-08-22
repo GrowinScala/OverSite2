@@ -23,8 +23,11 @@ class EmailAddressesTable(tag: Tag) extends Table[EmailAddressRow](tag, "email_a
 object EmailAddressesTable {
   val all = TableQuery[EmailAddressesTable]
 
-  def selectByEmailIdAddressAndType(emailId: String, addressId: String, participantType: String): Query[EmailAddressesTable, EmailAddressesTable#TableElementType, scala.Seq] =
+  def selectByEmailIdAddressAndType(emailId: Option[String], addressId: Option[String], participantType: Option[String]): Query[EmailAddressesTable, EmailAddressesTable#TableElementType, scala.Seq] =
     EmailAddressesTable.all
-      .filter(ea => ea.emailId === emailId && ea.addressId === addressId && ea.participantType === participantType)
+      //.filter(ea => ea.emailId === emailId && ea.addressId === addressId && ea.participantType === participantType)
+      .filterOpt(emailId)(_.emailId === _)
+      .filterOpt(addressId)(_.addressId === _)
+      .filterOpt(participantType)(_.participantType === _)
 
 }

@@ -3,7 +3,7 @@ package services
 import javax.inject.Inject
 import model.dtos._
 import model.types.Mailbox
-import repositories.dtos.{ Chat, ChatPreview }
+import repositories.dtos.{ Chat, ChatPreview, Email }
 import repositories.ChatsRepository
 
 import scala.concurrent.Future
@@ -28,8 +28,8 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
     chatsRep.postEmail(createEmailDTO, chatId, userId)
   }
 
-  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[UpsertEmailDTO]] = {
-    chatsRep.patchEmail(upsertEmailDTO, chatId, emailId, userId)
+  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[EmailDTO]] = {
+    chatsRep.patchEmail(upsertEmailDTO, chatId, emailId, userId).map(toEmailDTO)
   }
 
   def moveChatToTrash(chatId: String, userId: String): Future[Boolean] = {
@@ -37,6 +37,22 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
   }
 
   //region Auxiliary conversion methods
+
+  private def toEmailDTO(optionEmail: Option[Email]): Option[EmailDTO] = {
+    optionEmail.map {
+      email =>
+        EmailDTO(
+          email.emailId,
+          email.from,
+          email.to,
+          email.bcc,
+          email.cc,
+          email.body,
+          email.date,
+          email.sent != 0,
+          email.attachments)
+    }
+  }
 
   private def toChatDTO(optionChat: Option[Chat]): Option[ChatDTO] = {
     optionChat.map {

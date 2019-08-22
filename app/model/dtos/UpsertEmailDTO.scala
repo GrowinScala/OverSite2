@@ -4,7 +4,7 @@ import play.api.libs.json._
 import play.api.libs.json.Reads._
 import play.api.libs.functional.syntax._
 
-case class UpsertEmailDTO(emailId: Option[String], from: String, to: Option[Set[String]], bcc: Option[Set[String]],
+case class UpsertEmailDTO(emailId: Option[String], from: Option[String], to: Option[Set[String]], bcc: Option[Set[String]],
   cc: Option[Set[String]], body: Option[String], date: Option[String], sent: Option[Boolean])
 
 object UpsertEmailDTO {
@@ -12,7 +12,7 @@ object UpsertEmailDTO {
 
   implicit val createEmailDTOReads: Reads[UpsertEmailDTO] = (
     (JsPath \ "emailId").readNullable[String] and
-    (JsPath \ "from").read[String](email) and
+    (JsPath \ "from").readNullable[String](email) and
     (JsPath \ "to").readNullable[Set[String]](Reads.set(email)) and
     (JsPath \ "bcc").readNullable[Set[String]](Reads.set(email)) and
     (JsPath \ "cc").readNullable[Set[String]](Reads.set(email)) and

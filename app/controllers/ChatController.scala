@@ -66,7 +66,7 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
         upsertEmailDTO => chatService.patchEmail(upsertEmailDTO, chatId, emailId, authenticatedRequest.userId)
           .map {
             case Some(result) => Ok(Json.toJson(result))
-            case None => NotFound(chatNotFound)
+            case None => NotFound(emailNotFound)
           })
     }
   }
