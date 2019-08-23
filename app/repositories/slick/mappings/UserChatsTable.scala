@@ -31,6 +31,14 @@ object UserChatsTable {
     } yield uc.draft).update(draft)
   }
 
+  def incrementDrafts(userId: String, chatId: String): DBIO[Int] = {
+    sqlu"UPDATE user_chats SET draft = draft + 1 WHERE user_id = '${userId}' AND chat_id = '${chatId}' AND draft >= 0"
+  }
+
+  def decrementDrafts(userId: String, chatId: String): DBIO[Int] = {
+    sqlu"UPDATE user_chats SET draft = draft - 1 WHERE user_id = '${userId}' AND chat_id = '${chatId}' AND draft > 0"
+  }
+
   def moveChatToTrash(userId: String, chatId: String) = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
