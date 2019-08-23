@@ -7,13 +7,11 @@ import play.api.libs.json.{ JsError, JsValue, Json }
 import services.ChatService
 import utils.Jsons._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ ExecutionContext, Future }
 import model.types.Mailbox
-import validations.CategoryNames
 
 @Singleton
-class ChatController @Inject() (cc: ControllerComponents, chatService: ChatService,
+class ChatController @Inject() (implicit val ec: ExecutionContext, cc: ControllerComponents, chatService: ChatService,
   authenticatedUserAction: AuthenticatedUserAction)
   extends AbstractController(cc) {
 

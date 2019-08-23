@@ -1,5 +1,6 @@
 package repositories.slick.implementations
 
+import javax.inject.Inject
 import model.dtos.UserAccessDTO
 import org.scalatest._
 import play.api.inject.Injector
@@ -8,16 +9,19 @@ import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
 import utils.DataValidators
 import utils.Generators._
+import utils.TestGenerators._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor, Future }
 
-class SlickAuthenticationRepositorySpec extends AsyncWordSpec with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach {
+class SlickAuthenticationRepositorySpec extends AsyncWordSpec
+  with OptionValues with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
   private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
   private lazy val injector: Injector = appBuilder.injector()
   private val db = injector.instanceOf[Database]
-  implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+  implicit val ec: ExecutionContext = injector.instanceOf[ExecutionContext]
+  val authenticationRep = new SlickAuthenticationRepository(db)
 
   //region Befores and Afters
 
@@ -52,20 +56,24 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec with MustMatchers 
   "SlickAuthenticationRepository#checkUser" should {
 
     "detect that user exists" in {
-      val authenticationRep = new SlickAuthenticationRepository(db)
-      db.run(DBIO.seq(
-        AddressesTable.all += AddressRow("addressId", "address"),
-        UsersTable.all += UserRow("userId", "addressId", "", "")))
+      val addressId = genUUID.sample.value
+      val address = genEmailAddress.sample.value
+      val userId = genUUID.sample.value
 
-      authenticationRep.checkUser("address").map(_ mustBe true)
+      db.run(DBIO.seq(
+        AddressesTable.all += AddressRow(addressId, address),
+        UsersTable.all += UserRow(userId, addressId, genString.sample.value, genString.sample.value)))
+
+      authenticationRep.checkUser(address).map(_ mustBe true)
     }
 
-    "detect that user doesn't exists" in {
-      val authenticationRep = new SlickAuthenticationRepository(db)
-      db.run(AddressesTable.all += AddressRow("addressId", "address"))
+    "detect that user doesn't exist" in {
+      val addressId = genUUID.sample.value
+      val address = genEmailAddress.sample.value
+      db.run(AddressesTable.all += AddressRow(addressId, address))
 
-      authenticationRep.checkUser("address").map(_ mustBe false)
-      authenticationRep.checkUser("address").map(_ mustBe false)
+      authenticationRep.checkUser(address).map(_ mustBe false)
+      authenticationRep.checkUser(address).map(_ mustBe false)
     }
 
   }
@@ -73,8 +81,7 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec with MustMatchers 
   "SlickAuthenticationRepository#signUpUser" should {
 
     "signUp user" in {
-      val authenticationRep = new SlickAuthenticationRepository(db)
-      val userAccessDTO: UserAccessDTO = UserAccessDTO("test@mail.com", "12345", Some("John"), Some("Doe"), None)
+      val userAccessDTO: UserAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
       Await.result(authenticationRep.signUpUser(userAccessDTO), Duration.Inf)
 
       val testQuery = db.run((for {
@@ -87,40 +94,32 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec with MustMatchers 
 
       testQuery.map {
         case Some(tuple) => assert(tuple._1 === userAccessDTO.address &&
-          tuple._2 === userAccessDTO.password && tuple._3 === userAccessDTO.first_name.get &&
-          tuple._4 === userAccessDTO.last_name.get && DataValidators.isValidUUID(tuple._5))
+          tuple._2 === userAccessDTO.password && tuple._3 === userAccessDTO.first_name.value &&
+          tuple._4 === userAccessDTO.last_name.value && DataValidators.isValidUUID(tuple._5))
 
         case None => fail("Test Query failed to find user info")
       }
-
     }
-
   }
 
   "SlickAuthenticationRepository#getPassword" should {
 
     "get existing password " in {
-      val authenticationRep = new SlickAuthenticationRepository(db)
-      Await.result(db.run(DBIO.seq(
-        AddressesTable.all += AddressRow("addressId", "address"),
-        UsersTable.all += UserRow("userId", "addressId", "", ""),
-        TokensTable.all += TokenRow("tokenId", "token", currentTimestamp, currentTimestamp),
-        PasswordsTable.all += PasswordRow("passwordId", "userId", "password", "tokenId"))), Duration.Inf)
+      val userAccessDTO: UserAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
+      Await.result(authenticationRep.signUpUser(userAccessDTO), Duration.Inf)
 
-      authenticationRep.getPassword("address").map(_ mustBe Some("password"))
+      authenticationRep.getPassword(userAccessDTO.address).map(_ mustBe Some(userAccessDTO.password))
     }
 
     "not find missing password" in {
-      val authenticationRep = new SlickAuthenticationRepository(db)
 
-      authenticationRep.getPassword("address").map(_ mustBe None)
+      authenticationRep.getPassword(genEmailAddress.sample.value).map(_ mustBe None)
     }
   }
 
   "SlickAuthenticationRepository#updateToken" should {
 
-    "update Token" in {
-      val authenticationRep = new SlickAuthenticationRepository(db)
+    "update Token OLD" in {
 
       for {
         _ <- db.run(DBIO.seq(
@@ -138,24 +137,43 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec with MustMatchers 
       } yield assertion
 
     }
+
+    "update Token" in {
+      val userAccessDTO: UserAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
+
+      for {
+        _ <- authenticationRep.signUpUser(userAccessDTO)
+
+        tokenId <- db.run(PasswordsTable.all.filter(_.password === userAccessDTO.password)
+          .map(_.tokenId).result.headOption)
+
+        token <- authenticationRep.updateToken(userAccessDTO.address)
+
+        assertion <- db.run(TokensTable.all.filter(_.tokenId === tokenId.value)
+          .map(_.token).result.headOption).map {
+          case Some(foundToken) => foundToken mustBe token
+          case None => fail("Failed to find tokenId")
+        }
+      } yield assertion
+
+    }
   }
 
   "SlickAuthenticationRepository#getTokenExpirationDate" should {
 
     "get Token Expiration Date if it exists" in {
-      val authenticationRep = new SlickAuthenticationRepository(db)
       val currentDate = currentTimestamp
+      val token = genUUID.sample.value
 
       for {
-        _ <- db.run(TokensTable.all += TokenRow("tokenId", "token", currentDate, currentDate))
+        _ <- db.run(TokensTable.all += TokenRow(genUUID.sample.value, token, currentDate, currentDate))
 
-        assertion <- authenticationRep.getTokenExpirationDate("token").map(_ mustBe Some(currentDate))
+        assertion <- authenticationRep.getTokenExpirationDate(token).map(_ mustBe Some(currentDate))
       } yield assertion
     }
 
     "detect missing Token Expiration Date" in {
-      val authenticationRep = new SlickAuthenticationRepository(db)
-      authenticationRep.getTokenExpirationDate("token").map(_ mustBe None)
+      authenticationRep.getTokenExpirationDate(genUUID.sample.value).map(_ mustBe None)
 
     }
   }
@@ -163,16 +181,20 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec with MustMatchers 
   "SlickAuthenticationRepository#getUser" should {
 
     "get User" in {
-      val authenticationRep = new SlickAuthenticationRepository(db)
+      val tokenId = genUUID.sample.value
+      val token = genUUID.sample.value
+      val passwordId = genUUID.sample.value
+      val userId = genUUID.sample.value
+      val password = genString.sample.value
 
       for {
         _ <- db.run(DBIO.seq(
-          TokensTable.all += TokenRow("tokenId", "token", currentTimestamp, currentTimestamp),
-          PasswordsTable.all += PasswordRow("passwordId", "userId", "password", "tokenId")))
+          TokensTable.all += TokenRow(tokenId, token, currentTimestamp, currentTimestamp),
+          PasswordsTable.all += PasswordRow(passwordId, userId, password, tokenId)))
 
-        userId <- authenticationRep.getUser("token")
+        userId <- authenticationRep.getUser(token)
 
-        assertion <- userId mustBe "userId"
+        assertion <- userId mustBe userId
       } yield assertion
     }
   }

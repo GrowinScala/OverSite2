@@ -9,13 +9,13 @@ import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
 import repositories.dtos._
-
 import slick.dbio.DBIOAction
 import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
 import utils.Generators._
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, ExecutionContext, Future }
 
 class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
   extends ChatsRepository {
@@ -101,10 +101,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    */
   def getChatsPreview(mailbox: Mailbox, userId: String): Future[Seq[ChatPreview]] = {
 
+    println("This is the User going to the grouped query along with the Mailbox", userId, mailbox)
+    println("This is the UserChatsTable before the grouped query", Await.result(db.run(UserChatsTable.all.result), Duration.Inf))
     val groupedQuery = getVisibleEmailsQuery(userId, Some(mailbox))
       .map(visibleEmailRow => (visibleEmailRow._1, visibleEmailRow._4))
       .groupBy(_._1)
       .map { case (chatId, date) => (chatId, date.map(_._2).max) }
+
+    println("This is the result of the grouped query", Await.result(db.run(groupedQuery.result), Duration.Inf))
 
     val chatPreviewQuery = for {
       (chatId, date) <- groupedQuery
@@ -163,9 +167,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val date = DateUtils.getCurrentDate
 
     /** Generate chatId, userChatId and emailId **/
-    val chatId = genUUID
-    val userChatId = genUUID
-    val emailId = genUUID
+    val chatId = newUUID
+    val userChatId = newUUID
+    val emailId = newUUID
 
     val inserts = for {
       _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
@@ -186,7 +190,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
     val date = DateUtils.getCurrentDate
 
-    val emailId = genUUID
+    val emailId = newUUID
 
     val insertAndUpdate = for {
       chat_Address <- getChatDataAddressQuery(chatId, userId).result.headOption
@@ -240,7 +244,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       existing <- AddressesTable.selectByAddress(address).result.headOption
 
       row = existing
-        .getOrElse(AddressRow(genUUID, address))
+        .getOrElse(AddressRow(newUUID, address))
 
       _ <- AddressesTable.all.insertOrUpdate(row)
     } yield row.addressId
@@ -253,7 +257,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .result.headOption
 
       row = existing
-        .getOrElse(EmailAddressRow(genUUID, emailId, chatId, addressId, participantType))
+        .getOrElse(EmailAddressRow(newUUID, emailId, chatId, addressId, participantType))
 
       _ <- EmailAddressesTable.all.insertOrUpdate(row)
     } yield ()

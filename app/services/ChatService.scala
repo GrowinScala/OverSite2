@@ -6,10 +6,9 @@ import model.types.Mailbox
 import repositories.dtos.{ Chat, ChatPreview }
 import repositories.ChatsRepository
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ ExecutionContext, Future }
 
-class ChatService @Inject() (chatsRep: ChatsRepository) {
+class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsRepository) {
 
   def getChats(mailbox: Mailbox, user: String): Future[Seq[ChatPreviewDTO]] = {
     chatsRep.getChatsPreview(mailbox, user).map(toSeqChatPreviewDTO)

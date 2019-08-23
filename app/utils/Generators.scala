@@ -5,7 +5,7 @@ import java.util.UUID.randomUUID
 
 object Generators {
 
-  def genUUID: String = randomUUID().toString
+  def newUUID: String = randomUUID().toString
   def currentTimestamp: Timestamp = new Timestamp(System.currentTimeMillis)
 
 }

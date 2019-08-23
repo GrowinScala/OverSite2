@@ -26,18 +26,18 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
   def signUpUser(userAccessDTO: UserAccessDTO): Future[String] = {
     val signUpAction = for {
       optionalAddress <- AddressesTable.all.filter(_.address === userAccessDTO.address).result.headOption
-      addressUUID = genUUID
-      row = optionalAddress.getOrElse(AddressRow(addressUUID, userAccessDTO.address))
+      row = optionalAddress.getOrElse(AddressRow(addressId = newUUID, userAccessDTO.address))
       _ <- AddressesTable.all.insertOrUpdate(row)
 
-      userUUID = genUUID
+      userUUID = newUUID
       _ <- UsersTable.all += UserRow(userUUID, row.addressId, userAccessDTO.first_name.getOrElse(""),
         userAccessDTO.last_name.getOrElse(""))
 
-      token = genUUID
-      tokenId = genUUID
+ 
+      token = newUUID
+      tokenId = newUUID
       _ <- upsertTokenDBIO(tokenId, token)
-      passwordUUID = genUUID
+      passwordUUID = newUUID
       _ <- PasswordsTable.all += PasswordRow(passwordUUID, userUUID, userAccessDTO.password, tokenId)
     } yield token
 
@@ -67,7 +67,7 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
       } yield tokenId).result.head
       // Assumes that the previous verification for the password/user/address will give a result here
 
-      newToken = genUUID
+      newToken = newUUID
       _ <- upsertTokenDBIO(tokenId, newToken)
 
     } yield newToken
