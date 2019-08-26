@@ -27,6 +27,10 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.postEmail(createEmailDTO, chatId, userId)
   }
 
+  def moveChatToTrash(chatId: String, userId: String): Future[Boolean] = {
+    chatsRep.moveChatToTrash(chatId, userId)
+  }
+
   //region Auxiliary conversion methods
 
   private def toChatDTO(optionChat: Option[Chat]): Option[ChatDTO] = {
