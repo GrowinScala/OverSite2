@@ -1,12 +1,10 @@
 package services
 
-
 import model.dtos._
 import model.types.Mailbox.Inbox
 import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
-
 
 import scala.concurrent.Future
 import utils.TestGenerators._

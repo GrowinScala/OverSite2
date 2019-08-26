@@ -33,7 +33,6 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
       _ <- UsersTable.all += UserRow(userUUID, row.addressId, userAccessDTO.first_name.getOrElse(""),
         userAccessDTO.last_name.getOrElse(""))
 
- 
       token = newUUID
       tokenId = newUUID
       _ <- upsertTokenDBIO(tokenId, token)

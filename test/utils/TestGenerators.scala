@@ -1,6 +1,7 @@
 package utils
 
 import model.dtos._
+import model.types.ParticipantType
 import org.scalacheck.Gen
 import play.api.libs.json._
 
@@ -137,10 +138,12 @@ object TestGenerators {
       email <- genCreateEmailDTOPost
     } yield CreateChatDTO(None, Some(subject), email)
 
-  val genTest3participantType: Gen[String] =
-    Gen.oneOf("from", "to")
+  val genTest3participantType: Gen[Option[ParticipantType]] =
+    Gen.oneOf(Some("from"), Some("to"))
+      .map(_.flatMap(str => ParticipantType(str)))
 
-  val genTest4participantType: Gen[String] =
-    Gen.oneOf("from", "to", "cc", "bcc")
+  val genTest4participantType: Gen[Option[ParticipantType]] =
+    Gen.oneOf(Some("from"), Some("to"), Some("cc"), Some("bcc"), None)
+      .map(_.flatMap(str => ParticipantType(str)))
 
 }

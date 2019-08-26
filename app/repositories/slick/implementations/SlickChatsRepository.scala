@@ -332,10 +332,15 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   /**
-   * Method that, given the emailIds of the emails the user can see
-   * @param userId ID of the user requesting a chat
-   * @param emailIdsQuery query with the email IDs of the chat to show in the response, already filtered
-   *                      by the email the user has permission to see (including its oversees)
+   * Method that, given the emailIds of the emails that the a user can see, for each participant of an email,
+   * returns a tuple with (emailId, participantType, address).
+   *
+   * Note that a user will not see a 'bcc' participant unless the user (or one of their oversees) is either
+   * the 'bcc' in question or the person who sent the email
+   *
+   * @param userId ID of the user
+   * @param emailIdsQuery Query with the emailIds of the chat to show in the response, already filtered
+   *                      by the emails the user has permission to see (including the user's oversees)
    * @return for each participant of an email, returns a tuple with (emailId, participantType, address)
    */
   private def getEmailAddressesQuery(userId: String, emailIdsQuery: Query[Rep[String], String, scala.Seq]) = {

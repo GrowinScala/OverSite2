@@ -2,6 +2,8 @@ package repositories.slick.implementations
 
 import model.dtos.{ CreateChatDTO, CreateEmailDTO }
 import model.types.Mailbox._
+import model.types.ParticipantType
+import model.types.ParticipantType._
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
@@ -84,7 +86,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     } yield UserInfo(userAccessDTO.address, userId)
   }
 
-  def sendEmailTo(receiverAddress: String, createEmailDTO: CreateEmailDTO, chatId: String,
+  def sendEmailTo(createEmailDTO: CreateEmailDTO, chatId: String,
     receiverUserChatId: String, sent: Boolean): Future[ChatPreview] = {
 
     for {
@@ -95,7 +97,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       chatpreview <- {
         val chat = optChat.value
         val email = chat.email
-        (if (sent) sendDraft(email.emailId.value, receiverUserChatId, "to")
+        (if (sent) sendDraft(email.emailId.value, receiverUserChatId, To)
         else Future.successful(None))
           .map(_ => ChatPreview(chat.chatId.value, chat.subject.value,
             senderInfo.address, email.date.value, email.body.value))
@@ -103,12 +105,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     } yield chatpreview
   }
 
-  def sendDraft(emailId: String, viewerUserChatId: String, participantType: String): Future[Boolean] =
+  def sendDraft(emailId: String, viewerUserChatId: String, participantType: ParticipantType): Future[Boolean] =
     db.run(
       for {
         emailSent <- EmailsTable.all.filter(_.emailId === emailId).map(_.sent).update(1)
         mailBoxUpdated <- participantType match {
-          case "from" => UserChatsTable.all.filter(_.userChatId === viewerUserChatId)
+          case From => UserChatsTable.all.filter(_.userChatId === viewerUserChatId)
             .map(userChatRow => (userChatRow.sent, userChatRow.draft))
             .update((1, 0))
           case _ => UserChatsTable.all.filter(_.userChatId === viewerUserChatId)
@@ -117,16 +119,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         }
       } yield mailBoxUpdated == emailSent && emailSent == 1)
 
-  /*  def insertSimpleEmailOLD(participantType: String, chatId: String, viewerInfo: UserInfo,
+  def insertSimpleEmail(participantType: Option[ParticipantType], chatId: String, viewerInfo: UserInfo,
     viewerUserChatId: String, sent: Boolean): Future[ChatPreview] = {
     val createEmailDTO = genCreateEmailDTOPost.sample.value
 
-
     participantType match {
-      case "from" =>
+      case Some(From) =>
         for {
           optChat <- chatsRep.postEmail(createEmailDTO.copy(from = viewerInfo.address), chatId, viewerInfo.userId)
-          sentOptChat <- if (sent) sendDraft(optChat.value.email.emailId.value, viewerUserChatId)
+          sentOptChat <- if (sent) sendDraft(optChat.value.email.emailId.value, viewerUserChatId, From)
             .map(_ => optChat)
           else Future(optChat)
 
@@ -136,60 +137,37 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           ChatPreview(chat.chatId.value, chat.subject.value, viewerInfo.address, email.date.value, email.body.value)
         }
 
-      case "to" => sendEmailTo(
-        viewerInfo.address,
+      case Some(To) => sendEmailTo(
         createEmailDTO.copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId)
+        chatId, viewerUserChatId, sent)
 
-      case "cc" => sendEmailTo(
-        viewerInfo.address,
+      case Some(Cc) => sendEmailTo(
         createEmailDTO.copy(cc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId)
+        chatId, viewerUserChatId, sent)
 
-      case "bcc" => sendEmailTo(
-        viewerInfo.address,
+      case Some(Bcc) => sendEmailTo(
         createEmailDTO.copy(bcc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId)
+        chatId, viewerUserChatId, sent)
 
-    }
-  }*/
-
-  def insertSimpleEmail(participantType: String, chatId: String, viewerInfo: UserInfo,
-    viewerUserChatId: String, sent: Boolean): Future[ChatPreview] = {
-    val createEmailDTO = genCreateEmailDTOPost.sample.value
-
-    participantType match {
-      case "from" =>
+      case None =>
         for {
-          optChat <- chatsRep.postEmail(createEmailDTO.copy(from = viewerInfo.address), chatId, viewerInfo.userId)
-          sentOptChat <- if (sent) sendDraft(optChat.value.email.emailId.value, viewerUserChatId, participantType)
-            .map(_ => optChat)
-          else Future(optChat)
-
-        } yield {
-          val chat = sentOptChat.value
-          val email = chat.email
-          ChatPreview(chat.chatId.value, chat.subject.value, viewerInfo.address, email.date.value, email.body.value)
-        }
-
-      case "to" => sendEmailTo(
-        viewerInfo.address,
-        createEmailDTO.copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId, sent)
-
-      case "cc" => sendEmailTo(
-        viewerInfo.address,
-        createEmailDTO.copy(cc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId, sent)
-
-      case "bcc" => sendEmailTo(
-        viewerInfo.address,
-        createEmailDTO.copy(bcc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId, sent)
-
+          receiverInfo <- newUser
+          receiverUserChatId <- giveUserChatAccess(receiverInfo.userId, chatId)
+          chatPreview <- sendEmailTo(
+            createEmailDTO.copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + receiverInfo.address)),
+            chatId, receiverUserChatId, sent)
+        } yield chatPreview
     }
   }
 
+  /**
+   * Checks if a given user has access to a given chat. If not, gives the user access by creating a row on the
+   * UserChatTable with all the Mailboxes turned to 0 and returns the Id of said row. Otherwise returns the Id
+   * of the already existing row.
+   * @param userId The Id of the user
+   * @param chatId The Id of the chat
+   * @return A Future containing the Id of the UserChat Row
+   */
   def giveUserChatAccess(userId: String, chatId: String) =
     db.run(UserChatsTable.all.filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === chatId)
       .map(_.userChatId).result.headOption.flatMap {
@@ -289,7 +267,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         chatpreview <- insertSimpleEmail(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
         seq <- chatsRep.getChatsPreview(Drafts, viewerInfo.userId)
 
-        chatspreview = if (participantType == "from") Seq(chatpreview)
+        chatspreview = if (participantType.contains(From)) Seq(chatpreview)
         else Seq.empty[ChatPreview]
 
       } yield seq mustBe chatspreview
@@ -317,7 +295,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         chatpreview <- insertSimpleEmail(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
         seq <- chatsRep.getChatsPreview(Inbox, viewerInfo.userId)
 
-        chatspreview = if (participantType == "from" || !sent) Seq.empty[ChatPreview]
+        chatspreview = if (participantType.contains(From) || !sent) Seq.empty[ChatPreview]
         else Seq(chatpreview)
 
       } yield seq mustBe chatspreview
@@ -348,7 +326,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         }
         seq <- chatsRep.getChatsPreview(Sent, viewerInfo.userId)
 
-        chatspreview = if (participantType == "from" && sent) Seq(chatpreview)
+        chatspreview = if (participantType.contains(From) && sent) Seq(chatpreview)
         else Seq.empty[ChatPreview]
 
       } yield seq mustBe chatspreview

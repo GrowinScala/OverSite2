@@ -8,7 +8,6 @@ import services.AuthenticationService
 import utils.Jsons._
 import Results._
 
-
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
@@ -37,8 +36,8 @@ class AuthenticationController @Inject() (implicit
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
         userAccessDTO =>
           authenticationService.signInUser(userAccessDTO).map {
-	          case (_, Some(error)) => BadRequest(error)
-	          case ((userAccessDto, None)) => Ok(Json.toJson(userAccessDto))
+            case (_, Some(error)) => BadRequest(error)
+            case ((userAccessDto, None)) => Ok(Json.toJson(userAccessDto))
           })
     }
 }
