@@ -26,7 +26,7 @@ class UserChatsTable(tag: Tag) extends Table[UserChatRow](tag, "user_chats") {
 object UserChatsTable {
   val all = TableQuery[UserChatsTable]
 
-  def updateDraftField(userId: String, chatId: String, draft: Int) : MySQLProfile.ProfileAction[Int, NoStream, Effect.Write] = {
+  def updateDraftField(userId: String, chatId: String, draft: Int): MySQLProfile.ProfileAction[Int, NoStream, Effect.Write] = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
     } yield uc.draft).update(draft)
@@ -40,7 +40,7 @@ object UserChatsTable {
     sqlu"UPDATE user_chats SET draft = draft - 1 WHERE user_id = $userId AND chat_id = $chatId AND draft > 0"
   }
 
-  def moveChatToTrash(userId: String, chatId: String) : MySQLProfile.ProfileAction[Int, NoStream, Effect.Write] = {
+  def moveChatToTrash(userId: String, chatId: String): MySQLProfile.ProfileAction[Int, NoStream, Effect.Write] = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
     } yield (uc.inbox, uc.sent, uc.draft, uc.trash)).update(0, 0, 0, 1)

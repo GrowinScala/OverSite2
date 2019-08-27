@@ -229,16 +229,19 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       upsertEmailDTO.to.getOrElse(Set()) ++ upsertEmailDTO.bcc.getOrElse(Set()) ++ upsertEmailDTO.cc.getOrElse(Set())
 
     val senderUserChatQuery = UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === userId && uc.draft > 0)
+    val draftEmailFromChatQuery = EmailsTable.all.filter(emailRow => emailRow.emailId === emailId && emailRow.chatId === chatId && emailRow.sent === 0)
+    val getUserAddressQuery = UsersTable.all.join(AddressesTable.all)
+      .on((user, address) => user.userId === userId && user.addressId === address.addressId)
+      .map(_._2.address)
 
     //Query
     val getFromAddress = for {
       //user needs to already have a userChat for that chat and have "draft permissions" for it
-      userChat <- senderUserChatQuery
-      //email with given emailId must be part of the chat with given chatId
-      _ <- EmailsTable.all.filter(emailRow => emailRow.emailId === emailId && emailRow.chatId === chatId)
-      fromAddress <- UsersTable.all.join(AddressesTable.all)
-        .on((user, address) => user.userId === userChat.userId && user.addressId === address.addressId)
-        .map(_._2.address)
+      _ <- senderUserChatQuery
+      //email with given emailId must be part of the chat with given chatId and must be a draft (sent == 0)
+      _ <- draftEmailFromChatQuery
+
+      fromAddress <- getUserAddressQuery
     } yield fromAddress
 
     //Action
@@ -260,18 +263,15 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         receiverUserIds <- receiverUserIdsAction
 
         _ <- DBIO.sequence(
-          receiverUserIds //.flatten //to get rid of the Nones (addresses that did not have a user)
-            .map(receiverUserId =>
-              // get the userChat of the user that will receive the email (they might not have a userChat yet)
-              (UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === receiverUserId).result.headOption, receiverUserId))
+          receiverUserIds.map(receiverUserId =>
+            // get the userChat of the user that will receive the email (they might not have a userChat yet)
+            (UserChatsTable.all.filter(uc => uc.chatId === chatId && uc.userId === receiverUserId).result.headOption, receiverUserId))
             .map {
               case (userChatRowAction, receiverUserId) => userChatRowAction.flatMap {
-                case Some(userChatRow) => DBIO.successful(userChatRow.copy(inbox = 1)) //if the user was already part of the chat
-                case None => DBIO.successful(UserChatRow(genUUID, receiverUserId, chatId, 1, 0, 0, 0)) //if the user did not have the chat yet
+                case Some(userChatRow) => UserChatsTable.all.insertOrUpdate(userChatRow.copy(inbox = 1)) //if the user was already part of the chat, update
+                case None => UserChatsTable.all += UserChatRow(genUUID, receiverUserId, chatId, 1, 0, 0, 0) //if the user did not have the chat yet, insert
               }
-            }
-            .map(action => action.map(userChatRow => UserChatsTable.all += userChatRow)))
-        //INSERT the row if the user did not have the chat yet. UPDATE the row if the user was already part of the chat
+            })
 
         _ <- senderUserChatQuery.map(_.sent).update(1)
           .andThen(UserChatsTable.decrementDrafts(userId, chatId))
