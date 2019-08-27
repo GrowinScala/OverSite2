@@ -477,7 +477,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with Inside wi
         subject = Some("Test Subject"),
         UpsertEmailDTO(
           emailId = None,
-          from = "beatriz@mail.com",
+          from = Some("beatriz@mail.com"),
           to = Some(Set("joao@mail.com", "notuser@mail.com")),
           bcc = Some(Set("spy@mail.com")),
           cc = Some(Set("observer@mail.com")),
@@ -511,7 +511,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with Inside wi
           subject = None,
           UpsertEmailDTO(
             emailId = None,
-            from = "beatriz@mail.com",
+            from = Some("beatriz@mail.com"),
             to = None,
             bcc = None,
             cc = None,
