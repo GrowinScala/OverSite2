@@ -17,6 +17,12 @@ object TestGenerators {
       charList <- Gen.listOfN(stringSize, Gen.alphaChar)
     } yield charList.mkString
 
+  def genListOfT[T](f: Unit => T): Gen[List[T]] =
+    for {
+      listSize <- Gen.choose(1, 10)
+      list <- Gen.listOfN(listSize, Gen.const(f))
+    } yield list.map(_.apply(()))
+
   val genEmailAddress: Gen[String] =
     for {
       name <- genString
@@ -138,11 +144,11 @@ object TestGenerators {
       email <- genCreateEmailDTOPost
     } yield CreateChatDTO(None, Some(subject), email)
 
-  val genTest3participantType: Gen[Option[ParticipantType]] =
+  val genParticipantTypeTest3: Gen[Option[ParticipantType]] =
     Gen.oneOf(Some("from"), Some("to"))
       .map(_.flatMap(str => ParticipantType(str)))
 
-  val genTest4participantType: Gen[Option[ParticipantType]] =
+  val genParticipantType: Gen[Option[ParticipantType]] =
     Gen.oneOf(Some("from"), Some("to"), Some("cc"), Some("bcc"), None)
       .map(_.flatMap(str => ParticipantType(str)))
 

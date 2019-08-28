@@ -5,7 +5,7 @@ import java.util.Date
 
 object DateUtils {
   def getCurrentDate: String = {
-    val dateFormatter = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss:SSS")
+    val dateFormatter = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss")
     dateFormatter.format(new Date())
   }
 }

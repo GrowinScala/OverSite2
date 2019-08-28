@@ -89,21 +89,19 @@ class ChatServiceSpec extends AsyncWordSpec
 
   "ChatService#moveChatToTrash" should {
     "return true if the ChatsRepository returns true" in {
-      val mockChatsRep = mock[ChatsRepository]
+      val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.moveChatToTrash(*, *)
         .returns(Future.successful(true))
 
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val moveChatToTrashService = chatServiceImpl.moveChatToTrash("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      val moveChatToTrashService = chatService.moveChatToTrash("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       moveChatToTrashService.map(_ mustBe true)
     }
     "return false if the ChatsRepository returns false" in {
-      val mockChatsRep = mock[ChatsRepository]
+      val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.moveChatToTrash(*, *)
         .returns(Future.successful(false))
 
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val moveChatToTrashService = chatServiceImpl.moveChatToTrash("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      val moveChatToTrashService = chatService.moveChatToTrash("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       moveChatToTrashService.map(_ mustBe false)
     }
   }

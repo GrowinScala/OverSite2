@@ -74,11 +74,12 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * Method that retrieves the emails that a specific user can see:
    * @param userId The user in question
    * @param optBox Optional filter for a given mailbox
-   * @return The emails that a specific user can see:
+   * @return A Query for the emails that a specific user can see:
    * - If the user is a participant of the email (from, to, bcc, cc)
    *   OR if the user is overseeing another user in the chat (has access to the same emails the oversee has,
    *   excluding the oversee's drafts)
    * - AND if email is draft (sent = 0), only the user with the "from" address can see it
+   * - The Query has 5 columns (chatId, emailId, body, date, sent)
    */
   private def getVisibleEmailsQuery(userId: String, optBox: Option[Mailbox] = None) =
     for {
@@ -93,6 +94,15 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield (chatId, emailId, body, date, sent)
   //endregion
 
+  def cleanRepeatedDateEmails(chatPreviewSeq: Seq[ChatPreview]): Seq[ChatPreview] = {
+    val indexed = chatPreviewSeq.zipWithIndex
+    indexed.filterNot {
+      case (chatprev, idx) if idx > 0 =>
+        (chatprev.lastEmailDate, chatprev.chatId) == (indexed(idx - 1)._1.lastEmailDate, indexed(idx - 1)._1.chatId)
+      case (chatprev, idx) if idx == 0 => false
+    }.map(_._1)
+  }
+
   /**
    * Method that returns a preview of all the chats of a given user in a given Mailbox
    * @param mailbox The mailbox being seen
@@ -101,39 +111,46 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    */
   def getChatsPreview(mailbox: Mailbox, userId: String): Future[Seq[ChatPreview]] = {
 
-    println("This is the User going to the grouped query along with the Mailbox", userId, mailbox)
-    println("This is the UserChatsTable before the grouped query", Await.result(db.run(UserChatsTable.all.result), Duration.Inf))
-    val groupedQuery = getVisibleEmailsQuery(userId, Some(mailbox))
+    println("THIS IS THE USER GOING TO THE GETCHATSPREVIEW ALONG WITH THE MAILBOX", userId, mailbox)
+    println("THIS IS THE USER_CHATS_TABLE BEFORE THE GETCHATSPREVIEW", Await.result(db.run(UserChatsTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE USER_CHATS_TABLE")
+    println("THIS IS THE EMAIL_ADDRESS_TABLE", Await.result(db.run(EmailAddressesTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE EMAIL_ADDRESS_TABLE")
+    println("THIS IS THE ADDRESS_TABLE", Await.result(db.run(AddressesTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE ADDRESS_TABLE")
+    println("THIS IS THE EMAILS_TABLE", Await.result(db.run(EmailsTable.all.sortBy(_.chatId).result), Duration.Inf),
+      "THIS IS THE END OF THE EMAIL_ADDRESS_TABLE")
+
+    val visibleEmailsQuery = getVisibleEmailsQuery(userId, Some(mailbox))
+
+    val groupedQuery = visibleEmailsQuery
       .map(visibleEmailRow => (visibleEmailRow._1, visibleEmailRow._4))
       .groupBy(_._1)
       .map { case (chatId, date) => (chatId, date.map(_._2).max) }
 
-    println("This is the result of the grouped query", Await.result(db.run(groupedQuery.result), Duration.Inf))
-
     val chatPreviewQuery = for {
-      (chatId, date) <- groupedQuery
+      (chatId, maxDate) <- groupedQuery
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
-      (emailId, body) <- EmailsTable.all.filter(emailRow =>
-        emailRow.chatId === chatId && emailRow.date === date).map(emailRow =>
-        (emailRow.emailId, emailRow.body.take(PREVIEW_BODY_LENGTH)))
+      (emailId, body, date) <- EmailsTable.all.filter(emailRow =>
+        emailRow.chatId === chatId && emailRow.date === maxDate).map(emailRow =>
+        (emailRow.emailId, emailRow.body.take(PREVIEW_BODY_LENGTH), emailRow.date))
       addressId <- EmailAddressesTable.all.filter(emailAddressRow =>
         emailAddressRow.emailId === emailId && emailAddressRow.participantType === "from")
         .map(_.addressId)
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
+
+      if emailId in visibleEmailsQuery.map(_._2)
+
     } yield (chatId, subject, address, date, body)
 
-    val resultOption = db.run(chatPreviewQuery.sortBy(_._4.desc).result)
+    val result = db.run(chatPreviewQuery.sortBy(chatpreview =>
+      (chatpreview._4.desc, chatpreview._5.asc, chatpreview._3.asc)).result)
 
-    val result = resultOption.map(_.map {
-      case (chatId, subject, address, dateOption, body) =>
-        (chatId, subject, address, dateOption.getOrElse("Missing Date"), body)
-    })
+    println("THIS IS THE RESULT BEFORE CLEANING", Await.result(result, Duration.Inf))
 
-    result.map(_.map(ChatPreview.tupled))
-
+    result.map(tupleSequence => cleanRepeatedDateEmails(tupleSequence.map(ChatPreview.tupled)))
   }
 
-  //region getChat and auxiliary methods
   /**
    * Method to get the emails and other data of a specific chat of a user
    * @param chatId ID of the chat requested

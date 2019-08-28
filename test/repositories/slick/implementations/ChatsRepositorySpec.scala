@@ -2,7 +2,7 @@ package repositories.slick.implementations
 
 import model.dtos.{ CreateChatDTO, CreateEmailDTO }
 import model.types.Mailbox._
-import model.types.ParticipantType
+import model.types.{ Mailbox, ParticipantType }
 import model.types.ParticipantType._
 import org.scalatest._
 import play.api.inject.Injector
@@ -72,11 +72,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   case class UserInfo(address: String, userId: String)
 
+  //region Auxiliary Methods
   /**
    * Generates a User and registers them into the Database
    * @return A Future of a Tuple of the User's Address and UserId
    */
-  def newUser: Future[UserInfo] = {
+  def newUserOLD: Future[UserInfo] = {
     val authenticationRep = new SlickAuthenticationRepository(db)
     val userAccessDTO = genUserAccessDTO.sample.value
 
@@ -84,6 +85,20 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       token <- authenticationRep.signUpUser(userAccessDTO)
       userId <- authenticationRep.getUser(token)
     } yield UserInfo(userAccessDTO.address, userId)
+  }
+
+  def newUser: Future[UserInfo] = {
+    val userId = genUUID.sample.value
+    val userAddress = genEmailAddress.sample.value
+    val firstName = genString.sample.value
+    val lastName = genString.sample.value
+
+    val insertUser = for {
+      addressId <- chatsRep.insertAddressIfNotExists(userAddress)
+      _ <- UsersTable.all += UserRow(userId, addressId, firstName, lastName)
+    } yield addressId
+
+    db.run(insertUser).map(_ => UserInfo(userAddress, userId))
   }
 
   def sendEmailTo(createEmailDTO: CreateEmailDTO, chatId: String,
@@ -98,7 +113,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val chat = optChat.value
         val email = chat.email
         (if (sent) sendDraft(email.emailId.value, receiverUserChatId, To)
-        else Future.successful(None))
+        else Future.successful(()))
           .map(_ => ChatPreview(chat.chatId.value, chat.subject.value,
             senderInfo.address, email.date.value, email.body.value))
       }
@@ -119,7 +134,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         }
       } yield mailBoxUpdated == emailSent && emailSent == 1)
 
-  def insertSimpleEmail(participantType: Option[ParticipantType], chatId: String, viewerInfo: UserInfo,
+  def insertEmailTest4(participantType: Option[ParticipantType], chatId: String, viewerInfo: UserInfo,
     viewerUserChatId: String, sent: Boolean): Future[ChatPreview] = {
     val createEmailDTO = genCreateEmailDTOPost.sample.value
 
@@ -160,6 +175,53 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     }
   }
 
+  def insertEmail(chatId: String, viewerInfo: UserInfo, viewerUserChatId: String): Future[Option[(ChatPreview, ParticipantType, Boolean)]] = {
+
+    val createEmailDTO = genCreateEmailDTOPost.sample.value
+    val participantType = genParticipantType.sample.value
+    val sent = genBoolean.sample.value
+
+    participantType match {
+      case Some(From) =>
+        for {
+          optChat <- chatsRep.postEmail(createEmailDTO.copy(from = viewerInfo.address), chatId, viewerInfo.userId)
+          _ <- if (sent) sendDraft(optChat.value.email.emailId.value, viewerUserChatId, From)
+          else Future.successful(())
+
+        } yield {
+          val chat = optChat.value
+          val email = chat.email
+          Some((
+            ChatPreview(chat.chatId.value, chat.subject.value, viewerInfo.address, email.date.value, email.body.value),
+            From, sent))
+        }
+
+      case Some(To) => sendEmailTo(
+        createEmailDTO.copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
+        chatId, viewerUserChatId, sent).map(chatPreview => if (sent) Some((chatPreview, To, sent))
+        else None)
+
+      case Some(Cc) => sendEmailTo(
+        createEmailDTO.copy(cc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
+        chatId, viewerUserChatId, sent).map(chatPreview => if (sent) Some((chatPreview, Cc, sent))
+        else None)
+
+      case Some(Bcc) => sendEmailTo(
+        createEmailDTO.copy(bcc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
+        chatId, viewerUserChatId, sent).map(chatPreview => if (sent) Some((chatPreview, Bcc, sent))
+        else None)
+
+      case None =>
+        for {
+          receiverInfo <- newUser
+          receiverUserChatId <- giveUserChatAccess(receiverInfo.userId, chatId)
+          chatPreview <- sendEmailTo(
+            createEmailDTO.copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + receiverInfo.address)),
+            chatId, receiverUserChatId, sent)
+        } yield None
+    }
+  }
+
   /**
    * Checks if a given user has access to a given chat. If not, gives the user access by creating a row on the
    * UserChatTable with all the Mailboxes turned to 0 and returns the Id of said row. Otherwise returns the Id
@@ -179,6 +241,23 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
       })
 
+  def participantIsReceivingTest4(participantType: Option[ParticipantType]): Boolean =
+    participantType.contains(To) ||
+      participantType.contains(Cc) ||
+      participantType.contains(Bcc)
+
+  def participantIsReceiving(participantType: ParticipantType): Boolean =
+    participantType == To ||
+      participantType == Cc ||
+      participantType == Bcc
+
+  /**
+   * Receives the Id of the viewer, creates a new Chat in the DB and gives the viewer access to it by creating
+   * a UserCHat row. Returns a CreateChatDTO and the Id of the viewer's UserChat row.
+   * Note that another User is also created in order to make the opening email of the chat.
+   * @param viewerId The Id of the viewer
+   * @return A Future of a tuple the chat's CreateChatDTO and the viewer's UserChat row
+   */
   def newChat(viewerId: String): Future[(CreateChatDTO, String)] = {
 
     for {
@@ -189,10 +268,95 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     } yield (newChat, userChatId)
   }
 
-  def fillChat(createChatDTO: CreateChatDTO, viewerInfo: UserInfo) = {
+  def visibleToMailbox(participantType: ParticipantType, sent: Boolean, mailbox: Mailbox): Boolean =
+    mailbox match {
+      case Inbox => participantIsReceiving(participantType) && sent
+      case Sent => participantType == From && sent
+      case Drafts => participantType == From && !sent
+      case Trash => participantIsReceiving(participantType) && sent || participantType == From
+    }
 
-    "To do Later"
+  /* def fillChatNOTDEBUG(chatId: String, viewerInfo: UserInfo, viewerUserChatId: String, mailbox: Mailbox): Future[Option[ChatPreview]] =
+    Future.sequence(
+      genListOfT(_ => insertEmail(chatId, viewerInfo, viewerUserChatId)).sample.value)
+      .map(_.filter { case (chatPreview, participantType, sent) => visibleToMailbox(participantType, sent, mailbox) }
+        .map(_._1)
+        .sortBy(chatpreview => (chatpreview.lastEmailDate, chatpreview.contentPreview, chatpreview.lastAddress))
+        .headOption)*/
+
+  def fillChat(chatId: String, viewerInfo: UserInfo, viewerUserChatId: String, mailbox: Mailbox): Future[Option[ChatPreview]] = {
+    val emaiList = Future.sequence(
+      genListOfT(_ => insertEmail(chatId, viewerInfo, viewerUserChatId)).sample.value).map(_.flatten.sortBy(tuple =>
+        (tuple._1.lastEmailDate, tuple._1.contentPreview, tuple._1.lastAddress)))
+
+    val chatIsVisible: Future[Boolean] = emaiList.map(_.foldLeft(false) {
+      case (agg, (chatPreview, participantType, sent)) => agg || visibleToMailbox(participantType, sent, mailbox)
+    })
+
+    println("THIS IS THE LIST OF CHATPREVIEW FROM THE TEST AS ORDERED BY THE TEST", Await.result(emaiList, Duration.Inf))
+
+    chatIsVisible.flatMap(
+      if (_) emaiList.map(_.headOption.map(_._1))
+      else Future.successful(None))
   }
+
+  def makeChatsNOTDEBUG(viewerInfo: UserInfo, mailbox: Mailbox): Future[List[ChatPreview]] =
+    Future.sequence(
+      genListOfT(_ => newChat(viewerInfo.userId)).sample.value
+        .map(futureOfCreateChat => for {
+          (createChatDTO, viewerUserChatId) <- futureOfCreateChat
+          optChatPreview <- fillChat(createChatDTO.chatId.value, viewerInfo, viewerUserChatId, mailbox)
+          optDeletedChatPreview <- optChatPreview match {
+            case Some(chatPreview) =>
+              val delete = genBoolean.sample.get
+
+              if (delete) chatsRep.moveChatToTrash(chatPreview.chatId, viewerInfo.userId).map(_ =>
+                mailbox match {
+                  case Trash => Some(chatPreview)
+                  case _ => None
+                })
+              else Future.successful(mailbox match {
+                case Trash => None
+                case _ => Some(chatPreview)
+              })
+
+            case None => Future.successful(None)
+          }
+
+        } yield optDeletedChatPreview)).map(_.flatten)
+
+  def makeChats(viewerInfo: UserInfo, mailbox: Mailbox): Future[List[ChatPreview]] =
+    Future.sequence(
+      {
+        val a = genListOfT(_ => newChat(viewerInfo.userId)).sample.value
+        println(
+          "THIS IS THE GENERATED LIST OF CHATS",
+          Await.result(Future.sequence(a), Duration.Inf))
+        a
+      }
+        .map(futureOfCreateChat => for {
+          (createChatDTO, viewerUserChatId) <- futureOfCreateChat
+          optChatPreview <- fillChat(createChatDTO.chatId.value, viewerInfo, viewerUserChatId, mailbox)
+          optDeletedChatPreview <- optChatPreview match {
+            case Some(chatPreview) =>
+              val delete = genBoolean.sample.get
+
+              if (delete) chatsRep.moveChatToTrash(chatPreview.chatId, viewerInfo.userId).map(_ =>
+                mailbox match {
+                  case Trash => Some(chatPreview)
+                  case _ => None
+                })
+              else Future.successful(mailbox match {
+                case Trash => None
+                case _ => Some(chatPreview)
+              })
+
+            case None => Future.successful(None)
+          }
+
+        } yield optDeletedChatPreview)).map(_.flatten)
+
+  //endregion
 
   "SlickChatsRepository#getChatsPreview" should {
     "be valid in [Test-1: 1 Chat, 1 Email, Only From, Drafts]" in {
@@ -252,19 +416,22 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       for {
         viewerInfo <- newUser
         (newChat, viewerUserChatId) <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
           println("The USer InfO IS", viewerInfo)
           newChat(viewerInfo.userId)
         }
         participantType = {
           println("This is the UserChatsTable with a brand new chat", Await.result(db.run(UserChatsTable.all.result), Duration.Inf))
-          val a = genTest3participantType.sample.value
+          val a = genParticipantTypeTest3.sample.value
           println("This is the relation type", a)
           a
         }
 
         sent = false
 
-        chatpreview <- insertSimpleEmail(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
+        chatpreview <- insertEmailTest4(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
         seq <- chatsRep.getChatsPreview(Drafts, viewerInfo.userId)
 
         chatspreview = if (participantType.contains(From)) Seq(chatpreview)
@@ -278,6 +445,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       for {
         viewerInfo <- newUser
         (newChat, viewerUserChatId) <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
           println("The USer InfO IS", viewerInfo)
           newChat(viewerInfo.userId)
         }
@@ -285,18 +455,29 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           println(
             "This is the UserChatsTable with a brand new chat",
             Await.result(db.run(UserChatsTable.all.result), Duration.Inf))
-          val a = genTest4participantType.sample.value
+          val a = genParticipantType.sample.value
           println("This is the relation type", a)
           a
         }
 
         sent = genBoolean.sample.value
 
-        chatpreview <- insertSimpleEmail(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
+        trash = genBoolean.sample.value
+
+        chatpreview <- {
+          println("SENT IS", sent)
+          println("TRASH IS", trash)
+          insertEmailTest4(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
+        }
+
+        _ <- if (trash) chatsRep.moveChatToTrash(newChat.chatId.value, viewerInfo.userId)
+        else Future.successful(())
+
         seq <- chatsRep.getChatsPreview(Inbox, viewerInfo.userId)
 
-        chatspreview = if (participantType.contains(From) || !sent) Seq.empty[ChatPreview]
-        else Seq(chatpreview)
+        chatspreview = if (participantIsReceivingTest4(participantType) && sent && !trash)
+          Seq(chatpreview)
+        else Seq.empty[ChatPreview]
 
       } yield seq mustBe chatspreview
     }
@@ -306,6 +487,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       for {
         viewerInfo <- newUser
         (newChat, viewerUserChatId) <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
           println("The USer InfO IS", viewerInfo)
           newChat(viewerInfo.userId)
         }
@@ -313,23 +497,234 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           println(
             "This is the UserChatsTable with a brand new chat",
             Await.result(db.run(UserChatsTable.all.result), Duration.Inf))
-          val a = genTest4participantType.sample.value
+          val a = genParticipantType.sample.value
           println("This is the relation type", a)
           a
         }
 
         sent = genBoolean.sample.value
 
+        trash = genBoolean.sample.value
+
         chatpreview <- {
           println("SENT IS", sent)
-          insertSimpleEmail(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
+          println("TRASH IS", trash)
+          insertEmailTest4(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
         }
+
+        _ <- if (trash) chatsRep.moveChatToTrash(newChat.chatId.value, viewerInfo.userId)
+        else Future.successful(())
+
         seq <- chatsRep.getChatsPreview(Sent, viewerInfo.userId)
 
-        chatspreview = if (participantType.contains(From) && sent) Seq(chatpreview)
+        chatspreview = if (participantType.contains(From) && sent && !trash) Seq(chatpreview)
         else Seq.empty[ChatPreview]
 
       } yield seq mustBe chatspreview
+    }
+
+    "be valid in [Test-4-B: 1 Chat, 1 Email, NOT Overseeing, Drafts]" in {
+
+      for {
+        viewerInfo <- newUser
+        (newChat, viewerUserChatId) <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println("The USer InfO IS", viewerInfo)
+          newChat(viewerInfo.userId)
+        }
+        participantType = {
+          println(
+            "This is the UserChatsTable with a brand new chat",
+            Await.result(db.run(UserChatsTable.all.result), Duration.Inf))
+          val a = genParticipantType.sample.value
+          println("This is the relation type", a)
+          a
+        }
+
+        sent = genBoolean.sample.value
+
+        trash = genBoolean.sample.value
+
+        chatpreview <- {
+          println("SENT IS", sent)
+          println("TRASH IS", trash)
+          insertEmailTest4(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
+        }
+
+        _ <- if (trash) chatsRep.moveChatToTrash(newChat.chatId.value, viewerInfo.userId)
+        else Future.successful(())
+
+        seq <- chatsRep.getChatsPreview(Drafts, viewerInfo.userId)
+
+        chatspreview = if (participantType.contains(From) && !sent && !trash) Seq(chatpreview)
+        else Seq.empty[ChatPreview]
+
+      } yield seq mustBe chatspreview
+    }
+
+    "be valid in [Test-4-B: 1 Chat, 1 Email, NOT Overseeing, Trash]" in {
+
+      for {
+        viewerInfo <- newUser
+        (newChat, viewerUserChatId) <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println("The USer InfO IS", viewerInfo)
+          newChat(viewerInfo.userId)
+        }
+        participantType = {
+          println(
+            "This is the UserChatsTable with a brand new chat",
+            Await.result(db.run(UserChatsTable.all.result), Duration.Inf))
+          val a = genParticipantType.sample.value
+          println("This is the relation type", a)
+          a
+        }
+
+        sent = genBoolean.sample.value
+
+        trash = genBoolean.sample.value
+
+        chatpreview <- {
+          println("SENT IS", sent)
+          println("TRASH IS", trash)
+          insertEmailTest4(participantType, newChat.chatId.value, viewerInfo, viewerUserChatId, sent)
+        }
+
+        _ <- if (trash) chatsRep.moveChatToTrash(newChat.chatId.value, viewerInfo.userId)
+        else Future.successful(())
+
+        seq <- chatsRep.getChatsPreview(Trash, viewerInfo.userId)
+
+        chatspreview = if (((participantIsReceivingTest4(participantType) && sent)
+          || participantType.contains(From)) && trash) Seq(chatpreview)
+        else Seq.empty[ChatPreview]
+
+      } yield seq mustBe chatspreview
+    }
+
+    "be valid in [Test-5-A: 1 Chat, Many Emails, NOT Overseeing, Inbox]" in {
+      for {
+        viewerInfo <- newUser
+        (newChat, viewerUserChatId) <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println("The USer InfO IS", viewerInfo)
+          newChat(viewerInfo.userId)
+        }
+
+        trash = genBoolean.sample.value
+
+        optChatspreview <- fillChat(newChat.chatId.value, viewerInfo, viewerUserChatId, Inbox)
+
+        _ <- if (trash) chatsRep.moveChatToTrash(newChat.chatId.value, viewerInfo.userId)
+        else Future.successful(())
+
+        seq <- chatsRep.getChatsPreview(Inbox, viewerInfo.userId)
+
+        chatspreview = if (trash || optChatspreview.isEmpty) Seq.empty[ChatPreview]
+        else Seq(optChatspreview.value)
+
+      } yield seq mustBe chatspreview
+    }
+
+    "be valid in [Test-5-B: 1 Chat, Many Emails, NOT Overseeing, Sent]" in {
+      for {
+        viewerInfo <- newUser
+        (newChat, viewerUserChatId) <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println("The USer InfO IS", viewerInfo)
+          newChat(viewerInfo.userId)
+        }
+
+        trash = genBoolean.sample.value
+
+        optChatspreview <- fillChat(newChat.chatId.value, viewerInfo, viewerUserChatId, Sent)
+
+        _ <- if (trash) chatsRep.moveChatToTrash(newChat.chatId.value, viewerInfo.userId)
+        else Future.successful(())
+
+        seq <- chatsRep.getChatsPreview(Sent, viewerInfo.userId)
+
+        chatspreview = if (trash || optChatspreview.isEmpty) Seq.empty[ChatPreview]
+        else Seq(optChatspreview.value)
+
+      } yield seq mustBe chatspreview
+    }
+
+    "be valid in [Test-5-C: 1 Chat, Many Emails, NOT Overseeing, Drafts]" in {
+      for {
+        viewerInfo <- newUser
+        (newChat, viewerUserChatId) <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println("The USer InfO IS", viewerInfo)
+          newChat(viewerInfo.userId)
+        }
+
+        trash = genBoolean.sample.value
+
+        optChatspreview <- fillChat(newChat.chatId.value, viewerInfo, viewerUserChatId, Drafts)
+
+        _ <- if (trash) chatsRep.moveChatToTrash(newChat.chatId.value, viewerInfo.userId)
+        else Future.successful(())
+
+        seq <- chatsRep.getChatsPreview(Drafts, viewerInfo.userId)
+
+        chatspreview = if (trash || optChatspreview.isEmpty) Seq.empty[ChatPreview]
+        else Seq(optChatspreview.value)
+
+      } yield seq mustBe chatspreview
+    }
+
+    "be valid in [Test-5-D: 1 Chat, Many Emails, NOT Overseeing, Trash]" in {
+      for {
+        viewerInfo <- newUser
+        (newChat, viewerUserChatId) <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println("The USer InfO IS", viewerInfo)
+          newChat(viewerInfo.userId)
+        }
+
+        trash = genBoolean.sample.value
+
+        optChatspreview <- fillChat(newChat.chatId.value, viewerInfo, viewerUserChatId, Trash)
+
+        _ <- if (trash) chatsRep.moveChatToTrash(newChat.chatId.value, viewerInfo.userId)
+        else Future.successful(())
+
+        seq <- chatsRep.getChatsPreview(Trash, viewerInfo.userId)
+
+        chatspreview = if (!trash || optChatspreview.isEmpty) Seq.empty[ChatPreview]
+        else Seq(optChatspreview.value)
+
+      } yield seq mustBe chatspreview
+    }
+
+    "be valid in [Test-6-A: Many Chats, Many Emails, NOT Overseeing, Inbox]" in {
+      for {
+        viewerInfo <- newUser
+
+        testChatspreview <- {
+          println("IT BEGINS  ", List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println(List.fill(170)("/").toString())
+          println("THIS IS THE VIEWER INFO", viewerInfo)
+          makeChats(viewerInfo, Inbox)
+        }
+
+        chatspreview <- chatsRep.getChatsPreview(Inbox, viewerInfo.userId)
+
+      } yield chatspreview mustBe testChatspreview
     }
 
     /*"be valid for User: 2 Mailbox: Inbox" in {
@@ -640,10 +1035,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         !result &&
           optionUserChat === None)
     }
-	  
-	  
+
+
 	  */
-	  
+
   }
 
 }
