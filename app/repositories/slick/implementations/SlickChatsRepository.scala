@@ -92,7 +92,46 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield (chatId, emailId, body, date, sent)
   //endregion
-
+  
+  
+  /**
+    * Creates a DBIOAction that returns a preview of all the chats of a given user in a given Mailbox
+    * @param mailbox The mailbox being seen
+    * @param userId The userId of the user in question
+    * @return A DBIOAction that when run returns a sequence of ChatPreview dtos.
+    *         The preview of each chat only shows the most recent email
+    */
+  def getChatsPreviewAction(mailbox: Mailbox, userId: String)= {
+    
+    val groupedQuery = getVisibleEmailsQuery(userId, Some(mailbox))
+      .map(visibleEmailRow => (visibleEmailRow._1, visibleEmailRow._4))
+      .groupBy(_._1)
+      .map { case (chatId, date) => (chatId, date.map(_._2).max) }
+    
+    val chatPreviewQuery = for {
+      (chatId, date) <- groupedQuery
+      subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
+      (emailId, body) <- EmailsTable.all.filter(emailRow =>
+        emailRow.chatId === chatId && emailRow.date === date).map(emailRow =>
+        (emailRow.emailId, emailRow.body.take(PREVIEW_BODY_LENGTH)))
+      addressId <- EmailAddressesTable.all.filter(emailAddressRow =>
+        emailAddressRow.emailId === emailId && emailAddressRow.participantType === "from")
+        .map(_.addressId)
+      address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
+    } yield (chatId, subject, address, date, body)
+    
+    val resultOption = db.run(chatPreviewQuery.sortBy(_._4.desc).result)
+    
+    val result = resultOption.map(_.map {
+      case (chatId, subject, address, dateOption, body) =>
+        (chatId, subject, address, dateOption.getOrElse("Missing Date"), body)
+    })
+    
+    result.map(_.map(ChatPreview.tupled))
+    
+  }
+  
+  
   /**
    * Method that returns a preview of all the chats of a given user in a given Mailbox
    * @param mailbox The mailbox being seen
