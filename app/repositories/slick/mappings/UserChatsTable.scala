@@ -40,6 +40,10 @@ object UserChatsTable {
     sqlu"UPDATE user_chats SET draft = draft - 1 WHERE user_id = $userId AND chat_id = $chatId AND draft > 0"
   }
 
+  def userEmailWasSent(userId: String, chatId: String) = {
+    sqlu"UPDATE user_chats SET draft = draft - 1, sent = 1 WHERE user_id = $userId AND chat_id = $chatId AND draft > 0"
+  }
+
   def moveChatToTrash(userId: String, chatId: String): MySQLProfile.ProfileAction[Int, NoStream, Effect.Write] = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
