@@ -232,11 +232,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       receiversAddresses <- updateEmailAddresses(upsertEmailDTO, chatId, emailId)
 
-      //receiverUserIds <- getUserIdsByAddressQuery(receiversAddresses.toSet).result //TODO should not be here
-
       emailToBeSent = upsertEmailDTO.sent.getOrElse(false)
 
-      sendEmail <- if (emailToBeSent /* && receiversAddresses.nonEmpty && updateEmail > 0*/ )
+      sendEmail <- if (emailToBeSent /* && addresses.nonEmpty && updateEmail > 0*/ )
         sendEmail(userId, chatId, emailId, receiversAddresses)
       else DBIO.successful(0)
 
@@ -265,43 +263,59 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private def sendEmail(senderUserId: String, chatId: String, emailId: String, addresses: Set[String]) = {
     for {
-      updateReceiversChats <- updateReceiversUserChats(chatId, addresses)
+      updateReceiversChats <- updateReceiversUserChatsToInbox(chatId, addresses)
       updateEmailStatus <- EmailsTable.all.filter(_.emailId === emailId).map(_.sent).update(1)
       updateSenderChat <- UserChatsTable.userEmailWasSent(senderUserId, chatId)
     } yield updateReceiversChats.sum + updateEmailStatus + updateSenderChat
   }
 
-  //TODO Document this
-  private def updateReceiversUserChats(chatId: String, addresses: Set[String]) = {
+  /**
+    * Method that updates the user's chat status to "inbox".
+    * Given a list of addresses, it filters the ones that correspond to a user and then retrieves the userChatRows
+    * for the users who already have the chat. Then updates that row to "inbox" or inserts a new row for that user and chat
+    * @param chatId ID of the chat
+    * @param addresses addresses of the people that are going to receive the email (not all of them are users)
+    * @return DBIOAction that performs this update
+    */
+  private def updateReceiversUserChatsToInbox(chatId: String, addresses: Set[String]) = {
     for {
       receiversUserIds <- getUserIdsByAddressQuery(addresses).result
       receiversWithChat <- getUserChatsByUserId(receiversUserIds, chatId)
 
       updateReceiversChats <- DBIO.sequence(
         receiversUserIds.map(receiverId =>
-          UserChatsTable.all //.filter(uc => uc.userId === receiverId && uc.chatId === chatId)
-            .insertOrUpdate(
-              receiversWithChat.getOrElse(receiverId, UserChatRow(genUUID, receiverId, chatId, 1, 0, 0, 0)).copy(inbox = 1))))
+          UserChatsTable.all.insertOrUpdate(
+            receiversWithChat.getOrElse(receiverId, UserChatRow(genUUID, receiverId, chatId, 1, 0, 0, 0)).copy(inbox = 1))))
     } yield updateReceiversChats
   }
 
-  //TODO Document this
-  private def getUserIdsByAddressQuery(receiversAddresses: Set[String]): Query[Rep[String], String, scala.Seq] =
+  /**
+    * Method that, given a list of email addresses, gets the userId of the user linked to that address (if there is one)
+    * @param addresses list of addresses
+    * @return a list of userIds of those addresses
+    */
+  private def getUserIdsByAddressQuery(addresses: Set[String]): Query[Rep[String], String, scala.Seq] =
     AddressesTable.all.join(UsersTable.all)
-      .on((address, user) => address.address.inSet(receiversAddresses) && address.addressId === user.addressId)
+      .on((address, user) => address.address.inSet(addresses) && address.addressId === user.addressId)
       .map(_._2.userId)
 
-  private def getEmailAddressByGroupedByParticipantType(emailId: String) = {
-    for {
-      addresses <- EmailAddressesTable.all.join(AddressesTable.all)
-        .on((emailAddressRow, addressRow) => emailAddressRow.emailId === emailId && emailAddressRow.addressId === addressRow.addressId)
-        .map {
-          case (emailAddressRow, addressRow) =>
-            (emailAddressRow.participantType, addressRow.addressId, addressRow.address)
-        }
-        .result
-    } yield addresses.groupBy(_._1) //groupBy participantType
-
+  /**
+    * Method that, given an emailId, gets all the addresses involved in that email
+    * and groups them by participation type (from, to, bcc, cc)
+    * @param emailId ID of the email
+    * @return a Map with "participantType" as key and the tuple (participantType, addressId, address) as value
+    */
+  private def getEmailAddressByGroupedByParticipantType(emailId: String):
+    DBIOAction[Map[String, Seq[(String, String, String)]], NoStream, Effect.Read] = {
+      for {
+        addresses <- EmailAddressesTable.all.join(AddressesTable.all)
+          .on((emailAddressRow, addressRow) => emailAddressRow.emailId === emailId && emailAddressRow.addressId === addressRow.addressId)
+          .map {
+            case (emailAddressRow, addressRow) =>
+              (emailAddressRow.participantType, addressRow.addressId, addressRow.address)
+          }
+          .result
+      } yield addresses.groupBy(_._1) //groupBy participantType
   }
 
   /**
@@ -332,14 +346,15 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       }.map { case (addressRow, userRow) => addressRow.address }
   }
 
-  private def insertAndDeleteAddressesByParticipantType(participantType: String, emailId: String, chatId: String,
-    optionNewAddresses: Option[Set[String]]) = {
+  private def insertAndDeleteAddressesByParticipantType(emailId: String, chatId: String,
+    participantType: String, optionNewAddresses: Option[Set[String]]) = {
 
     for {
       groupedExistingAddresses <- getEmailAddressByGroupedByParticipantType(emailId)
 
       existingAddresses = groupedExistingAddresses.getOrElse(participantType, Seq())
         .map { case (_, addressId, address) => (addressId, address) }
+      //The addressId is needed to delete. The address is needed to add.
 
       //Addresses to delete: addresses that are in the database but are not in the patch
       deleteAddresses <- optionNewAddresses.map(newAddresses =>
@@ -366,12 +381,22 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   }
 
+  /**
+    * Method that, given the three different receiver types (to, bcc, cc) and the update of an email,
+    * inserts the new email addresses (that are not in the database) and deletes from the database
+    * the ones that are not in the update
+    * @param upsertEmailDTO DTO that represents the email data to be updated
+    * @param chatId the ID of the chat
+    * @param emailId the ID of the email
+    * @return a DBIOAction that does all the inserts and deletes and retrieves a sequence with the resulting
+    *         addresses (the ones that remain in the database after the deletions and insertions)
+    */
   private def updateEmailAddresses(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String) = {
 
     for {
-      toUpsert <- insertAndDeleteAddressesByParticipantType("to", emailId, chatId, upsertEmailDTO.to)
-      bccUpsert <- insertAndDeleteAddressesByParticipantType("bcc", emailId, chatId, upsertEmailDTO.bcc)
-      ccUpsert <- insertAndDeleteAddressesByParticipantType("cc", emailId, chatId, upsertEmailDTO.cc)
+      toUpsert <- insertAndDeleteAddressesByParticipantType(emailId, chatId, "to", upsertEmailDTO.to)
+      bccUpsert <- insertAndDeleteAddressesByParticipantType(emailId, chatId, "bcc", upsertEmailDTO.bcc)
+      ccUpsert <- insertAndDeleteAddressesByParticipantType(emailId, chatId, "cc", upsertEmailDTO.cc)
 
     } yield toUpsert ++ bccUpsert ++ ccUpsert
   }
