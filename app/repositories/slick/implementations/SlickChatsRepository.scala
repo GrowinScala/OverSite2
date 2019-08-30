@@ -235,7 +235,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     for {
       optionPatch <- db.run(updateAndSendEmail.transactionally)
-      email <- db.run(getEmail(userId, emailId))
+      email <- db.run(getEmailAction(userId, emailId))
     } yield optionPatch.flatMap(_ => email.headOption)
   }
 
@@ -244,7 +244,13 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .map(_ != 0)
   }
 
-  private def getEmail(userId: String, emailId: String) = {
+  /**
+    * Method that returns an action containing an instance of the class Email
+    * @param userId ID of the user
+    * @param emailId ID of the email
+    * @return a DBIOAction containing an instance of the class Email
+    */
+  private def getEmailAction(userId: String, emailId: String) = {
     for {
       email <- EmailsTable.all
         .join(UserChatsTable.all)
@@ -267,7 +273,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .result
 
       groupedEmailAddresses = emailAddresses
-        .groupBy { case (emailId, participantType, address) => (emailId, participantType) }
+        .groupBy { case (thisEmailId, participantType, address) => (thisEmailId, participantType) }
         .mapValues(_.map(_._3))
 
     } yield buildEmailDto(email, groupedEmailAddresses, Map(emailId -> attachmentIds))
@@ -423,7 +429,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         newAddresses.filterNot(address => existingAddresses.map(_._2).contains(address)).toSeq)
         .map(addressesToAdd =>
           addressesToAdd.map(address =>
-            upsertEmailAddress(emailId, chatId, upsertAddress(address), participantType)))
+            insertEmailAddress(emailId, chatId, upsertAddress(address), participantType)))
         .getOrElse(Seq(DBIO.successful(0))))
 
     } yield optionNewAddresses match {
@@ -503,18 +509,23 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     for {
       _ <- EmailsTable.all += EmailRow(emailId, chatId, createEmailDTO.body.getOrElse(""), date, 0)
 
-      fromInsert = upsertEmailAddress(emailId, chatId, upsertAddress(fromAddress), "from")
+      fromInsert = insertEmailAddress(emailId, chatId, upsertAddress(fromAddress), "from")
       toInsert = createEmailDTO.to.getOrElse(Set()).map(
-        to => upsertEmailAddress(emailId, chatId, upsertAddress(to), "to"))
+        to => insertEmailAddress(emailId, chatId, upsertAddress(to), "to"))
       bccInsert = createEmailDTO.bcc.getOrElse(Set()).map(
-        bcc => upsertEmailAddress(emailId, chatId, upsertAddress(bcc), "bcc"))
+        bcc => insertEmailAddress(emailId, chatId, upsertAddress(bcc), "bcc"))
       ccInsert = createEmailDTO.cc.getOrElse(Set()).map(
-        cc => upsertEmailAddress(emailId, chatId, upsertAddress(cc), "cc"))
+        cc => insertEmailAddress(emailId, chatId, upsertAddress(cc), "cc"))
 
       _ <- DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
     } yield ()
   }
 
+  /**
+    * Method that inserts a new address if it does not exist and returns the resulting addressId
+    * @param address email address to insert
+    * @return a DBIOAction that returns the ID of the new address or of the already existing one
+    */
   private[implementations] def upsertAddress(address: String): DBIO[String] = {
     for {
       existing <- AddressesTable.selectByAddress(address).result.headOption
@@ -526,18 +537,25 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield row.addressId
   }
 
-  private[implementations] def upsertEmailAddress(emailId: String, chatId: String, address: DBIO[String], participantType: String) =
+  /**
+    * Method that inserts a new EmailAddressRow with a foreign key for an AddressRow
+    * @param emailId ID of the email
+    * @param chatId ID of the chat
+    * @param address  DBIOAction that returns the addressId (foreign key for the AddressesTable)
+    * @param participantType type of participant (from, to, bcc or cc)
+    * @return a DBIOAction with the number of inserted rows
+    */
+  private[implementations] def insertEmailAddress(emailId: String, chatId: String, address: DBIO[String], participantType: String) =
     for {
       addressId <- address
-      existing <- EmailAddressesTable.selectByEmailIdAddressAndType(Some(emailId), Some(addressId), Some(participantType))
-        .result.headOption
+      numberOfInsertedRows <- EmailAddressesTable.all += EmailAddressRow(genUUID, emailId, chatId, addressId, participantType)
+    } yield numberOfInsertedRows
 
-      row = existing
-        .getOrElse(EmailAddressRow(genUUID, emailId, chatId, addressId, participantType))
-
-      insertOrUpdate <- EmailAddressesTable.all.insertOrUpdate(row)
-    } yield insertOrUpdate
-
+  /**
+    * Method that transforms an instance of the CreateChatDTO class into an instance of Chat
+    * @param chat instance of the class CreateChatDTO
+    * @return an instance of class Chat
+    */
   private[implementations] def fromCreateChatDTOtoChatDTO(chat: CreateChatDTO): Chat = {
     val email = chat.email
 
