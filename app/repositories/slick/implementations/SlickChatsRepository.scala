@@ -1,7 +1,5 @@
 package repositories.slick.implementations
 
-import java.util.UUID
-
 import javax.inject.Inject
 import model.dtos.{ CreateChatDTO, CreateEmailDTO }
 import model.types.Mailbox
@@ -9,7 +7,6 @@ import model.types.Mailbox._
 import repositories.ChatsRepository
 import repositories.slick.mappings._
 import repositories.dtos._
-
 import slick.dbio.DBIOAction
 import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
@@ -71,10 +68,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   /**
-   * Method that retrieves the emails that a specific user can see:
+   * Builds a Query that retrieves the emails that a specific user can see:
    * @param userId The user in question
    * @param optBox Optional filter for a given mailbox
-   * @return The emails that a specific user can see:
+   * @return Query for the emails that a specific user can see
+   *         in a tuple containing (chatId, emailId, body, date, sent):
    * - If the user is a participant of the email (from, to, bcc, cc)
    *   OR if the user is overseeing another user in the chat (has access to the same emails the oversee has,
    *   excluding the oversee's drafts)
@@ -93,15 +91,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield (chatId, emailId, body, date, sent)
   //endregion
 
-  def cleanRepeatedDateEmails(chatPreviewSeq: Seq[ChatPreview]): Seq[ChatPreview] = {
-    val indexed = chatPreviewSeq.zipWithIndex
-    indexed.filterNot {
-      case (chatprev, idx) if idx > 0 =>
-        (chatprev.lastEmailDate, chatprev.chatId) == (indexed(idx - 1)._1.lastEmailDate, indexed(idx - 1)._1.chatId)
-      case (chatprev, idx) if idx == 0 => false
-    }.map(_._1)
-  }
-
   /**
    * Creates a DBIOAction that returns a preview of all the chats of a given user in a given Mailbox
    * @param mailbox The mailbox being seen
@@ -109,20 +98,29 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @return A DBIOAction that when run returns a sequence of ChatPreview dtos.
    *         The preview of each chat only shows the most recent email
    */
-  def getChatsPreviewAction(mailbox: Mailbox, userId: String) = {
+  private[implementations] def getChatsPreviewAction(mailbox: Mailbox, userId: String) = {
 
     val visibleEmailsQuery = getVisibleEmailsQuery(userId, Some(mailbox))
 
     val groupedQuery = visibleEmailsQuery
-      .map(visibleEmailRow => (visibleEmailRow._1, visibleEmailRow._4))
+      .map { case (chatId, emailId, body, date, sent) => (chatId, date) }
       .groupBy(_._1)
       .map { case (chatId, date) => (chatId, date.map(_._2).max) }
+      .join(visibleEmailsQuery)
+      .on {
+        case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
+          groupedChatId === chatId && maxDate === date
+      }
+      .map {
+        case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
+          (chatId, emailId)
+      }.distinctOn(_._1)
 
     val chatPreviewQuery = for {
-      (chatId, maxDate) <- groupedQuery
+      (chatId, emailId) <- groupedQuery
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
       (emailId, body, date) <- EmailsTable.all.filter(emailRow =>
-        emailRow.chatId === chatId && emailRow.date === maxDate).map(emailRow =>
+        emailRow.chatId === chatId && emailRow.emailId === emailId).map(emailRow =>
         (emailRow.emailId, emailRow.body.take(PREVIEW_BODY_LENGTH), emailRow.date))
       addressId <- EmailAddressesTable.all.filter(emailAddressRow =>
         emailAddressRow.emailId === emailId && emailAddressRow.participantType === "from")
@@ -136,7 +134,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     chatPreviewQuery
       .sortBy(chatpreview => (chatpreview._4.desc, chatpreview._5.asc, chatpreview._3.asc))
       .result
-      .map(tupleSequence => cleanRepeatedDateEmails(tupleSequence.map(ChatPreview.tupled)))
+      .map(_.map(ChatPreview.tupled))
   }
 
   /**
@@ -158,7 +156,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         the overseers of the chat
    *         and the emails of the chat (that the user can see)
    */
-  def getChatAction(chatId: String, userId: String) = {
+  private[implementations] def getChatAction(chatId: String, userId: String) = {
 
     for {
       chatData <- getChatDataAction(chatId, userId)
@@ -189,7 +187,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getChat(chatId: String, userId: String): Future[Option[Chat]] =
     db.run(getChatAction(chatId, userId).transactionally)
 
-  def postChatAction(createChatDTO: CreateChatDTO, userId: String) = {
+  private[implementations] def postChatAction(createChatDTO: CreateChatDTO, userId: String) = {
     val emailDTO = createChatDTO.email
     val date = DateUtils.getCurrentDate
 
@@ -217,7 +215,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] =
     db.run(postChatAction(createChatDTO, userId).transactionally)
 
-  def postEmailAction(createEmailDTO: CreateEmailDTO, chatId: String, userId: String) = {
+  private[implementations] def postEmailAction(createEmailDTO: CreateEmailDTO, chatId: String, userId: String) = {
     val date = DateUtils.getCurrentDate
 
     val emailId = genUUID
@@ -254,7 +252,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] =
     db.run(postEmailAction(createEmailDTO, chatId, userId).transactionally)
 
-  def moveChatToTrashAction(chatId: String, userId: String) =
+  private[implementations] def moveChatToTrashAction(chatId: String, userId: String) =
     UserChatsTable.moveChatToTrash(userId, chatId)
       .map(_ != 0)
 
