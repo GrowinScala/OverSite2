@@ -536,16 +536,16 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with Inside wi
       for {
         result <- chatsRep.moveChatToTrash(validChatId, userId)
         optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
-      } yield inside (optionUserChat) {
-          case Some(userChat) =>
-            assert(
-              result &&
+      } yield inside(optionUserChat) {
+        case Some(userChat) =>
+          assert(
+            result &&
               userChat.inbox === 0 &&
               userChat.sent === 0 &&
               userChat.draft === 0 &&
               userChat.trash === 1)
-        }
       }
+    }
 
     "return false if the user does not have a chat with that id" in {
       val invalidChatId = "00000000-0000-0000-0000-000000000000"
