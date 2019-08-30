@@ -223,27 +223,20 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]] = {
     val updateAndSendEmail = for {
-      optionFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
+      updatedReceiversAddresses <- updateEmail(upsertEmailDTO, chatId, emailId, userId)
 
-      updateEmail <- optionFromAddress match {
-        case Some(fromAddress) => updateEmail(upsertEmailDTO, chatId, emailId)
-        case None => DBIO.successful(0)
-      }
+      sendEmail <- DBIO.sequenceOption(
+        updatedReceiversAddresses.map(receiversAddresses =>
+          if (upsertEmailDTO.sent.getOrElse(false))
+            sendEmail(userId, chatId, emailId, receiversAddresses)
+          else DBIO.successful(0)))
 
-      receiversAddresses <- updateEmailAddresses(upsertEmailDTO, chatId, emailId)
-
-      emailToBeSent = upsertEmailDTO.sent.getOrElse(false)
-
-      sendEmail <- if (emailToBeSent /* && addresses.nonEmpty && updateEmail > 0*/ )
-        sendEmail(userId, chatId, emailId, receiversAddresses)
-      else DBIO.successful(0)
-
-    } yield updateEmail + sendEmail
+    } yield sendEmail
 
     for {
-      updateAndSendEmail <- db.run(updateAndSendEmail.transactionally)
-      groupedEmailsAndAddresses <- getGroupedEmailsAndAddresses(chatId, userId, Some(emailId))
-    } yield if (updateAndSendEmail > 0) groupedEmailsAndAddresses._2.headOption else None
+      optionPatch <- db.run(updateAndSendEmail.transactionally)
+      email <- db.run(getEmail(userId, emailId))
+    } yield optionPatch.flatMap(_ => email.headOption)
   }
 
   def moveChatToTrash(chatId: String, userId: String): Future[Boolean] = {
@@ -251,7 +244,43 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .map(_ != 0)
   }
 
-  //TODO Document this
+  private def getEmail(userId: String, emailId: String) = {
+    for {
+      email <- EmailsTable.all
+        .join(UserChatsTable.all)
+        .on {
+          case (emailRow, userChatRow) => emailRow.emailId === emailId && userChatRow.userId === userId &&
+            userChatRow.chatId === emailRow.chatId
+        }
+        .map { case (emailRow, userChatRow) => (emailRow.emailId, emailRow.body, emailRow.date, emailRow.sent) }
+        .result
+
+      attachmentIds <- AttachmentsTable.all.filter(_.emailId === emailId).map(_.attachmentId).result
+
+      emailAddresses <- EmailAddressesTable.all
+        .join(AddressesTable.all)
+        .on {
+          case (emailAddress, address) => emailAddress.emailId === emailId &&
+            emailAddress.addressId === address.addressId
+        }
+        .map { case (emailAddress, address) => (emailAddress.emailId, emailAddress.participantType, address.address) }
+        .result
+
+      groupedEmailAddresses = emailAddresses
+        .groupBy { case (emailId, participantType, address) => (emailId, participantType) }
+        .mapValues(_.map(_._3))
+
+    } yield buildEmailDto(email, groupedEmailAddresses, Map(emailId -> attachmentIds))
+  }
+
+  /**
+   * Method that, given a sequence of userIds and a chat, returns a Map with the UserChatRows of each user
+   * for that chat (if it exists) with their respective userIds as key
+   * @param userIds sequence of userIds
+   * @param chatId ID of the chat
+   * @return a DBIOAction that returns a Map with the userIds as key and UserChatRows of each user
+   * for that chat as value
+   */
   private def getUserChatsByUserId(userIds: Seq[String], chatId: String): DBIOAction[Map[String, UserChatRow], NoStream, Effect.Read] = {
     for {
       userIdUserChatTuple <- UserChatsTable.all
@@ -261,22 +290,35 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield userIdUserChatTuple.toMap
   }
 
+  /**
+   * Method that sends an email by:
+   * - inserting or updating the userChat of the receivers (users) to "inbox"
+   * - updating the email status to "sent"
+   * - updating the userChat of the sender (user) to "sent"
+   * @param senderUserId userId of the sender
+   * @param chatId ID of the chat
+   * @param emailId ID of the email
+   * @param addresses addresses of the receivers of the email
+   * @return a count of all the updated rows
+   */
   private def sendEmail(senderUserId: String, chatId: String, emailId: String, addresses: Set[String]) = {
-    for {
-      updateReceiversChats <- updateReceiversUserChatsToInbox(chatId, addresses)
-      updateEmailStatus <- EmailsTable.all.filter(_.emailId === emailId).map(_.sent).update(1)
-      updateSenderChat <- UserChatsTable.userEmailWasSent(senderUserId, chatId)
-    } yield updateReceiversChats.sum + updateEmailStatus + updateSenderChat
+    if (addresses.nonEmpty) {
+      for {
+        updateReceiversChats <- updateReceiversUserChatsToInbox(chatId, addresses)
+        updateEmailStatus <- EmailsTable.all.filter(_.emailId === emailId).map(_.sent).update(1)
+        updateSenderChat <- UserChatsTable.userEmailWasSent(senderUserId, chatId)
+      } yield updateReceiversChats.sum + updateEmailStatus + updateSenderChat
+    } else DBIO.successful(0)
   }
 
   /**
-    * Method that updates the user's chat status to "inbox".
-    * Given a list of addresses, it filters the ones that correspond to a user and then retrieves the userChatRows
-    * for the users who already have the chat. Then updates that row to "inbox" or inserts a new row for that user and chat
-    * @param chatId ID of the chat
-    * @param addresses addresses of the people that are going to receive the email (not all of them are users)
-    * @return DBIOAction that performs this update
-    */
+   * Method that updates the user's chat status to "inbox".
+   * Given a list of addresses, it filters the ones that correspond to a user and then retrieves the userChatRows
+   * for the users who already have the chat. Then updates that row to "inbox" or inserts a new row for that user and chat
+   * @param chatId ID of the chat
+   * @param addresses addresses of the people that are going to receive the email (not all of them are users)
+   * @return DBIOAction that performs this update
+   */
   private def updateReceiversUserChatsToInbox(chatId: String, addresses: Set[String]) = {
     for {
       receiversUserIds <- getUserIdsByAddressQuery(addresses).result
@@ -290,32 +332,31 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   /**
-    * Method that, given a list of email addresses, gets the userId of the user linked to that address (if there is one)
-    * @param addresses list of addresses
-    * @return a list of userIds of those addresses
-    */
+   * Method that, given a list of email addresses, gets the userId of the user linked to that address (if there is one)
+   * @param addresses list of addresses
+   * @return a list of userIds of those addresses
+   */
   private def getUserIdsByAddressQuery(addresses: Set[String]): Query[Rep[String], String, scala.Seq] =
     AddressesTable.all.join(UsersTable.all)
       .on((address, user) => address.address.inSet(addresses) && address.addressId === user.addressId)
       .map(_._2.userId)
 
   /**
-    * Method that, given an emailId, gets all the addresses involved in that email
-    * and groups them by participation type (from, to, bcc, cc)
-    * @param emailId ID of the email
-    * @return a Map with "participantType" as key and the tuple (participantType, addressId, address) as value
-    */
-  private def getEmailAddressByGroupedByParticipantType(emailId: String):
-    DBIOAction[Map[String, Seq[(String, String, String)]], NoStream, Effect.Read] = {
-      for {
-        addresses <- EmailAddressesTable.all.join(AddressesTable.all)
-          .on((emailAddressRow, addressRow) => emailAddressRow.emailId === emailId && emailAddressRow.addressId === addressRow.addressId)
-          .map {
-            case (emailAddressRow, addressRow) =>
-              (emailAddressRow.participantType, addressRow.addressId, addressRow.address)
-          }
-          .result
-      } yield addresses.groupBy(_._1) //groupBy participantType
+   * Method that, given an emailId, gets all the addresses involved in that email
+   * and groups them by participation type (from, to, bcc, cc)
+   * @param emailId ID of the email
+   * @return a Map with "participantType" as key and the tuple (participantType, addressId, address) as value
+   */
+  private def getEmailAddressByGroupedByParticipantType(emailId: String): DBIOAction[Map[String, Seq[(String, String, String)]], NoStream, Effect.Read] = {
+    for {
+      addresses <- EmailAddressesTable.all.join(AddressesTable.all)
+        .on((emailAddressRow, addressRow) => emailAddressRow.emailId === emailId && emailAddressRow.addressId === addressRow.addressId)
+        .map {
+          case (emailAddressRow, addressRow) =>
+            (emailAddressRow.participantType, addressRow.addressId, addressRow.address)
+        }
+        .result
+    } yield addresses.groupBy(_._1) //groupBy participantType
   }
 
   /**
@@ -346,6 +387,17 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       }.map { case (addressRow, userRow) => addressRow.address }
   }
 
+  /**
+   * Method that, given the receiver participation type (to, bcc, cc):
+   * - Inserts new email addresses in the database if the patch contains new ones
+   * - Deletes old email addresses from the database if the patch does not include them
+   * @param emailId ID of the email
+   * @param chatId ID of the chat
+   * @param participantType type of participant (to, bcc or cc)
+   * @param optionNewAddresses optional set of new addresses of the referred participantType. If it is None,
+   *                           no addresses will be added or deleted
+   * @return an optional set of the addresses that stayed in the database after all the additions and deletions
+   */
   private def insertAndDeleteAddressesByParticipantType(emailId: String, chatId: String,
     participantType: String, optionNewAddresses: Option[Set[String]]) = {
 
@@ -378,19 +430,18 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       case Some(addedNewAddresses) => addedNewAddresses
       case None => existingAddresses.map(_._2).toSet
     }
-
   }
 
   /**
-    * Method that, given the three different receiver types (to, bcc, cc) and the update of an email,
-    * inserts the new email addresses (that are not in the database) and deletes from the database
-    * the ones that are not in the update
-    * @param upsertEmailDTO DTO that represents the email data to be updated
-    * @param chatId the ID of the chat
-    * @param emailId the ID of the email
-    * @return a DBIOAction that does all the inserts and deletes and retrieves a sequence with the resulting
-    *         addresses (the ones that remain in the database after the deletions and insertions)
-    */
+   * Method that, given the three different receiver types (to, bcc, cc) and the update of an email,
+   * inserts the new email addresses (that are not in the database) and deletes from the database
+   * the ones that are not in the update
+   * @param upsertEmailDTO DTO that represents the email data to be updated
+   * @param chatId the ID of the chat
+   * @param emailId the ID of the email
+   * @return a DBIOAction that does all the inserts and deletes and retrieves a sequence with the resulting
+   *         addresses (the ones that remain in the database after the deletions and insertions)
+   */
   private def updateEmailAddresses(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String) = {
 
     for {
@@ -402,27 +453,40 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   /**
-   * Method that updates the email row of an email
+   * Method that updates the email row of an email as well as the email's addresses
    * @param upsertEmailDTO DTO that contains the email data
    * @param chatId ID of the chat
    * @param emailId ID of the email
-   * @return the action that updates the email row
+   * @return the action that updates the email row and the emailAddress rows
    */
-  private def updateEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String) = {
-    val selectEmailQuery = EmailsTable.all.filter(emailRow => emailRow.emailId === emailId &&
-      emailRow.chatId === chatId && emailRow.sent === 0)
+  private def updateEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String) = {
+    //val selectEmailQuery = EmailsTable.all.filter(emailRow => emailRow.emailId === emailId && emailRow.chatId === chatId && emailRow.sent === 0)
 
     for {
-      selectedEmail <- selectEmailQuery.result.headOption
+      optionVerifiedFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
 
-      updateEmail <- selectedEmail.map { emailRow =>
-        selectEmailQuery
-          .update(emailRow.copy(
-            body = if (upsertEmailDTO.body.isDefined) upsertEmailDTO.body.get else emailRow.body,
-            date = DateUtils.getCurrentDate))
-      }
-        .getOrElse(DBIO.successful(0))
-    } yield updateEmail
+      newBody = upsertEmailDTO.body
+      updateBody = if (newBody.isDefined) updateEmailBody(newBody.get, chatId, emailId) else DBIO.successful(0)
+      updateAddresses = updateEmailAddresses(upsertEmailDTO, chatId, emailId)
+
+      update <- DBIO.sequenceOption(optionVerifiedFromAddress.map(_ =>
+        updateBody.andThen(updateAddresses)))
+
+    } yield update
+  }
+
+  /**
+   * Method that updates the body of an email, as well as the date
+   * @param newBody new body of the email to update the database
+   * @param chatId ID of the chat
+   * @param emailId ID of the email
+   * @return a DBIOAction that returns an Int that represents the number of updated rows
+   */
+  private def updateEmailBody(newBody: String, chatId: String, emailId: String) = {
+    EmailsTable.all
+      .filter(emailRow => emailRow.emailId === emailId && emailRow.chatId === chatId && emailRow.sent === 0)
+      .map(emailRow => (emailRow.body, emailRow.date))
+      .update(newBody, DateUtils.getCurrentDate)
   }
 
   /**
