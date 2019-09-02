@@ -237,7 +237,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
       AttachmentsTable.all.schema.drop)), Duration.Inf)
   }
   //endregion
-  /*
+
   "SlickChatsRepository#getChatsPreview" should {
     "be valid for User: 1 Mailbox: Inbox" in {
       val chatsRep = new SlickChatsRepository(db)
@@ -559,7 +559,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
           optionUserChat === None)
     }
   }
-*/
+
   "SlickChatsRepository#patchEmail" should {
     val chatsRep = new SlickChatsRepository(db)
     val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
