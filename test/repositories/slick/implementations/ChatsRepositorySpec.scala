@@ -361,65 +361,59 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   "SlickChatsRepository#getChatsPreview" should {
     "be valid in [Test-1: 1 Chat, 1 Email, Only From, Drafts]" in {
 
-      val viwerId = genUUID.sample.value
-      val viewerAddress = genEmailAddress.sample.value
-      val chatId = genUUID.sample.value
-      val subject = genString.sample.value
-      val createEmailDTO = genCreateEmailDTO.sample.value
-
-      val createDB = for {
-        addressId <- chatsRep.insertAddressIfNotExists(viewerAddress)
-        _ <- UsersTable.all += UserRow(viwerId, addressId, "", "")
-        _ <- ChatsTable.all += ChatRow(chatId, subject)
-        _ <- chatsRep.insertEmail(createEmailDTO, chatId, createEmailDTO.emailId.value,
-          viewerAddress, createEmailDTO.date.value)
-        _ <- UserChatsTable.all += UserChatRow(genUUID.sample.value, viwerId, chatId, 0, 0, 1, 0)
-      } yield ()
+      val authenticationRep = new SlickAuthenticationRepository(db)
+      val userAccessDTO = genUserAccessDTO.sample.value
 
       for {
-        _ <- db.run(createDB)
-        seq <- chatsRep.getChatsPreview(Drafts, viwerId)
-      } yield seq mustBe Seq(ChatPreview(chatId, subject, viewerAddress,
-        createEmailDTO.date.value, createEmailDTO.body.value))
+        token <- authenticationRep.signUpUser(userAccessDTO)
+        userId <- authenticationRep.getUser(token)
+
+        createChatDTO = genCreateChatDTOPost.sample.value
+
+        newChat <- chatsRep.postChat(createChatDTO, userId)
+        date <- db.run(EmailsTable.all.filter(_.emailId === newChat.email.emailId.value)
+          .map(_.date).result.headOption)
+
+        seq <- chatsRep.getChatsPreview(Drafts, userId)
+      } yield seq.toList mustBe Seq(ChatPreview(newChat.chatId.value, newChat.subject.value, userAccessDTO.address,
+        date.value, createChatDTO.email.body.value))
 
     }
 
     "be valid in [Test-2: 1 Chat, 1 Email, Only To, Inbox]" in {
 
-      val viwerId = genUUID.sample.value
-      val viewerAddress = genEmailAddress.sample.value
-      val senderAddress = genEmailAddress.sample.value
-      val chatId = genUUID.sample.value
-      val subject = genString.sample.value
-      val createEmailDTO = genCreateEmailDTO.sample.value
-      val emailId = createEmailDTO.emailId.value
-
-      val createDB = for {
-        addressId <- chatsRep.insertAddressIfNotExists(viewerAddress)
-        _ <- UsersTable.all += UserRow(viwerId, addressId, "", "")
-        _ <- ChatsTable.all += ChatRow(chatId, subject)
-        _ <- chatsRep.insertEmail(
-          createEmailDTO
-            .copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerAddress)),
-          chatId, emailId, senderAddress, createEmailDTO.date.value)
-        _ <- EmailsTable.all.filter(_.emailId === emailId).map(_.sent).update(1)
-        _ <- UserChatsTable.all += UserChatRow(genUUID.sample.value, viwerId, chatId, 1, 0, 0, 0)
-      } yield ()
+      val authenticationRep = new SlickAuthenticationRepository(db)
+      val userAccessDTOFrom = genUserAccessDTO.sample.value
+      val userAccessDTOTo = genUserAccessDTO.sample.value
 
       for {
-        _ <- db.run(createDB)
-        seq <- chatsRep.getChatsPreview(Inbox, viwerId)
-      } yield seq mustBe Seq(ChatPreview(chatId, subject, senderAddress,
-        createEmailDTO.date.value, createEmailDTO.body.value))
-      
+        tokenFrom <- authenticationRep.signUpUser(userAccessDTOFrom)
+        userIdFrom <- authenticationRep.getUser(tokenFrom)
+
+        tokenTo <- authenticationRep.signUpUser(userAccessDTOTo)
+        userIdTo <- authenticationRep.getUser(tokenTo)
+
+        createEmailDTO = genCreateEmailDTOPost.sample.value.copy(to = Some(Set(userAccessDTOTo.address)))
+        createChatDTO = genCreateChatDTOPost.sample.value.copy(email = createEmailDTO)
+
+        newChat <- chatsRep.postChat(createChatDTO, userIdFrom)
+        date <- db.run(EmailsTable.all.filter(_.emailId === newChat.email.emailId.value)
+          .map(_.date).result.headOption)
+
+        _ <- db.run(DBIO.seq(EmailsTable.all.filter(_.emailId === newChat.email.emailId.value)
+          .map(_.sent)
+          .update(1), UserChatsTable.all += UserChatRow(genUUID.sample.value, userIdTo, newChat.chatId.value,
+          1, 0, 0, 0)))
+
+        seq <- chatsRep.getChatsPreview(Inbox, userIdTo)
+      } yield seq mustBe
+        Seq(ChatPreview(newChat.chatId.value, newChat.subject.value, userAccessDTOFrom.address,
+          date.value, createChatDTO.email.body.value))
     }
-
-    
-
 
     "be valid in [Test-3: 1 Chat, 1 Email, From OR To, Drafts]" in {
 
-    /*  for {
+      for {
         viewerInfo <- newUser
         (newChat, viewerUserChatId) <- {
           println("IT BEGINS  ", List.fill(170)("/").toString())
@@ -443,13 +437,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         chatspreview = if (participantType.contains(From)) Seq(chatpreview)
         else Seq.empty[ChatPreview]
 
-      } yield seq mustBe chatspreview*/
-  
-      Future.successful(1 mustBe 1)
+      } yield seq mustBe chatspreview
     }
 
-    /*
-    
     "be valid in [Test-4-A: 1 Chat, 1 Email, NOT Overseeing, Inbox]" in {
 
       for {
@@ -735,7 +725,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         chatspreview <- chatsRep.getChatsPreview(Inbox, viewerInfo.userId)
 
       } yield chatspreview mustBe testChatspreview
-    }*/
+    }
 
     /*"be valid for User: 2 Mailbox: Inbox" in {
 

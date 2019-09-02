@@ -4,7 +4,6 @@ import model.dtos._
 import model.types.ParticipantType
 import org.scalacheck.Gen
 import play.api.libs.json._
-import DateUtils._
 
 object TestGenerators {
 
@@ -111,17 +110,6 @@ object TestGenerators {
       } yield ChatDTO(chatId, subject, addresses, overseers, emails.sortBy(_.date))
 
     })
-
-  val genCreateEmailDTO: Gen[CreateEmailDTO] =
-    for {
-      emailId <- genUUID
-      from <- genEmailAddress
-      to <- genList(1, 4, genEmailAddress).map(_.toSet)
-      bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
-      cc <- genList(0, 1, genEmailAddress).map(_.toSet)
-      body <- genString
-      date <- genString
-    } yield CreateEmailDTO(Some(emailId), from, Some(to), Some(bcc), Some(cc), Some(body), Some(getCurrentDate))
 
   val genCreateEmailDTOption: Gen[CreateEmailDTO] =
     for {
