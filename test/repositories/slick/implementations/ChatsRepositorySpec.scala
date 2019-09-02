@@ -659,5 +659,20 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
       } yield retryPatchEmailAfterSent mustBe None
     }
 
+    "return None if the requested emailId is not a part of the chat with the specified chatId" in {
+      val createChatDTO = CreateChatDTO(None, Some("Test"),
+        UpsertEmailDTO(None, None, Some(Set("joao@mail.com", "pedroc@mail.com")), None, None, Some("This is the email's body"), None, Some(false)))
+      for {
+        postChat <- chatsRep.postChat(createChatDTO, userId)
+        createdChatId = postChat.chatId.value
+        invalidEmailId = "00000000-0000-0000-0000-000000000000"
+
+        patchEmailDTO = UpsertEmailDTO(None, None, None, None, None,
+          Some("This is an unauthorized user trying to patch the email"), None, None)
+        patchEmail <- chatsRep.patchEmail(patchEmailDTO, createdChatId, invalidEmailId, userId)
+
+      } yield patchEmail mustBe None
+    }
+
   }
 }
