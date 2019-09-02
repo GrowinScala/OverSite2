@@ -125,6 +125,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .map {
         case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
           (chatId, emailId)
+	      // This distinctOn will select the emailId with the lowest alphabetical order, as per the MIN() aggregator
       }.distinctOn(_._1)
 
     val chatPreviewQuery = for {
@@ -299,7 +300,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield row.addressId
   }
 
-  private[implementations] def insertEmailAddressIfNotExists(emailId: String, chatId: String, address: DBIO[String], participantType: String) /*: DBIO[String]*/ =
+  private[implementations] def insertEmailAddressIfNotExists(emailId: String, chatId: String, address:
+  DBIO[String], participantType: String) =
     for {
       addressId <- address
       existing <- EmailAddressesTable.selectByEmailIdAddressAndType(emailId, addressId, participantType)
@@ -317,7 +319,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     Chat(
       chatId = chat.chatId.getOrElse(""),
       subject = chat.subject.getOrElse(""),
-      addresses = Set(email.from) ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++ email.cc.getOrElse(Set()),
+      addresses = Set(email.from) ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++
+	      email.cc.getOrElse(Set()),
       overseers = Set(),
       emails = Seq(
         Email(
