@@ -23,7 +23,11 @@ object Mailbox {
 
   }
 
-  implicit def bindableMailbox(implicit bindableString: QueryStringBindable[String]) =
+  implicit def bindableMailbox(implicit bindableString: QueryStringBindable[String]): QueryStringBindable[Mailbox] {
+    def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Mailbox]]
+
+    def unbind(key: String, mailbox: Mailbox): String
+  } =
     new QueryStringBindable[Mailbox] {
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Mailbox]] = {
         params.get(key).flatMap(_.headOption).flatMap(Mailbox(_)) match {

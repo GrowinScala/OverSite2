@@ -125,7 +125,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .map {
         case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
           (chatId, emailId)
-	      // This distinctOn will select the emailId with the lowest alphabetical order, as per the MIN() aggregator
+        // This distinctOn will select the emailId with the lowest alphabetical order, as per the MIN() aggregator
       }.distinctOn(_._1)
 
     val chatPreviewQuery = for {
@@ -157,7 +157,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    */
   def getChatsPreview(mailbox: Mailbox, userId: String): Future[Seq[ChatPreview]] =
     db.run(getChatsPreviewAction(mailbox, userId).transactionally)
-    // println("THIS IS THE RESULT BEFORE CLEANING", Await.result(result, Duration.Inf))
+  // println("THIS IS THE RESULT BEFORE CLEANING", Await.result(result, Duration.Inf))
 
   /**
    * Creates a DBIOAction to get the emails and other data of a specific chat of a user
@@ -200,7 +200,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getChat(chatId: String, userId: String): Future[Option[Chat]] =
     db.run(getChatAction(chatId, userId).transactionally)
 
-  private[implementations] def postChatAction(createChatDTO: CreateChatDTO, userId: String) = {
+  /**
+   * Creates a DBIOAction that inserts a chat with an email into the database
+   * @param createChatDTO The DTO that contains the Chat
+   * @param userId The Id of the User who is inserting the chat
+   * @return A DBIO that returns a copy of the original createChatDTO but with the Ids of the created chat and email
+   *         as well as the emails date.
+   */
+  private[implementations] def postChatAction(createChatDTO: CreateChatDTO, userId: String): DBIO[CreateChatDTO] = {
     val emailDTO = createChatDTO.email
     val date = DateUtils.getCurrentDate
 
@@ -225,6 +232,13 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date))))
   }
 
+  /**
+   * Inserts a chat with an email into the database
+   * @param createChatDTO The DTO that contains the Chat
+   * @param userId The Id of the User who is inserting the chat
+   * @return A Future that contains a copy of the original createChatDTO but with the Ids
+   *         of the created chat and email as well as the emails date.
+   */
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] =
     db.run(postChatAction(createChatDTO, userId).transactionally)
 
@@ -300,8 +314,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield row.addressId
   }
 
-  private[implementations] def insertEmailAddressIfNotExists(emailId: String, chatId: String, address:
-  DBIO[String], participantType: String) =
+  private[implementations] def insertEmailAddressIfNotExists(emailId: String, chatId: String, address: DBIO[String], participantType: String) =
     for {
       addressId <- address
       existing <- EmailAddressesTable.selectByEmailIdAddressAndType(emailId, addressId, participantType)
@@ -320,7 +333,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       chatId = chat.chatId.getOrElse(""),
       subject = chat.subject.getOrElse(""),
       addresses = Set(email.from) ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++
-	      email.cc.getOrElse(Set()),
+        email.cc.getOrElse(Set()),
       overseers = Set(),
       emails = Seq(
         Email(

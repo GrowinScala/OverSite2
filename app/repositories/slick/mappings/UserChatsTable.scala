@@ -1,6 +1,8 @@
 package repositories.slick.mappings
 
+import slick.dbio.Effect
 import slick.jdbc.MySQLProfile.api._
+import slick.sql.FixedSqlAction
 
 case class UserChatRow(userChatId: String, userId: String, chatId: String, inbox: Int, sent: Int, draft: Int, trash: Int)
 
@@ -25,13 +27,13 @@ class UserChatsTable(tag: Tag) extends Table[UserChatRow](tag, "user_chats") {
 object UserChatsTable {
   val all = TableQuery[UserChatsTable]
 
-  def updateDraftField(userId: String, chatId: String, draft: Int) = {
+  def updateDraftField(userId: String, chatId: String, draft: Int): DBIO[Int] = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
     } yield uc.draft).update(draft)
   }
 
-  def moveChatToTrash(userId: String, chatId: String) = {
+  def moveChatToTrash(userId: String, chatId: String): DBIO[Int] = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
     } yield (uc.inbox, uc.sent, uc.draft, uc.trash)).update(0, 0, 0, 1)
