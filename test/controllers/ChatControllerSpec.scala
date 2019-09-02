@@ -131,7 +131,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
       val createChatDTO =
         CreateChatDTO(Some("newChatId"), Some("Subject"),
-          UpsertEmailDTO(Some("newEmailId"), "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
+          UpsertEmailDTO(Some("newEmailId"), Some("beatriz@mail.com"), Some(Set("joao@mail.com")), None, //no BCC field
             Some(Set()), Some("This is the body"), Some("2019-07-26 15:00:00"), Some(false)))
 
       mockChatService.postChat(*, *)
@@ -210,7 +210,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
       val createChatDTO =
         CreateChatDTO(Some("ChatId"), Some("Subject"),
-          UpsertEmailDTO(Some("newEmailId"), "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
+          UpsertEmailDTO(Some("newEmailId"), Some("beatriz@mail.com"), Some(Set("joao@mail.com")), None, //no BCC field
             Some(Set()), Some("This is the body"), Some("2019-07-26 15:00:00"), None))
 
       mockChatService.postEmail(*, *, *)

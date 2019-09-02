@@ -53,7 +53,7 @@ class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with Must
     "return a CreateChatDTO equal to the input plus a new chatId and a new emailID" in {
       val createChatDTO =
         CreateChatDTO(None, Some("Subject"),
-          UpsertEmailDTO(None, "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
+          UpsertEmailDTO(None, Some("beatriz@mail.com"), Some(Set("joao@mail.com")), None, //no BCC field
             Some(Set("")), Some("This is the body"), Some("2019-07-26 15:00:00"), Some(false)))
 
       val expectedResponse = createChatDTO.copy(chatId = Some("newChatId"), email = createChatDTO.email.copy(emailId = Some("newEmailId")))
@@ -73,7 +73,7 @@ class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with Must
   "ChatService#postEmail" should {
     "return a CreateChatDTO that contains the input emailDTO plus the chatId and a new emailID" in {
       val createEmailDTO =
-        UpsertEmailDTO(None, "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
+        UpsertEmailDTO(None, Some("beatriz@mail.com"), Some(Set("joao@mail.com")), None, //no BCC field
           Some(Set("")), Some("This is the body"), Some("2019-07-26 15:00:00"), Some(false))
 
       val expectedResponse =

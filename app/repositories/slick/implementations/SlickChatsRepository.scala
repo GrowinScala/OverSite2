@@ -245,11 +245,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   /**
-    * Method that returns an action containing an instance of the class Email
-    * @param userId ID of the user
-    * @param emailId ID of the email
-    * @return a DBIOAction containing an instance of the class Email
-    */
+   * Method that returns an action containing an instance of the class Email
+   * @param userId ID of the user
+   * @param emailId ID of the email
+   * @return a DBIOAction containing an instance of the class Email
+   */
   private def getEmailAction(userId: String, emailId: String) = {
     for {
       email <- EmailsTable.all
@@ -258,7 +258,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
           case (emailRow, userChatRow) => emailRow.emailId === emailId && userChatRow.userId === userId &&
             userChatRow.chatId === emailRow.chatId
         }
-        .map { case (emailRow, userChatRow) => (emailRow.emailId, emailRow.body, emailRow.date, emailRow.sent) }
+        .map { case (emailRow, _) => (emailRow.emailId, emailRow.body, emailRow.date, emailRow.sent) }
         .result
 
       attachmentIds <- AttachmentsTable.all.filter(_.emailId === emailId).map(_.attachmentId).result
@@ -273,7 +273,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .result
 
       groupedEmailAddresses = emailAddresses
-        .groupBy { case (thisEmailId, participantType, address) => (thisEmailId, participantType) }
+        .groupBy { case (thisEmailId, participantType, _) => (thisEmailId, participantType) }
         .mapValues(_.map(_._3))
 
     } yield buildEmailDto(email, groupedEmailAddresses, Map(emailId -> attachmentIds))
@@ -522,10 +522,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   /**
-    * Method that inserts a new address if it does not exist and returns the resulting addressId
-    * @param address email address to insert
-    * @return a DBIOAction that returns the ID of the new address or of the already existing one
-    */
+   * Method that inserts a new address if it does not exist and returns the resulting addressId
+   * @param address email address to insert
+   * @return a DBIOAction that returns the ID of the new address or of the already existing one
+   */
   private[implementations] def upsertAddress(address: String): DBIO[String] = {
     for {
       existing <- AddressesTable.selectByAddress(address).result.headOption
@@ -538,13 +538,13 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   /**
-    * Method that inserts a new EmailAddressRow with a foreign key for an AddressRow
-    * @param emailId ID of the email
-    * @param chatId ID of the chat
-    * @param address  DBIOAction that returns the addressId (foreign key for the AddressesTable)
-    * @param participantType type of participant (from, to, bcc or cc)
-    * @return a DBIOAction with the number of inserted rows
-    */
+   * Method that inserts a new EmailAddressRow with a foreign key for an AddressRow
+   * @param emailId ID of the email
+   * @param chatId ID of the chat
+   * @param address  DBIOAction that returns the addressId (foreign key for the AddressesTable)
+   * @param participantType type of participant (from, to, bcc or cc)
+   * @return a DBIOAction with the number of inserted rows
+   */
   private[implementations] def insertEmailAddress(emailId: String, chatId: String, address: DBIO[String], participantType: String) =
     for {
       addressId <- address
@@ -552,10 +552,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield numberOfInsertedRows
 
   /**
-    * Method that transforms an instance of the CreateChatDTO class into an instance of Chat
-    * @param chat instance of the class CreateChatDTO
-    * @return an instance of class Chat
-    */
+   * Method that transforms an instance of the CreateChatDTO class into an instance of Chat
+   * @param chat instance of the class CreateChatDTO
+   * @return an instance of class Chat
+   */
   private[implementations] def fromCreateChatDTOtoChatDTO(chat: CreateChatDTO): Chat = {
     val email = chat.email
 
