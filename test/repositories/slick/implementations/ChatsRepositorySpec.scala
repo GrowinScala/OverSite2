@@ -575,7 +575,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
         patchBody = "This is me changing the body"
         patchEmailDTO = UpsertEmailDTO(None, None, None, None, None, Some(patchBody), None, None)
 
-        patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.getOrElse(""), postChat.email.emailId.getOrElse(""), userId)
+        patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
       } yield patchEmail.value mustBe getPostedEmail.copy(body = patchBody, date = patchEmail.value.date)
     }
 
@@ -593,13 +593,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
           patchSent = true
           patchEmailDTO = UpsertEmailDTO(None, None, None, None, Some(patchCC), Some(patchBody), None, Some(patchSent))
 
-          patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.getOrElse(""), postChat.email.emailId.getOrElse(""), userId)
+          patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
 
           toUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d" //joao@mail.com
           ccUserId = "25689204-5a8e-453d-bfbc-4180ff0f97b9" //valter@mail.com
 
-          toUserGetChat <- chatsRep.getChat(postChat.chatId.getOrElse(""), toUserId)
-          ccUserGetChat <- chatsRep.getChat(postChat.chatId.getOrElse(""), ccUserId)
+          toUserGetChat <- chatsRep.getChat(postChat.chatId.value, toUserId)
+          ccUserGetChat <- chatsRep.getChat(postChat.chatId.value, ccUserId)
 
           //Sender UserChat
           senderChatsPreviewSent <- chatsRep.getChatsPreview(Sent, userId)
@@ -630,6 +630,21 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
 
       }
 
+    "not send an email if the receivers list (to + bcc + cc) is empty" in {
+      val chatWithNoReceiversDTO = CreateChatDTO(None, Some("Test"),
+        UpsertEmailDTO(None, None, None, None, None, Some("This is an email with no receivers"), None, Some(false)))
+      for {
+        postChat <- chatsRep.postChat(chatWithNoReceiversDTO, userId)
+        getPostedEmail = chatsRep.fromCreateChatDTOtoChatDTO(postChat).emails.head
+
+        trySendEmailDTO = UpsertEmailDTO(None, None, None, None, None, None, None, Some(true))
+
+        patchEmail <- chatsRep.patchEmail(trySendEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
+      } yield assert(
+        patchEmail.value === getPostedEmail &&
+          patchEmail.value.sent === 0)
+    }
+
     "not allow an email patch if the user requesting it is not the its owner (from)" in {
       val createChatDTO = CreateChatDTO(None, Some("Test"),
         UpsertEmailDTO(None, None, Some(Set("joao@mail.com", "pedroc@mail.com")), None, None, Some("This is the email's body"), None, Some(false)))
@@ -640,7 +655,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
           Some("This is an unauthorized user trying to patch the email"), None, None)
         userIdNotAllowedToPatch = "adcd6348-658a-4866-93c5-7e6d32271d8d" //joao@mail.com
 
-        patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.getOrElse(""), postChat.email.emailId.getOrElse(""), userIdNotAllowedToPatch)
+        patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userIdNotAllowedToPatch)
       } yield patchEmail mustBe None
     }
 
@@ -651,11 +666,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
         postChat <- chatsRep.postChat(createChatDTO, userId)
         sent = true
         patchEmailDTO = UpsertEmailDTO(None, None, None, None, None, None, None, Some(sent))
-        patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.getOrElse(""), postChat.email.emailId.getOrElse(""), userId)
+        patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
 
         retryPatchEmailDTO = UpsertEmailDTO(None, None, None, None, None,
           Some("Trying to change body after being sent"), None, None)
-        retryPatchEmailAfterSent <- chatsRep.patchEmail(retryPatchEmailDTO, postChat.chatId.getOrElse(""), postChat.email.emailId.getOrElse(""), userId)
+        retryPatchEmailAfterSent <- chatsRep.patchEmail(retryPatchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
       } yield retryPatchEmailAfterSent mustBe None
     }
 
