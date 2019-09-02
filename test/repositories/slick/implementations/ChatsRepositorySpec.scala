@@ -565,7 +565,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
     val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
     val userAddress = "beatriz@mail.com"
 
-    "patch the body of an email in draft state" in {
+    "patch one or more fields of an email in draft state" in {
       val createChatDTO = CreateChatDTO(None, Some("Test"),
         UpsertEmailDTO(None, None, Some(Set("joao@mail.com")), None, None, Some("This is the email's body"), None, Some(false)))
       for {
@@ -643,6 +643,43 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
       } yield assert(
         patchEmail.value === getPostedEmail &&
           patchEmail.value.sent === 0)
+    }
+
+    "replace the addresses field (to, bcc or cc) with the values specified in the patch (Some(...))" in {
+      val chatWithNoReceiversDTO = CreateChatDTO(None, Some("Test"),
+        UpsertEmailDTO(None, None, Some(Set("joao@mail.com", "mariana@mail.com")), None, Some(Set("ivo@mail.com")),
+          Some("This is an email with no receivers"), None, Some(false)))
+      for {
+        postChat <- chatsRep.postChat(chatWithNoReceiversDTO, userId)
+        getPostedEmail = chatsRep.fromCreateChatDTOtoChatDTO(postChat).emails.head
+
+        newToAddresses: Set[String] = Set("valter@mail.com", "joao@mail.com", "joana@mail.com")
+        newBccAddresses: Set[String] = Set("ivo@mail.com")
+        newCcAddresses: Set[String] = Set()
+
+        patchAddressesEmailDTO = UpsertEmailDTO(None, None,
+          Some(newToAddresses), Some(newBccAddresses), Some(newCcAddresses), None, None, None)
+
+        patchEmail <- chatsRep.patchEmail(patchAddressesEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
+      } yield patchEmail.value mustBe getPostedEmail.copy(to = newToAddresses, bcc = newBccAddresses,
+        cc = newCcAddresses, date = patchEmail.value.date)
+    }
+
+    "not update a field if it is not specified in the patch (None)" in {
+      val chatWithNoReceiversDTO = CreateChatDTO(None, Some("Test"),
+        UpsertEmailDTO(None, None, Some(Set("joao@mail.com", "valter@mail.com", "pedroc@mail.com")), None, Some(Set("ivo@mail.com")),
+          Some("This is an email with no receivers"), None, Some(false)))
+      for {
+        postChat <- chatsRep.postChat(chatWithNoReceiversDTO, userId)
+        getPostedEmail = chatsRep.fromCreateChatDTOtoChatDTO(postChat).emails.head
+
+        newBccAddresses: Set[String] = Set("rui@mail.com", "pedrol@mail.com")
+
+        patchAddressesEmailDTO = UpsertEmailDTO(None, None,
+          None, Some(newBccAddresses), None, None, None, None)
+
+        patchEmail <- chatsRep.patchEmail(patchAddressesEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
+      } yield patchEmail.value mustBe getPostedEmail.copy(bcc = newBccAddresses, date = patchEmail.value.date)
     }
 
     "not allow an email patch if the user requesting it is not the its owner (from)" in {
