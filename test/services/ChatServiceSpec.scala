@@ -111,4 +111,28 @@ class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with Must
     }
   }
 
+  "ChatService#patchEmail" should {
+    "return an EmailDTO that contains the email with the updated/patched fields" in {
+      val upsertEmailDTO =
+        UpsertEmailDTO(None, None, Some(Set("joao@mail.com")), None, Some(Set("")),
+          Some("This is the patched body"), None, Some(false))
+
+      val returnedEmail = Email("emailId", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(), "This is the patched body",
+        "2019-09-02 12:00:00", 0, Set())
+
+      val expectedResponse =
+        EmailDTO("emailId", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(), "This is the patched body",
+          "2019-09-02 12:00:00", sent = false, Set())
+
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.patchEmail(*, *, *, *)
+        .returns(Future.successful(Some(returnedEmail)))
+
+      val chatService = new ChatService(mockChatsRep)
+      val serviceResponse = chatService.patchEmail(upsertEmailDTO, "chatId", "emailId", "userId")
+
+      serviceResponse.map(_ mustBe Some(expectedResponse))
+    }
+  }
+
 }
