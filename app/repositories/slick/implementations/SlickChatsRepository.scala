@@ -289,6 +289,25 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def moveChatToTrash(chatId: String, userId: String): Future[Boolean] =
     db.run(moveChatToTrashAction(chatId, userId))
 
+  def deleteChatAction(chatId: String, userId: String): DBIO[Boolean] = {
+    val userChatQuery = UserChatsTable.all
+      .filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === chatId && userChatRow.trash === 1)
+    for {
+      //User chat must exist and already be in trash to be able to delete definitely
+      getUserChat <- userChatQuery.result.headOption
+
+      updateUserChatRow <- getUserChat match {
+        case Some(userChat) => userChatQuery
+          .map(userChatRow => (userChatRow.inbox, userChatRow.sent, userChatRow.draft, userChatRow.trash))
+          .update(0, 0, 0, 0)
+        case None => DBIO.successful(0)
+      }
+    } yield updateUserChatRow > 0
+  }
+
+  def deleteChat(chatId: String, userId: String): Future[Boolean] =
+    db.run(deleteChatAction(chatId, userId))
+
   /**
    * Method that returns an action containing an instance of the class Email
    * @param userId ID of the user

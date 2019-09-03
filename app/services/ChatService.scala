@@ -36,6 +36,10 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
     chatsRep.moveChatToTrash(chatId, userId)
   }
 
+  def deleteChat(chatId: String, userId: String): Future[Boolean] = {
+    chatsRep.deleteChat(chatId, userId)
+  }
+
   //region Auxiliary conversion methods
 
   private def toEmailDTO(optionEmail: Option[Email]): Option[EmailDTO] = {
