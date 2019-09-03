@@ -16,6 +16,8 @@ PATCH   /chats/:chatId/emails/:emailId     controllers.ChatController.patchEmail
 
 PATCH   /chats/:id                         controllers.ChatController.moveChatToTrash(id : String)
 
+DELETE  /chats/:id                         controllers.ChatController.deleteChat(id : String)
+
 
 # Authentication
 
