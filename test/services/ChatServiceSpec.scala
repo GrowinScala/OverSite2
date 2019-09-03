@@ -53,8 +53,8 @@ class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with Must
     "return a CreateChatDTO equal to the input plus a new chatId and a new emailID" in {
       val createChatDTO =
         CreateChatDTO(None, Some("Subject"),
-          CreateEmailDTO(None, "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
-            Some(Set("")), Some("This is the body"), Some("2019-07-26 15:00:00")))
+          UpsertEmailDTO(None, Some("beatriz@mail.com"), Some(Set("joao@mail.com")), None, //no BCC field
+            Some(Set("")), Some("This is the body"), Some("2019-07-26 15:00:00"), Some(false)))
 
       val expectedResponse = createChatDTO.copy(chatId = Some("newChatId"), email = createChatDTO.email.copy(emailId = Some("newEmailId")))
 
@@ -73,8 +73,8 @@ class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with Must
   "ChatService#postEmail" should {
     "return a CreateChatDTO that contains the input emailDTO plus the chatId and a new emailID" in {
       val createEmailDTO =
-        CreateEmailDTO(None, "beatriz@mail.com", Some(Set("joao@mail.com")), None, //no BCC field
-          Some(Set("")), Some("This is the body"), Some("2019-07-26 15:00:00"))
+        UpsertEmailDTO(None, Some("beatriz@mail.com"), Some(Set("joao@mail.com")), None, //no BCC field
+          Some(Set("")), Some("This is the body"), Some("2019-07-26 15:00:00"), Some(false))
 
       val expectedResponse =
         CreateChatDTO(Some("ChatId"), Some("Subject"), createEmailDTO.copy(emailId = Some("newEmailId")))
@@ -108,6 +108,30 @@ class ChatServiceSpec extends AsyncWordSpec with AsyncIdiomaticMockito with Must
       val chatServiceImpl = new ChatService(mockChatsRep)
       val moveChatToTrashService = chatServiceImpl.moveChatToTrash("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       moveChatToTrashService.map(_ mustBe false)
+    }
+  }
+
+  "ChatService#patchEmail" should {
+    "return an EmailDTO that contains the email with the updated/patched fields" in {
+      val upsertEmailDTO =
+        UpsertEmailDTO(None, None, Some(Set("joao@mail.com")), None, Some(Set("")),
+          Some("This is the patched body"), None, Some(false))
+
+      val returnedEmail = Email("emailId", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(), "This is the patched body",
+        "2019-09-02 12:00:00", 0, Set())
+
+      val expectedResponse =
+        EmailDTO("emailId", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(), "This is the patched body",
+          "2019-09-02 12:00:00", sent = false, Set())
+
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.patchEmail(*, *, *, *)
+        .returns(Future.successful(Some(returnedEmail)))
+
+      val chatService = new ChatService(mockChatsRep)
+      val serviceResponse = chatService.patchEmail(upsertEmailDTO, "chatId", "emailId", "userId")
+
+      serviceResponse.map(_ mustBe Some(expectedResponse))
     }
   }
 
