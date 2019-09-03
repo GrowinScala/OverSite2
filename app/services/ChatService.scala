@@ -22,9 +22,9 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.postChat(createChatDTO, userId)
   }
 
-  //Receives a CreateEmailDTO, returns a CreateChatDTO with the email plus chatId and subject
-  def postEmail(createEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
-    chatsRep.postEmail(createEmailDTO, chatId, userId)
+  //Receives a UpsertEmailDTO, returns a CreateChatDTO with the email plus chatId and subject
+  def postEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
+    chatsRep.postEmail(upsertEmailDTO, chatId, userId)
   }
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[EmailDTO]] = {

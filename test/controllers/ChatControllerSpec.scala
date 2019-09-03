@@ -143,7 +143,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val invalidAddress = genString.sample.value
 
       val chatWithInvalidFromAddress = Json.toJson(gencreateChatDTO.copy(
-        email = gencreateChatDTO.email.copy(from = invalidAddress)))
+        email = gencreateChatDTO.email.copy(from = Some(invalidAddress))))
 
       val request = FakeRequest(POST, "/chats")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
@@ -159,18 +159,18 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     "return Json with the email received plus the chat data and a new emailId" in {
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      val createEmailDTO = genCreateEmailDTOption.sample.value.copy(emailId = None)
+      val upsertEmailDTO = genUpsertEmailDTOption.sample.value.copy(emailId = None)
       val emailId = genUUID.sample.value
       val chatId = genUUID.sample.value
       val subject = genString.sample.value
-      val createEmailDTOWithId = createEmailDTO.copy(emailId = Some(emailId))
+      val createEmailDTOWithId = upsertEmailDTO.copy(emailId = Some(emailId))
 
       val createChatDTO = CreateChatDTO(Some(chatId), Some(subject), createEmailDTOWithId)
 
       mockChatService.postEmail(*, *, *)
         .returns(Future.successful(Some(createChatDTO)))
 
-      val emailJsonRequest = Json.toJson(createEmailDTO)
+      val emailJsonRequest = Json.toJson(upsertEmailDTO)
 
       val chatJsonResponse = Json.toJson(createChatDTO)
 
@@ -189,8 +189,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     "return 400 Bad Request if any of the email addresses is not a valid address" in {
       val (chatController, _) = getControllerAndServiceMock
 
-      val emailWithInvalidFromAddress = Json.toJson(genCreateEmailDTOption.sample.value.copy(
-        emailId = None, from = genString.sample.value))
+      val emailWithInvalidFromAddress = Json.toJson(genUpsertEmailDTOption.sample.value.copy(
+        emailId = None, from = Some(genString.sample.value)))
 
       val request = FakeRequest()
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
@@ -208,7 +208,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       mockChatService.postEmail(*, *, *)
         .returns(Future.successful(None))
 
-      val emailJsonRequest = Json.toJson(genCreateEmailDTOption.sample.value.copy(emailId = None))
+      val emailJsonRequest = Json.toJson(genUpsertEmailDTOption.sample.value.copy(emailId = None))
 
       val request = FakeRequest()
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
@@ -250,7 +250,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   "ChatController#patchEmail" should {
     "return Json with the patched email" in {
 
-      val mockChatService: ChatService = mock[ChatService]
+      val (chatController, mockChatService) = getControllerAndServiceMock
 
       val emailDTO = EmailDTO("00000000-0000-0000-0000-000000000000", "beatriz@mail.com", Set("joao@mail.com"), Set(),
         Set(), "This is the patched body", "2019-07-26 15:00:00", sent = false, Set())
@@ -278,14 +278,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
           |   "attachments": []
           |}""".stripMargin)
 
-      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
-      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
-
       val request = FakeRequest(PATCH, "/chats/00000000-0000-0000-0000-000000000000/emails/00000000-0000-0000-0000-000000000000")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
         .withBody(emailJsonRequest)
 
-      val result: Future[Result] = controller
+      val result: Future[Result] = chatController
         .patchEmail("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000").apply(request)
 
       val json = contentAsJson(result)
@@ -295,7 +292,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     }
 
     "return 400 Bad Request if any of the email addresses is not a valid address" in {
-      val mockChatService = mock[ChatService]
+      val (chatController, mockChatService) = getControllerAndServiceMock
 
       val emailWithInvalidToAddress = Json.parse(
         """{
@@ -303,14 +300,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
           |   "body": "This is the body"
           |}""".stripMargin)
 
-      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
-      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
-
       val request = FakeRequest(PATCH, "/chats/00000000-0000-0000-0000-000000000000/emails/00000000-0000-0000-0000-000000000000")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
         .withBody(emailWithInvalidToAddress)
 
-      val result: Future[Result] = controller
+      val result: Future[Result] = chatController
         .patchEmail("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000").apply(request)
 
       status(result) mustBe BAD_REQUEST

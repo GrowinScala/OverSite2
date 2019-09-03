@@ -1,8 +1,8 @@
 package repositories.slick.implementations
 
-import model.dtos.{ CreateChatDTO, CreateEmailDTO }
+import model.dtos.{CreateChatDTO, UpsertEmailDTO}
 import model.types.Mailbox._
-import model.types.{ Mailbox, ParticipantType }
+import model.types.{Mailbox, ParticipantType}
 import model.types.ParticipantType._
 import org.scalatest._
 import play.api.inject.Injector
@@ -85,20 +85,20 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     val lastName = genString.sample.value
 
     val insertUser = for {
-      addressId <- chatsRep.insertAddressIfNotExists(userAddress)
+      addressId <- chatsRep.upsertAddress(userAddress)
       _ <- UsersTable.all += UserRow(userId, addressId, firstName, lastName)
     } yield addressId
 
     insertUser.map(_ => UserInfo(userAddress, userId))
   }
 
-  def sendEmailTo(createEmailDTO: CreateEmailDTO, chatId: String,
+  def sendEmailTo(upsertEmailDTO: UpsertEmailDTO, chatId: String,
     receiverUserChatId: String, sent: Boolean): DBIO[ChatPreview] = {
 
     for {
       senderInfo <- newUser
       _ <- giveUserChatAccess(senderInfo.userId, chatId)
-      optChat <- chatsRep.postEmailAction(createEmailDTO, chatId, senderInfo.userId)
+      optChat <- chatsRep.postEmailAction(upsertEmailDTO, chatId, senderInfo.userId)
 
       chatpreview <- {
         val chat = optChat.value
@@ -126,12 +126,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   def insertEmailTest4(participantType: Option[ParticipantType], chatId: String, viewerInfo: UserInfo,
     viewerUserChatId: String, sent: Boolean): DBIO[ChatPreview] = {
-    val createEmailDTO = genCreateEmailDTOPost.sample.value
+    val upsertEmailDTO = genCreateEmailDTOPost.sample.value
 
     participantType match {
       case Some(From) =>
         for {
-          optChat <- chatsRep.postEmailAction(createEmailDTO.copy(from = viewerInfo.address), chatId, viewerInfo.userId)
+          optChat <- chatsRep.postEmailAction(upsertEmailDTO.copy(from = Some(viewerInfo.address)), chatId, viewerInfo.userId)
           sentOptChat <- if (sent) sendDraft(optChat.value.email.emailId.value, viewerUserChatId, From)
             .map(_ => optChat)
           else DBIO.successful(optChat)
@@ -143,15 +143,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         }
 
       case Some(To) => sendEmailTo(
-        createEmailDTO.copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
+        upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
         chatId, viewerUserChatId, sent)
 
       case Some(Cc) => sendEmailTo(
-        createEmailDTO.copy(cc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
+        upsertEmailDTO.copy(cc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
         chatId, viewerUserChatId, sent)
 
       case Some(Bcc) => sendEmailTo(
-        createEmailDTO.copy(bcc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
+        upsertEmailDTO.copy(bcc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
         chatId, viewerUserChatId, sent)
 
       case None =>
@@ -159,7 +159,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           receiverInfo <- newUser
           receiverUserChatId <- giveUserChatAccess(receiverInfo.userId, chatId)
           chatPreview <- sendEmailTo(
-            createEmailDTO.copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + receiverInfo.address)),
+            upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + receiverInfo.address)),
             chatId, receiverUserChatId, sent)
         } yield chatPreview
     }
@@ -168,14 +168,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   def insertEmail(chatId: String, viewerInfo: UserInfo, viewerUserChatId:
   String): DBIO[Option[(ChatPreview, ParticipantType, Boolean)]] = {
 
-    val createEmailDTO = genCreateEmailDTOPost.sample.value
+    val upsertEmailDTO = genCreateEmailDTOPost.sample.value
     val participantType = genParticipantType.sample.value
     val sent = genBoolean.sample.value
 
     participantType match {
       case Some(From) =>
         for {
-          optChat <- chatsRep.postEmailAction(createEmailDTO.copy(from = viewerInfo.address), chatId, viewerInfo.userId)
+          optChat <- chatsRep.postEmailAction(upsertEmailDTO.copy(from = Some(viewerInfo.address)), chatId, viewerInfo.userId)
           _ <- if (sent) sendDraft(optChat.value.email.emailId.value, viewerUserChatId, From)
           else DBIO.successful(())
 
@@ -188,17 +188,17 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         }
 
       case Some(To) => sendEmailTo(
-        createEmailDTO.copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
+        upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
         chatId, viewerUserChatId, sent).map(chatPreview => if (sent) Some((chatPreview, To, sent))
         else None)
 
       case Some(Cc) => sendEmailTo(
-        createEmailDTO.copy(cc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
+        upsertEmailDTO.copy(cc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
         chatId, viewerUserChatId, sent).map(chatPreview => if (sent) Some((chatPreview, Cc, sent))
         else None)
 
       case Some(Bcc) => sendEmailTo(
-        createEmailDTO.copy(bcc = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
+        upsertEmailDTO.copy(bcc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
         chatId, viewerUserChatId, sent).map(chatPreview => if (sent) Some((chatPreview, Bcc, sent))
         else None)
 
@@ -207,7 +207,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           receiverInfo <- newUser
           receiverUserChatId <- giveUserChatAccess(receiverInfo.userId, chatId)
           chatPreview <- sendEmailTo(
-            createEmailDTO.copy(to = Some(createEmailDTO.to.getOrElse(Set.empty[String]) + receiverInfo.address)),
+            upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + receiverInfo.address)),
             chatId, receiverUserChatId, sent)
         } yield None
     }
@@ -291,7 +291,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       if (_) emaiList.map(_.headOption.map(_._1))
       else DBIO.successful(None))
   }
-
   
 
   /*  def makeChatsNOTDEBUG(viewerInfo: UserInfo, mailbox: Mailbox): Future[List[ChatPreview]] =
@@ -383,10 +382,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
           baseCreateEmailDTO = genCreateEmailDTOPost.sample.value
 
-          createEmailDTO = baseCreateEmailDTO.copy(to =
+          upsertEmailDTO = baseCreateEmailDTO.copy(to =
             Some(baseCreateEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address))
 
-          createChatDTO = genCreateChatDTOPost.sample.value.copy(email = createEmailDTO)
+          createChatDTO = genCreateChatDTOPost.sample.value.copy(email = upsertEmailDTO)
 
           newChat <- chatsRep.postChatAction(createChatDTO, senderInfo.userId)
           date <- EmailsTable.all.filter(_.emailId === newChat.email.emailId.value)
@@ -629,6 +628,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     }
 
+    
+    /*
     "be valid in [Test-5-A: 1 Chat, Many Emails, NOT Overseeing, Inbox]" in {
 
       for {
@@ -662,7 +663,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     }
 
-    /*
+    
     "be valid in [Test-5-B: 1 Chat, Many Emails, NOT Overseeing, Sent]" in {
       for {
         viewerInfo <- newUser

@@ -111,7 +111,7 @@ object TestGenerators {
 
     })
 
-  val genCreateEmailDTOption: Gen[CreateEmailDTO] =
+  val genUpsertEmailDTOption: Gen[UpsertEmailDTO] =
     for {
       emailId <- Gen.option(genUUID)
       from <- genEmailAddress
@@ -120,22 +120,24 @@ object TestGenerators {
       cc <- Gen.option(genList(0, 1, genEmailAddress).map(_.toSet))
       body <- Gen.option(genString)
       date <- Gen.option(genString)
-    } yield CreateEmailDTO(emailId, from, to, bcc, cc, body, date)
+      sent <- Gen.option(genBoolean)
+    } yield UpsertEmailDTO(emailId, Some(from), to, bcc, cc, body, date, sent)
 
-  val genCreateEmailDTOPost: Gen[CreateEmailDTO] =
+  val genCreateEmailDTOPost: Gen[UpsertEmailDTO] =
     for {
       from <- genEmailAddress
       to <- genList(1, 4, genEmailAddress).map(_.toSet)
       bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
       cc <- genList(0, 1, genEmailAddress).map(_.toSet)
       body <- genString
-    } yield CreateEmailDTO(None, from, Some(to), Some(bcc), Some(cc), Some(body), None)
+      sent <- genBoolean
+    } yield UpsertEmailDTO(None, Some(from), Some(to), Some(bcc), Some(cc), Some(body), None, Some(sent))
 
   val genCreateChatDTOption: Gen[CreateChatDTO] =
     for {
       chatId <- Gen.option(genUUID)
       subject <- Gen.option(genString)
-      email <- genCreateEmailDTOption
+      email <- genUpsertEmailDTOption
     } yield CreateChatDTO(chatId, subject, email)
 
   val genCreateChatDTOPost: Gen[CreateChatDTO] =

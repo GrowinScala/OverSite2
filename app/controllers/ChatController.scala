@@ -47,7 +47,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
       jsonValue.validate[UpsertEmailDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        createEmailDTO => chatService.postEmail(createEmailDTO, chatId, authenticatedRequest.userId)
+        upsertEmailDTO => chatService.postEmail(upsertEmailDTO, chatId, authenticatedRequest.userId)
           .map {
             case Some(result) => Ok(Json.toJson(result))
             case None => NotFound(chatNotFound)

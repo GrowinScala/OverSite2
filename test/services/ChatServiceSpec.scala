@@ -5,6 +5,7 @@ import model.types.Mailbox.Inbox
 import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
+import repositories.dtos.Email
 
 import scala.concurrent.Future
 import utils.TestGenerators._
@@ -72,16 +73,16 @@ class ChatServiceSpec extends AsyncWordSpec
 
   "ChatService#postEmail" should {
     "return a CreateChatDTO that contains the input emailDTO plus the chatId and a new emailID" in {
-      val createEmailDTO = genCreateEmailDTOption.sample.value.copy(emailId = None)
+      val upsertEmailDTO = genUpsertEmailDTOption.sample.value.copy(emailId = None)
 
       val expectedResponse = genCreateChatDTOption.sample.value.copy(
-        email = createEmailDTO.copy(emailId = Some(genUUID.sample.value)))
+        email = upsertEmailDTO.copy(emailId = Some(genUUID.sample.value)))
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.postEmail(*, *, *)
         .returns(Future.successful(Some(expectedResponse)))
 
-      val serviceResponse = chatService.postEmail(createEmailDTO, genUUID.sample.value, genUUID.sample.value)
+      val serviceResponse = chatService.postEmail(upsertEmailDTO, genUUID.sample.value, genUUID.sample.value)
 
       serviceResponse.map(_ mustBe Some(expectedResponse))
     }
@@ -119,11 +120,10 @@ class ChatServiceSpec extends AsyncWordSpec
         EmailDTO("emailId", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(), "This is the patched body",
           "2019-09-02 12:00:00", sent = false, Set())
 
-      val mockChatsRep = mock[ChatsRepository]
+      val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchEmail(*, *, *, *)
         .returns(Future.successful(Some(returnedEmail)))
 
-      val chatService = new ChatService(mockChatsRep)
       val serviceResponse = chatService.patchEmail(upsertEmailDTO, "chatId", "emailId", "userId")
 
       serviceResponse.map(_ mustBe Some(expectedResponse))
