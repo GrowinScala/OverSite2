@@ -262,7 +262,13 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String) = {
     for {
       optionChat <- getChatAction(chatId, userId)
-    } yield optionChat.map(chat => chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
+    } yield optionChat match {
+      case Some(chat) =>
+        val email = chat.emails.filter(email => email.emailId == emailId)
+        if (email.nonEmpty) Some(chat.copy(emails = email))
+        else None
+      case None => None
+    }
   }
 
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {

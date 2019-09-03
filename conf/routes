@@ -4,17 +4,17 @@
 # ~~~~
 
 # Chats
-GET     /chats                   controllers.ChatController.getChats(mailbox: Mailbox)
+GET     /chats                              controllers.ChatController.getChats(mailbox: Mailbox)
 
-GET     /chats/:id               controllers.ChatController.getChat(id : String)
+GET     /chats/:id                          controllers.ChatController.getChat(id : String)
 
 GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
 
-POST    /chats                   controllers.ChatController.postChat
+POST    /chats                              controllers.ChatController.postChat
 
-POST    /chats/:id/emails        controllers.ChatController.postEmail(id : String)
+POST    /chats/:id/emails                   controllers.ChatController.postEmail(id : String)
 
-PATCH   /chats/:id               controllers.ChatController.moveChatToTrash(id : String)
+PATCH   /chats/:id                          controllers.ChatController.moveChatToTrash(id : String)
 
 
 # Authentication
