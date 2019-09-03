@@ -259,6 +259,16 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def moveChatToTrash(chatId: String, userId: String): Future[Boolean] =
     db.run(moveChatToTrashAction(chatId, userId))
 
+  private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String) = {
+    for {
+      optionChat <- getChatAction(chatId, userId)
+    } yield optionChat.map(chat => chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
+  }
+
+  def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {
+    db.run(getEmailAction(chatId, emailId, userId))
+  }
+
   private[implementations] def insertEmail(createEmailDTO: CreateEmailDTO, chatId: String,
     emailId: String, fromAddress: String, date: String) = {
     for {

@@ -17,4 +17,6 @@ trait ChatsRepository {
   def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]]
 
   def moveChatToTrash(chatId: String, userId: String): Future[Boolean]
+
+  def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]]
 }

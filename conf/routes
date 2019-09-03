@@ -8,6 +8,8 @@ GET     /chats                   controllers.ChatController.getChats(mailbox: Ma
 
 GET     /chats/:id               controllers.ChatController.getChat(id : String)
 
+GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
+
 POST    /chats                   controllers.ChatController.postChat
 
 POST    /chats/:id/emails        controllers.ChatController.postEmail(id : String)
