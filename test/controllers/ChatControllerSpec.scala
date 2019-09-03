@@ -406,4 +406,40 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
     }
   }
 
+  "ChatController#getEmail" should {
+    "return Json for some ChatDTO with one email" in {
+      val chatId = "6c664490-eee9-4820-9eda-3110d794a998"
+      val emailId = "f15967e6-532c-40a6-9335-064d884d4906"
+
+      val responseChatDto = ChatDTO(chatId, "Subject", Set("address1", "address2"), Set(OverseersDTO("address1", Set("address3"))),
+        Seq(EmailDTO(emailId, "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", sent = true,
+          Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
+
+      val mockChatService = mock[ChatService]
+      mockChatService.getEmail(*, *, *)
+        .returns(Future.successful(Some(responseChatDto)))
+
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+
+      for {
+        result <- controller.getEmail(chatId, emailId).apply(FakeRequest())
+        expectedResult = Json.toJson(responseChatDto)
+      } yield result mustBe Ok(expectedResult)
+    }
+
+    "return NotFound if service response is None" in {
+      val mockChatService = mock[ChatService]
+      mockChatService.getEmail(*, *, *)
+        .returns(Future.successful(None))
+
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+      val result: Future[Result] = controller
+        .getEmail("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000").apply(FakeRequest())
+      result.map(_ mustBe NotFound)
+    }
+  }
+
 }
