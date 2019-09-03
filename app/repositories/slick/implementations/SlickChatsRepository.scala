@@ -116,7 +116,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .map {
         case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
           (chatId, emailId)
-      }.distinctOn(_._1)
+      }
+      .groupBy(_._1)
+      .map { case (chatId, emailId) => (chatId, emailId.map(_._2).min) }
 
     val chatPreviewQuery = for {
       (chatId, emailId) <- groupedQuery
@@ -211,14 +213,16 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield fromAddress
 
-    inserts.map(_ =>
-      createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(emailId = Some(emailId), date = Some(date))))
+    inserts.map(fromAddress =>
+      createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(
+        emailId = Some(emailId),
+        from = Some(fromAddress), date = Some(date))))
   }
 
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] =
     db.run(postChatAction(createChatDTO, userId).transactionally)
 
-  private[implementations] def postEmailAction(createEmailDTO: CreateEmailDTO, chatId: String, userId: String) = {
+  private[implementations] def postEmailAction(createEmailDTO: UpsertEmailDTO, chatId: String, userId: String) = {
     val date = DateUtils.getCurrentDate
 
     val emailId = genUUID
@@ -271,12 +275,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield optionPatch.flatMap(_ => email.headOption)
   }
 
-  def moveChatToTrash(chatId: String, userId: String): Future[Boolean] = {
-    db.run(UserChatsTable.moveChatToTrash(userId, chatId))
-      .map(_ != 0)
-  }
-
-  def postEmail(createEmailDTO: CreateEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] =
+  def postEmail(createEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] =
     db.run(postEmailAction(createEmailDTO, chatId, userId).transactionally)
 
   private[implementations] def moveChatToTrashAction(chatId: String, userId: String) =
@@ -645,10 +644,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param userId ID of the user that requested the chat
    * @return for each email, returns a tuple (emailId, body, date, sent)
    */
-  private def getEmailsQuery(chatId: String, userId: String, optionEmailId: Option[String]) = {
+  private def getEmailsQuery(chatId: String, userId: String) = {
     val query = getVisibleEmailsQuery(userId)
       .filter(_._1 === chatId)
-      .filterOpt(optionEmailId)(_._2 === _)
       .map {
         case (_, emailId, body, date, sent) => (emailId, body, date, sent)
       }
