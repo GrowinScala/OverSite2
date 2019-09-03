@@ -769,7 +769,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
 
     "return None if the email is a draft of another user" in {
       val draftEmailId = "fe4ff891-144a-4f61-af35-6d4a5ec76314"
-      
+
       //even if this user is a participant of the chat with "chatId", the user is not allowed to see drafts of other users
       val notDraftOwnerUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d"
 
