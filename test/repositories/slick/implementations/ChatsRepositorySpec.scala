@@ -727,4 +727,69 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
     }
 
   }
+
+  "SlickChatsRepository#getEmail" should {
+    val chatsRep = new SlickChatsRepository(db)
+
+    val chatId = "825ee397-f36e-4023-951e-89d6e43a8e7d" //beatriz@mail.com
+    val emailId = "42508cff-a4cf-47e4-9b7d-db91e010b87a"
+    val authorizedUserId = "148a3b1b-8326-466d-8c27-1bd09b8378f3"
+
+    "return a chat with one email for an allowed user" in {
+      for {
+        chat <- chatsRep.getEmail(chatId, emailId, authorizedUserId)
+
+        expectedResponse = Chat(chatId, "Location",
+          Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
+          Set(
+            Overseers("beatriz@mail.com", Set("valter@mail.com")),
+            Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+          Seq(
+            Email(emailId, "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
+              "Where are you?", "2019-06-17 10:00:00", 1, Set())))
+      } yield chat.value mustBe expectedResponse
+    }
+
+    "return a chat with a draft if the user is its owner" in {
+      val draftEmailId = "fe4ff891-144a-4f61-af35-6d4a5ec76314"
+
+      for {
+        chat <- chatsRep.getEmail(chatId, draftEmailId, authorizedUserId)
+
+        expectedResponse = Chat(chatId, "Location",
+          Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
+          Set(
+            Overseers("beatriz@mail.com", Set("valter@mail.com")),
+            Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+          Seq(
+            Email(draftEmailId, "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(),
+              "Here", "2019-06-17 10:06:00", 0, Set("b8c313cc-90a1-4f2f-81c6-e61a64fb0b16"))))
+      } yield chat.value mustBe expectedResponse
+    }
+
+    "return None if the email is a draft of another user" in {
+      val draftEmailId = "fe4ff891-144a-4f61-af35-6d4a5ec76314"
+      
+      //even if this user is a participant of the chat with "chatId", the user is not allowed to see drafts of other users
+      val notDraftOwnerUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d"
+
+      for {
+        chat <- chatsRep.getEmail(chatId, draftEmailId, notDraftOwnerUserId)
+      } yield chat mustBe None
+    }
+
+    "return None for user that is not allow to see the requested email" in {
+      val unauthorizedUserId = "00000000-0000-0000-0000-000000000000"
+      for {
+        chat <- chatsRep.getEmail(chatId, emailId, unauthorizedUserId)
+      } yield chat mustBe None
+    }
+
+    "return None if the requested email exists but is not a part of the specified chat" in {
+      val emailIdOfAnotherChat = "f203c270-5f37-4437-956a-3cf478f5f28f"
+      for {
+        chat <- chatsRep.getEmail(chatId, emailIdOfAnotherChat, authorizedUserId)
+      } yield chat mustBe None
+    }
+  }
 }

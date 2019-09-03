@@ -626,7 +626,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       emails = Seq(
         Email(
           emailId = email.emailId.getOrElse(""),
-          from = email.from.orNull,
+          from = email.from.getOrElse(""),
           to = email.to.getOrElse(Set()),
           bcc = email.bcc.getOrElse(Set()),
           cc = email.cc.getOrElse(Set()),
