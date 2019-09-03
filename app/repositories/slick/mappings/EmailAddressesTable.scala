@@ -25,7 +25,6 @@ object EmailAddressesTable {
 
   def selectByEmailIdAddressAndType(emailId: Option[String], addressId: Option[String], participantType: Option[String]): Query[EmailAddressesTable, EmailAddressesTable#TableElementType, scala.Seq] =
     EmailAddressesTable.all
-      //.filter(ea => ea.emailId === emailId && ea.addressId === addressId && ea.participantType === participantType)
       .filterOpt(emailId)(_.emailId === _)
       .filterOpt(addressId)(_.addressId === _)
       .filterOpt(participantType)(_.participantType === _)

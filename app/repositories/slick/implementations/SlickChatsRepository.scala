@@ -257,26 +257,30 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     }
   }
 
-  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]] = {
+  def postEmail(createEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] =
+    db.run(postEmailAction(createEmailDTO, chatId, userId).transactionally)
+
+  private[implementations] def patchEmailAction(upsertEmailDTO: UpsertEmailDTO, chatId: String,
+    emailId: String, userId: String): DBIO[Option[Email]] = {
     val updateAndSendEmail = for {
-      updatedReceiversAddresses <- updateEmail(upsertEmailDTO, chatId, emailId, userId)
+      updatedReceiversAddresses <- updateEmailAction(upsertEmailDTO, chatId, emailId, userId)
 
       sendEmail <- DBIO.sequenceOption(
         updatedReceiversAddresses.map(receiversAddresses =>
           if (upsertEmailDTO.sent.getOrElse(false))
-            sendEmail(userId, chatId, emailId, receiversAddresses)
+            sendEmailAction(userId, chatId, emailId, receiversAddresses)
           else DBIO.successful(0)))
 
     } yield sendEmail
 
     for {
-      optionPatch <- db.run(updateAndSendEmail.transactionally)
-      email <- db.run(getEmailAction(userId, emailId))
+      optionPatch <- updateAndSendEmail.transactionally
+      email <- getEmailAction(userId, emailId)
     } yield optionPatch.flatMap(_ => email.headOption)
   }
 
-  def postEmail(createEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] =
-    db.run(postEmailAction(createEmailDTO, chatId, userId).transactionally)
+  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]] =
+    db.run(patchEmailAction(upsertEmailDTO, chatId, emailId, userId).transactionally)
 
   private[implementations] def moveChatToTrashAction(chatId: String, userId: String) =
     UserChatsTable.moveChatToTrash(userId, chatId)
@@ -346,9 +350,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chatId ID of the chat
    * @param emailId ID of the email
    * @param addresses addresses of the receivers of the email
-   * @return a count of all the updated rows
+   * @return an action containing the count of all the updated rows
    */
-  private def sendEmail(senderUserId: String, chatId: String, emailId: String, addresses: Set[String]) = {
+  private def sendEmailAction(senderUserId: String, chatId: String, emailId: String, addresses: Set[String]): DBIO[Int] = {
     if (addresses.nonEmpty) {
       for {
         updateReceiversChats <- updateReceiversUserChatsToInbox(chatId, addresses)
@@ -445,8 +449,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *                           no addresses will be added or deleted
    * @return an optional set of the addresses that stayed in the database after all the additions and deletions
    */
-  private def insertAndDeleteAddressesByParticipantType(emailId: String, chatId: String,
-    participantType: String, optionNewAddresses: Option[Set[String]]) = {
+  private def insertAndDeleteAddressesByParticipantTypeAction(emailId: String, chatId: String,
+    participantType: String, optionNewAddresses: Option[Set[String]]): DBIO[Set[String]] = {
 
     for {
       groupedExistingAddresses <- getEmailAddressByGroupedByParticipantType(emailId)
@@ -492,9 +496,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private def updateEmailAddresses(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String) = {
 
     for {
-      toUpsert <- insertAndDeleteAddressesByParticipantType(emailId, chatId, "to", upsertEmailDTO.to)
-      bccUpsert <- insertAndDeleteAddressesByParticipantType(emailId, chatId, "bcc", upsertEmailDTO.bcc)
-      ccUpsert <- insertAndDeleteAddressesByParticipantType(emailId, chatId, "cc", upsertEmailDTO.cc)
+      toUpsert <- insertAndDeleteAddressesByParticipantTypeAction(emailId, chatId, "to", upsertEmailDTO.to)
+      bccUpsert <- insertAndDeleteAddressesByParticipantTypeAction(emailId, chatId, "bcc", upsertEmailDTO.bcc)
+      ccUpsert <- insertAndDeleteAddressesByParticipantTypeAction(emailId, chatId, "cc", upsertEmailDTO.cc)
 
     } yield toUpsert ++ bccUpsert ++ ccUpsert
   }
@@ -506,9 +510,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param emailId ID of the email
    * @return the action that updates the email row and the emailAddress rows
    */
-  private def updateEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String) = {
-    //val selectEmailQuery = EmailsTable.all.filter(emailRow => emailRow.emailId === emailId && emailRow.chatId === chatId && emailRow.sent === 0)
-
+  private def updateEmailAction(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): DBIO[Option[Set[String]]] = {
     for {
       optionVerifiedFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
 
