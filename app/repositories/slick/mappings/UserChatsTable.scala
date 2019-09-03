@@ -1,8 +1,7 @@
 package repositories.slick.mappings
 
-import slick.dbio.Effect
+import slick.jdbc.MySQLProfile
 import slick.jdbc.MySQLProfile.api._
-import slick.sql.FixedSqlAction
 
 case class UserChatRow(userChatId: String, userId: String, chatId: String, inbox: Int, sent: Int, draft: Int, trash: Int)
 
@@ -27,13 +26,25 @@ class UserChatsTable(tag: Tag) extends Table[UserChatRow](tag, "user_chats") {
 object UserChatsTable {
   val all = TableQuery[UserChatsTable]
 
-  def updateDraftField(userId: String, chatId: String, draft: Int): DBIO[Int] = {
+  def updateDraftField(userId: String, chatId: String, draft: Int): MySQLProfile.ProfileAction[Int, NoStream, Effect.Write] = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
     } yield uc.draft).update(draft)
   }
 
-  def moveChatToTrash(userId: String, chatId: String): DBIO[Int] = {
+  def incrementDrafts(userId: String, chatId: String): DBIO[Int] = {
+    sqlu"UPDATE user_chats SET draft = draft + 1 WHERE user_id = $userId AND chat_id = $chatId AND draft >= 0"
+  }
+
+  def decrementDrafts(userId: String, chatId: String): DBIO[Int] = {
+    sqlu"UPDATE user_chats SET draft = draft - 1 WHERE user_id = $userId AND chat_id = $chatId AND draft > 0"
+  }
+
+  def userEmailWasSent(userId: String, chatId: String) = {
+    sqlu"UPDATE user_chats SET draft = draft - 1, sent = 1 WHERE user_id = $userId AND chat_id = $chatId AND draft > 0"
+  }
+
+  def moveChatToTrash(userId: String, chatId: String): MySQLProfile.ProfileAction[Int, NoStream, Effect.Write] = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
     } yield (uc.inbox, uc.sent, uc.draft, uc.trash)).update(0, 0, 0, 1)

@@ -247,4 +247,74 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     }
   }
 
+  "ChatController#patchEmail" should {
+    "return Json with the patched email" in {
+
+      val mockChatService: ChatService = mock[ChatService]
+
+      val emailDTO = EmailDTO("00000000-0000-0000-0000-000000000000", "beatriz@mail.com", Set("joao@mail.com"), Set(),
+        Set(), "This is the patched body", "2019-07-26 15:00:00", sent = false, Set())
+
+      mockChatService.patchEmail(*, *, *, *)
+        .returns(Future.successful(Some(emailDTO)))
+
+      val emailJsonRequest = Json.parse(
+        """{
+          |   "to": ["joao@mail.com"],
+          |   "cc": [],
+          |   "body": "This is the patched body"
+          |}""".stripMargin)
+
+      val emailJsonResponse = Json.parse(
+        """{
+          |  "emailId": "00000000-0000-0000-0000-000000000000",
+          |   "from": "beatriz@mail.com",
+          |   "to": ["joao@mail.com"],
+          |   "bcc": [],
+          |   "cc": [],
+          |   "body": "This is the patched body",
+          |   "date": "2019-07-26 15:00:00",
+          |   "sent": false,
+          |   "attachments": []
+          |}""".stripMargin)
+
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+
+      val request = FakeRequest(PATCH, "/chats/00000000-0000-0000-0000-000000000000/emails/00000000-0000-0000-0000-000000000000")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(emailJsonRequest)
+
+      val result: Future[Result] = controller
+        .patchEmail("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000").apply(request)
+
+      val json = contentAsJson(result)
+
+      status(result) mustBe OK
+      json mustBe emailJsonResponse
+    }
+
+    "return 400 Bad Request if any of the email addresses is not a valid address" in {
+      val mockChatService = mock[ChatService]
+
+      val emailWithInvalidToAddress = Json.parse(
+        """{
+          |   "to": ["joaomail.com"],
+          |   "body": "This is the body"
+          |}""".stripMargin)
+
+      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
+      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+
+      val request = FakeRequest(PATCH, "/chats/00000000-0000-0000-0000-000000000000/emails/00000000-0000-0000-0000-000000000000")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(emailWithInvalidToAddress)
+
+      val result: Future[Result] = controller
+        .patchEmail("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000").apply(request)
+
+      status(result) mustBe BAD_REQUEST
+    }
+  }
+
 }

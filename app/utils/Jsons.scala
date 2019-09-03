@@ -11,5 +11,6 @@ object Jsons {
   val tokenNotValid: JsValue = Json.parse("""{ "Error": "Invalid Authentication Token"}  """)
   val tokenExpired: JsValue = Json.parse("""{ "Error": "Authentication Token has expired, please sign-in again"}  """)
   val chatNotFound: JsValue = Json.parse("""{ "Error": "The given chat was not found"}  """)
+  val emailNotFound: JsValue = Json.parse("""{ "Error": "The given email was not found"}  """)
 
 }
