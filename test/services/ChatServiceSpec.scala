@@ -155,15 +155,13 @@ class ChatServiceSpec extends AsyncWordSpec with OptionValues with AsyncIdiomati
 
       val chatService = new ChatService(mockChatsRep)
 
-      for {
-        serviceResponse <- chatService.getEmail(chatId, emailId, userId)
+      val expectedServiceResponse = ChatDTO(chatId, "Subject", Set("address1", "address2"),
+        Set(OverseersDTO("address1", Set("address3"))),
+        Seq(EmailDTO(emailId, "address1", Set("address2"), Set(), Set(),
+          "This is the body", "2019-07-19 10:00:00", sent = true, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
 
-        expectedServiceResponse = ChatDTO(chatId, "Subject", Set("address1", "address2"),
-          Set(OverseersDTO("address1", Set("address3"))),
-          Seq(EmailDTO(emailId, "address1", Set("address2"), Set(), Set(),
-            "This is the body", "2019-07-19 10:00:00", sent = true, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
-
-      } yield serviceResponse.value mustBe expectedServiceResponse
+      chatService.getEmail(chatId, emailId, userId).map(
+        serviceResponse => serviceResponse.value mustBe expectedServiceResponse)
     }
   }
 

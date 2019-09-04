@@ -423,10 +423,8 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
 
       val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
 
-      for {
-        result <- controller.getEmail(chatId, emailId).apply(FakeRequest())
-        expectedResult = Json.toJson(responseChatDto)
-      } yield result mustBe Ok(expectedResult)
+      controller.getEmail(chatId, emailId).apply(FakeRequest()).map(
+        result => result mustBe Ok(Json.toJson(responseChatDto)))
     }
 
     "return NotFound if service response is None" in {
