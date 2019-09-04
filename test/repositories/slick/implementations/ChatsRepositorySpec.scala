@@ -785,10 +785,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
 
   "SlickChatsRepository#deleteChat" should {
     val chatsRep = new SlickChatsRepository(db)
-
     val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
+    val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
+
     "definitely delete a chat from trash" in {
-      val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
       for {
         moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
         deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
@@ -807,7 +807,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
     }
 
     "not definitely delete a chat if it is not in trash" in {
-      val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
       for {
         chatBeforeDeleteTry <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
         deleteTry <- chatsRep.deleteChat(validChatId, userId)
@@ -818,6 +817,33 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
           chatBeforeDeleteTry.value.sent === chatAfterDeleteTry.value.sent &&
           chatBeforeDeleteTry.value.draft === chatAfterDeleteTry.value.draft &&
           chatBeforeDeleteTry.value.trash === chatAfterDeleteTry.value.trash)
+    }
+
+    "return false if the user already definitely deleted the chat" in {
+      for {
+        moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
+        deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
+
+        deleteDefinitelySecondTry <- chatsRep.deleteChat(validChatId, userId)
+
+        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+      } yield inside(optionUserChat) {
+        case Some(userChat) =>
+          assert(
+            moveChatToTrash &&
+              deleteDefinitely &&
+              !deleteDefinitelySecondTry &&
+              userChat.inbox === 0 &&
+              userChat.sent === 0 &&
+              userChat.draft === 0 &&
+              userChat.trash === 0)
+      }
+    }
+
+    "return false if the user does not have that chat" in {
+      val notAllowedUserId = "261c9094-6261-4704-bfd0-02821c235eff"
+      chatsRep.deleteChat(validChatId, notAllowedUserId)
+        .map(deleteDefinitelyTry => assert(!deleteDefinitelyTry))
     }
   }
 
