@@ -275,7 +275,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     for {
       optionPatch <- updateAndSendEmail.transactionally
-      email <- getEmailAction(userId, emailId)
+      email <- getEmailDTOAction(userId, emailId)
     } yield optionPatch.flatMap(_ => email.headOption)
   }
 
@@ -288,6 +288,18 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def moveChatToTrash(chatId: String, userId: String): Future[Boolean] =
     db.run(moveChatToTrashAction(chatId, userId))
+
+  private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String) = {
+    getChatAction(chatId, userId)
+      .map(optionChat =>
+        optionChat
+          .map(chat => chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
+          .filter(_.emails.nonEmpty))
+  }
+
+  def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {
+    db.run(getEmailAction(chatId, emailId, userId))
+  }
 
   def deleteChatAction(chatId: String, userId: String): DBIO[Boolean] = {
     val userChatQuery = UserChatsTable.all
@@ -314,7 +326,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param emailId ID of the email
    * @return a DBIOAction containing an instance of the class Email
    */
-  private def getEmailAction(userId: String, emailId: String) = {
+  private def getEmailDTOAction(userId: String, emailId: String): DBIO[Seq[Email]] = {
     for {
       email <- EmailsTable.all
         .join(UserChatsTable.all)
@@ -629,7 +641,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       emails = Seq(
         Email(
           emailId = email.emailId.getOrElse(""),
-          from = email.from.orNull,
+          from = email.from.getOrElse(""),
           to = email.to.getOrElse(Set()),
           bcc = email.bcc.getOrElse(Set()),
           cc = email.cc.getOrElse(Set()),
