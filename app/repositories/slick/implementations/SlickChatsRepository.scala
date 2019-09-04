@@ -254,7 +254,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       chatAddress <- getChatDataAction(chatId, userId)
 
       _ <- chatAddress match {
-        case Some((chatID, subject, fromAddress)) => insertEmailAndAddresses(upsertEmailDTO, chatId, emailId, fromAddress, date)
+        case Some((chatID, subject, fromAddress)) => insertEmailAndAddresses(upsertEmailDTO, chatId,
+          emailId, fromAddress, date)
           .andThen(UserChatsTable.incrementDrafts(userId, chatId))
         case None => DBIOAction.successful(None)
       }

@@ -70,8 +70,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   }
   //endregion
 
-  case class UserInfo(address: String, userId: String)
-
+ 
   //region Auxiliary Methods
 
   /**
@@ -126,7 +125,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   def insertEmailTest4(participantType: Option[ParticipantType], chatId: String, viewerInfo: UserInfo,
     viewerUserChatId: String, sent: Boolean): DBIO[ChatPreview] = {
-    val upsertEmailDTO = genCreateEmailDTOPost.sample.value
+    val upsertEmailDTO = genUpsertEmailDTOPost.sample.value
 
     participantType match {
       case Some(From) =>
@@ -168,7 +167,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   def insertEmail(chatId: String, viewerInfo: UserInfo, viewerUserChatId:
   String): DBIO[Option[(ChatPreview, ParticipantType, Boolean)]] = {
 
-    val upsertEmailDTO = genCreateEmailDTOPost.sample.value
+    val upsertEmailDTO = genUpsertEmailDTOPost.sample.value
     val participantType = genParticipantType.sample.value
     val sent = genBoolean.sample.value
 
@@ -292,6 +291,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       else DBIO.successful(None))
   }
   
+  
+ /* def genChat: List[EmailData] = {
+    genListOfT(_ => genEmail).sample.value
+  }
+  */
+  def insertChat = 2
 
   /*  def makeChatsNOTDEBUG(viewerInfo: UserInfo, mailbox: Mailbox): Future[List[ChatPreview]] =
     Future.sequence(
@@ -380,7 +385,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           viewerInfo <- newUser
           senderInfo <- newUser
 
-          baseCreateEmailDTO = genCreateEmailDTOPost.sample.value
+          baseCreateEmailDTO = genUpsertEmailDTOPost.sample.value
 
           upsertEmailDTO = baseCreateEmailDTO.copy(to =
             Some(baseCreateEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address))
@@ -629,10 +634,32 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     }
 
     
-    /*
+    
     "be valid in [Test-5-A: 1 Chat, Many Emails, NOT Overseeing, Inbox]" in {
+      
+      val viewerInfo = genUserInfo.sample.value
+      val chat = genCreateChatDTO.sample.value
+      val trash = genBoolean.sample.value
+      
+      val emailList = genEmailList(viewerInfo.address).sample.value
+      val expectedEmail = emailList.filter(_.visible).sortBy(emailViewerData =>
+        (emailViewerData.upsertEmailDTO.date.value, emailViewerData.upsertEmailDTO.emailId.value)).headOption
+      
+      
+      val expectedChatPreview = expectedEmail match {
+        case Some(emailViewerData) if !trash =>  ChatPreview(chat.chatId.value, chat.subject.value, emailViewerData.senderAddress,
+          emailViewerData.upsertEmailDTO.date.value, emailViewerData.upsertEmailDTO.body.value)
+  
+      case _ => Seq.empty[ChatPreview]
+      }
+      
+      
+     
+      
+      
+      
 
-      for {
+     /* for {
         (expectedChatsPreview, viewerId) <- db.run(
           for {
             viewerInfo <- newUser
@@ -659,11 +686,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerId)
 
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe expectedChatsPreview*/
+      
+      Future.successful(1 mustBe 1)
 
     }
 
-    
+    /*
     "be valid in [Test-5-B: 1 Chat, Many Emails, NOT Overseeing, Sent]" in {
       for {
         viewerInfo <- newUser
@@ -1247,3 +1276,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   
   */
 }
+
+case class UserInfo(userId: String, address: String)
+
+case class EmailViewerData(upsertEmailDTO: UpsertEmailDTO, viwerParticipantType: Option[ParticipantType],
+                           sent: Boolean, senderAddress: String, visible: Boolean)
+
