@@ -651,6 +651,13 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
           attachments = Set())))
   }
 
+  private[implementations] def getUserChatOverseersAction(overseeUserId: String, chatId: String): DBIO[Seq[String]] = {
+    OversightsTable.all
+      .filter(oversight => oversight.chatId === chatId && oversight.overseeId === overseeUserId)
+      .map(_.overseerId)
+      .result
+  }
+
   //region getChat auxiliary methods
 
   /**

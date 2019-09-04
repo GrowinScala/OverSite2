@@ -845,6 +845,25 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
       chatsRep.deleteChat(validChatId, notAllowedUserId)
         .map(deleteDefinitelyTry => assert(!deleteDefinitelyTry))
     }
+
+    "still allow the user's chat overseers to see the chat" in {
+      for {
+        overseerUserIds <- db.run(chatsRep.getUserChatOverseersAction(userId, validChatId))
+        overseerUserId = overseerUserIds.headOption
+        overseerUserChatBefore <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId.value).result.headOption)
+
+        moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
+        deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
+
+        overseerUserChatAfter <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId.value).result.headOption)
+      } yield assert(
+        moveChatToTrash &&
+          deleteDefinitely &&
+          overseerUserChatBefore.value.inbox === overseerUserChatAfter.value.inbox &&
+          overseerUserChatBefore.value.sent === overseerUserChatAfter.value.sent &&
+          overseerUserChatBefore.value.draft === overseerUserChatAfter.value.draft &&
+          overseerUserChatBefore.value.trash === overseerUserChatAfter.value.trash)
+    }
   }
 
 }
