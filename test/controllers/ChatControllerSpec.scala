@@ -419,9 +419,7 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       mockChatService.getEmail(*, *, *)
         .returns(Future.successful(Some(responseChatDto)))
 
-      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
-
-      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
+      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
 
       controller.getEmail(chatId, emailId).apply(FakeRequest()).map(
         result => result mustBe Ok(Json.toJson(responseChatDto)))
@@ -432,11 +430,10 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       mockChatService.getEmail(*, *, *)
         .returns(Future.successful(None))
 
-      val fakeAuthenticatedUserAction = new FakeAuthenticatedUserAction
-      val controller = new ChatController(cc, mockChatService, fakeAuthenticatedUserAction)
-      val result: Future[Result] = controller
-        .getEmail("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000").apply(FakeRequest())
-      result.map(_ mustBe NotFound)
+      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
+
+      controller.getEmail("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000").apply(FakeRequest())
+        .map(_ mustBe NotFound)
     }
   }
 

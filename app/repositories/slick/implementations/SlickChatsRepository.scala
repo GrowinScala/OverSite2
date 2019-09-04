@@ -290,13 +290,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(moveChatToTrashAction(chatId, userId))
 
   private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String) = {
-    getChatAction(chatId, userId).map {
-      case Some(chat) =>
-        val email = chat.emails.filter(email => email.emailId == emailId)
-        if (email.nonEmpty) Some(chat.copy(emails = email))
-        else None
-      case None => None
-    }
+    getChatAction(chatId, userId)
+      .map(optionChat =>
+        optionChat
+          .map(chat => chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
+          .filter(_.emails.nonEmpty))
   }
 
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {
