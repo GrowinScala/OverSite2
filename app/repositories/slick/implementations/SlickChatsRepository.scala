@@ -650,7 +650,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private[implementations] def getChatDataAction(chatId: String, userId: String) =
     (for {
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
-      _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId)
+      _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId &&
+        (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft === 1 || userChatRow.trash === 1))
       addressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
     } yield (chatId, subject, address)).result.headOption
