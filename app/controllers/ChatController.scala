@@ -76,6 +76,15 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
       chatService.moveChatToTrash(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
   }
 
+  def getEmail(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+
+      chatService.getEmail(chatId, emailId, authenticatedRequest.userId).map {
+        case Some(chatDTO) => Ok(Json.toJson(chatDTO))
+        case None => NotFound
+      }
+  }
+
 }
 
 //region Old

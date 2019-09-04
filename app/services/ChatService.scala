@@ -36,6 +36,10 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
     chatsRep.moveChatToTrash(chatId, userId)
   }
 
+  def getEmail(chatId: String, emailId: String, userId: String): Future[Option[ChatDTO]] = {
+    chatsRep.getEmail(chatId, emailId, userId).map(toChatDTO)
+  }
+
   //region Auxiliary conversion methods
 
   private def toEmailDTO(optionEmail: Option[Email]): Option[EmailDTO] = {
