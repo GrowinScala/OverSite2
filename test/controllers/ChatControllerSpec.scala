@@ -437,4 +437,30 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
     }
   }
 
+  "ChatController#deleteChat" should {
+    "return NoContent if the response from the service is true" in {
+
+      val mockChatService = mock[ChatService]
+      mockChatService.deleteChat(*, *)
+        .returns(Future.successful(true))
+
+      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
+
+      controller.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616").apply(FakeRequest())
+        .map(result => result mustBe NoContent)
+    }
+
+    "return NotFound if the response from the service is NOT true" in {
+
+      val mockChatService = mock[ChatService]
+      mockChatService.deleteChat(*, *)
+        .returns(Future.successful(false))
+
+      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
+
+      controller.deleteChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(FakeRequest())
+        .map(result => result mustBe NotFound)
+    }
+  }
+
 }
