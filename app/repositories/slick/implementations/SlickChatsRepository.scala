@@ -301,7 +301,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(getEmailAction(chatId, emailId, userId))
   }
 
-  def deleteChatAction(chatId: String, userId: String): DBIO[Boolean] = {
+  private[implementations] def deleteChatAction(chatId: String, userId: String): DBIO[Boolean] = {
     val userChatQuery = UserChatsTable.all
       .filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === chatId && userChatRow.trash === 1)
     for {
