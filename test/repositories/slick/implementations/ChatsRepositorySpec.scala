@@ -782,4 +782,43 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
       chatsRep.getEmail(chatId, emailIdOfAnotherChat, authorizedUserId).map(chat => chat mustBe None)
     }
   }
+
+  "SlickChatsRepository#deleteChat" should {
+    val chatsRep = new SlickChatsRepository(db)
+
+    val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
+    "definitely delete a chat from trash" in {
+      val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
+      for {
+        moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
+        deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
+
+        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+      } yield inside(optionUserChat) {
+        case Some(userChat) =>
+          assert(
+            moveChatToTrash &&
+              deleteDefinitely &&
+              userChat.inbox === 0 &&
+              userChat.sent === 0 &&
+              userChat.draft === 0 &&
+              userChat.trash === 0)
+      }
+    }
+
+    "not definitely delete a chat if it is not in trash" in {
+      val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
+      for {
+        chatBeforeDeleteTry <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+        deleteTry <- chatsRep.deleteChat(validChatId, userId)
+        chatAfterDeleteTry <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+      } yield assert(
+        !deleteTry &&
+          chatBeforeDeleteTry.value.inbox === chatAfterDeleteTry.value.inbox &&
+          chatBeforeDeleteTry.value.sent === chatAfterDeleteTry.value.sent &&
+          chatBeforeDeleteTry.value.draft === chatAfterDeleteTry.value.draft &&
+          chatBeforeDeleteTry.value.trash === chatAfterDeleteTry.value.trash)
+    }
+  }
+
 }
