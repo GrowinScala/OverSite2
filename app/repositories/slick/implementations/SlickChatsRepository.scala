@@ -301,6 +301,38 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(getEmailAction(chatId, emailId, userId))
   }
 
+  private[implementations] def deleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
+    for {
+      contidion <- verifyConditionsToDeleteDraft(chatId, emailId, userId)
+    } yield contidion
+  }
+
+  def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean] = {
+    db.run(deleteDraftAction(chatId, emailId, userId))
+  }
+
+/*** Auxiliary methods ***/
+  private def verifyConditionsToDeleteDraft(chatId: String, emailId: String, userId: String) = {
+    val userChatQuery = UserChatsTable.all
+      .filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === chatId && userChatRow.draft > 0)
+    val draftEmailQuery = EmailsTable.all
+      .filter(emailRow => emailRow.chatId === chatId && emailRow.emailId === emailId && emailRow.sent === 0)
+    val emailAddressesQuery = EmailAddressesTable.all
+      .filter(emailAddressRow => emailAddressRow.chatId === chatId && emailAddressRow.emailId === emailId)
+
+    for {
+      optionUserChat <- userChatQuery.result.headOption
+      optionDraft <- draftEmailQuery.result.headOption
+      optionFromUserId <- UsersTable.all
+        .filter(userRow => userRow.addressId.in(emailAddressesQuery.filter(_.participantType === "from").map(_.addressId)) &&
+          userRow.userId === userId)
+        .result.headOption
+
+      condition = List(optionUserChat, optionDraft, optionFromUserId).forall(_.isDefined)
+
+    } yield condition
+  }
+
   /**
    * Method that returns an action containing an instance of the class Email
    * @param userId ID of the user
