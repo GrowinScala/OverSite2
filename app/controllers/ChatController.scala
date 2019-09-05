@@ -85,6 +85,11 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
       }
   }
 
+  def deleteChat(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.deleteChat(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
+  }
+
 }
 
 //region Old

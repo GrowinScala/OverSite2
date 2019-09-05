@@ -782,4 +782,88 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
       chatsRep.getEmail(chatId, emailIdOfAnotherChat, authorizedUserId).map(chat => chat mustBe None)
     }
   }
+
+  "SlickChatsRepository#deleteChat" should {
+    val chatsRep = new SlickChatsRepository(db)
+    val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
+    val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
+
+    "definitely delete a chat from trash" in {
+      for {
+        moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
+        deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
+
+        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+      } yield inside(optionUserChat) {
+        case Some(userChat) =>
+          assert(
+            moveChatToTrash &&
+              deleteDefinitely &&
+              userChat.inbox === 0 &&
+              userChat.sent === 0 &&
+              userChat.draft === 0 &&
+              userChat.trash === 0)
+      }
+    }
+
+    "not definitely delete a chat if it is not in trash" in {
+      for {
+        chatBeforeDeleteTry <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+        deleteTry <- chatsRep.deleteChat(validChatId, userId)
+        chatAfterDeleteTry <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+      } yield assert(
+        !deleteTry &&
+          chatBeforeDeleteTry.value.inbox === chatAfterDeleteTry.value.inbox &&
+          chatBeforeDeleteTry.value.sent === chatAfterDeleteTry.value.sent &&
+          chatBeforeDeleteTry.value.draft === chatAfterDeleteTry.value.draft &&
+          chatBeforeDeleteTry.value.trash === chatAfterDeleteTry.value.trash)
+    }
+
+    "return false if the user already definitely deleted the chat" in {
+      for {
+        moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
+        deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
+
+        deleteDefinitelySecondTry <- chatsRep.deleteChat(validChatId, userId)
+
+        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+      } yield inside(optionUserChat) {
+        case Some(userChat) =>
+          assert(
+            moveChatToTrash &&
+              deleteDefinitely &&
+              !deleteDefinitelySecondTry &&
+              userChat.inbox === 0 &&
+              userChat.sent === 0 &&
+              userChat.draft === 0 &&
+              userChat.trash === 0)
+      }
+    }
+
+    "return false if the user does not have that chat" in {
+      val notAllowedUserId = "261c9094-6261-4704-bfd0-02821c235eff"
+      chatsRep.deleteChat(validChatId, notAllowedUserId)
+        .map(deleteDefinitelyTry => assert(!deleteDefinitelyTry))
+    }
+
+    "still allow the user's chat overseers to see the chat" in {
+      for {
+        overseerUserIds <- db.run(chatsRep.getUserChatOverseersAction(userId, validChatId))
+        overseerUserId = overseerUserIds.headOption
+        overseerUserChatBefore <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId.value).result.headOption)
+
+        moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
+        deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
+
+        overseerUserChatAfter <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId.value).result.headOption)
+      } yield assert(
+        moveChatToTrash &&
+          deleteDefinitely &&
+          overseerUserChatBefore.value.inbox === overseerUserChatAfter.value.inbox &&
+          overseerUserChatBefore.value.sent === overseerUserChatAfter.value.sent &&
+          overseerUserChatBefore.value.draft === overseerUserChatAfter.value.draft &&
+          overseerUserChatBefore.value.trash === overseerUserChatAfter.value.trash)
+    }
+  }
+
 }

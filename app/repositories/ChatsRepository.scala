@@ -20,5 +20,7 @@ trait ChatsRepository {
 
   def moveChatToTrash(chatId: String, userId: String): Future[Boolean]
 
+  def deleteChat(chatId: String, userId: String): Future[Boolean]
+
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]]
 }

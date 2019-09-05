@@ -165,4 +165,25 @@ class ChatServiceSpec extends AsyncWordSpec with OptionValues with AsyncIdiomati
     }
   }
 
+  "ChatService#deleteChat" should {
+    "return true if the ChatsRepository returns true" in {
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.deleteChat(*, *)
+        .returns(Future.successful(true))
+
+      val chatServiceImpl = new ChatService(mockChatsRep)
+      val moveChatToTrashService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      moveChatToTrashService.map(_ mustBe true)
+    }
+    "return false if the ChatsRepository returns false" in {
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.deleteChat(*, *)
+        .returns(Future.successful(false))
+
+      val chatServiceImpl = new ChatService(mockChatsRep)
+      val moveChatToTrashService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      moveChatToTrashService.map(_ mustBe false)
+    }
+  }
+
 }
