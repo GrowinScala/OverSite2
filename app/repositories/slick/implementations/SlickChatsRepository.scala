@@ -360,7 +360,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       updateUserChat <- UserChatsTable.decrementDrafts(userId, chatId)
 
-      numberOfDeletedRows = deleteEmailAddresses + deleteAttachments + deleteEmail //+ updateUserChat
+      numberOfDeletedRows = deleteEmailAddresses + deleteAttachments + deleteEmail
     } yield numberOfDeletedRows > 0
   }
 

@@ -866,4 +866,18 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
     }
   }
 
+  "SlickChatsRepository#deleteDraft" should {
+    val chatsRep = new SlickChatsRepository(db)
+    val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
+    val validChatId = "825ee397-f36e-4023-951e-89d6e43a8e7d"
+    val validEmailId = "fe4ff891-144a-4f61-af35-6d4a5ec76314"
+
+    "delete a draft (email addresses, attachments, email) if the user requesting it is the draft's owner" in {
+      for {
+        deleteDraft <- chatsRep.deleteDraft(validChatId, validEmailId, userId)
+        getEmail <- chatsRep.getEmail(validChatId, validEmailId, userId)
+      } yield assert(deleteDraft && getEmail.isEmpty)
+    }
+  }
+
 }
