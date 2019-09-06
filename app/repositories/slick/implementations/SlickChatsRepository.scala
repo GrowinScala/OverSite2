@@ -447,7 +447,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     if (addresses.nonEmpty) {
       for {
         updateReceiversChats <- updateReceiversUserChatsToInbox(chatId, addresses)
-        updateEmailStatus <- EmailsTable.all.filter(_.emailId === emailId).map(_.sent).update(1)
+        updateEmailStatus <- EmailsTable.all
+          .filter(_.emailId === emailId).map(emailRow => (emailRow.date, emailRow.sent)).update(DateUtils.getCurrentDate, 1)
         updateSenderChat <- UserChatsTable.userEmailWasSent(senderUserId, chatId)
       } yield updateReceiversChats.sum + updateEmailStatus + updateSenderChat
     } else DBIO.successful(0)
