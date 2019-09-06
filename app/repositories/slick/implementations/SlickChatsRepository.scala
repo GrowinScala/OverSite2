@@ -322,8 +322,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private[implementations] def deleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
-      contidion <- verifyConditionsToDeleteDraft(chatId, emailId, userId)
-    } yield contidion
+      condition <- verifyConditionsToDeleteDraft(chatId, emailId, userId)
+
+      deleted <- if (condition) deleteDraftRowsAction(chatId, emailId, userId)
+      else DBIO.successful(false)
+    } yield deleted
   }
 
   def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean] = {
@@ -331,20 +334,40 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
 /*** Auxiliary methods ***/
-  private def verifyConditionsToDeleteDraft(chatId: String, emailId: String, userId: String) = {
-    val userChatQuery = UserChatsTable.all
+
+  private def getDraftsUserChat(userId: String, chatId: String) =
+    UserChatsTable.all
       .filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === chatId && userChatRow.draft > 0)
-    val draftEmailQuery = EmailsTable.all
+
+  private def getDraftEmailQuery(chatId: String, emailId: String) =
+    EmailsTable.all
       .filter(emailRow => emailRow.chatId === chatId && emailRow.emailId === emailId && emailRow.sent === 0)
-    val emailAddressesQuery = EmailAddressesTable.all
+
+  private def getEmailAddressesQuery(chatId: String, emailId: String) =
+    EmailAddressesTable.all
       .filter(emailAddressRow => emailAddressRow.chatId === chatId && emailAddressRow.emailId === emailId)
 
+  private def deleteDraftRowsAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
-      optionUserChat <- userChatQuery.result.headOption
-      optionDraft <- draftEmailQuery.result.headOption
+      deleteEmailAddresses <- getEmailAddressesQuery(chatId, emailId).delete
+
+      deleteEmail <- getDraftEmailQuery(chatId, emailId).delete
+
+      updateUserChat <- UserChatsTable.decrementDrafts(userId, chatId)
+
+      numberOfDeletedRows = deleteEmailAddresses + deleteEmail //+ updateUserChat
+    } yield numberOfDeletedRows > 0
+  }
+
+  private def verifyConditionsToDeleteDraft(chatId: String, emailId: String, userId: String) = {
+    for {
+      optionUserChat <- getDraftsUserChat(userId, chatId).result.headOption
+      optionDraft <- getDraftEmailQuery(chatId, emailId).result.headOption
+
+      fromAddressIdQuery = getEmailAddressesQuery(chatId, emailId).filter(_.participantType === "from").map(_.addressId)
+
       optionFromUserId <- UsersTable.all
-        .filter(userRow => userRow.addressId.in(emailAddressesQuery.filter(_.participantType === "from").map(_.addressId)) &&
-          userRow.userId === userId)
+        .filter(userRow => userRow.addressId.in(fromAddressIdQuery) && userRow.userId === userId)
         .result.headOption
 
       condition = List(optionUserChat, optionDraft, optionFromUserId).forall(_.isDefined)
