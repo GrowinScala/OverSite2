@@ -322,9 +322,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private[implementations] def deleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
-      condition <- verifyConditionsToDeleteDraftAction(chatId, emailId, userId)
+      allowedToDeleteDraft <- verifyConditionsToDeleteDraftAction(chatId, emailId, userId)
 
-      deleted <- if (condition) deleteDraftRowsAction(chatId, emailId, userId).transactionally
+      deleted <- if (allowedToDeleteDraft) deleteDraftRowsAction(chatId, emailId, userId).transactionally
       else DBIO.successful(false)
     } yield deleted
   }
@@ -730,7 +730,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     (for {
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
       _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId &&
-        (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft === 1 || userChatRow.trash === 1))
+        (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft >= 1 || userChatRow.trash === 1))
       addressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
     } yield (chatId, subject, address)).result.headOption
