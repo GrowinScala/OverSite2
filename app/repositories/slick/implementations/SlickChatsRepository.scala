@@ -322,9 +322,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private[implementations] def deleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
-      condition <- verifyConditionsToDeleteDraft(chatId, emailId, userId)
+      condition <- verifyConditionsToDeleteDraftAction(chatId, emailId, userId)
 
-      deleted <- if (condition) deleteDraftRowsAction(chatId, emailId, userId)
+      deleted <- if (condition) deleteDraftRowsAction(chatId, emailId, userId).transactionally
       else DBIO.successful(false)
     } yield deleted
   }
@@ -347,19 +347,24 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     EmailAddressesTable.all
       .filter(emailAddressRow => emailAddressRow.chatId === chatId && emailAddressRow.emailId === emailId)
 
+  private def getEmailAttachmentsQuery(emailId: String) =
+    AttachmentsTable.all.filter(_.emailId === emailId)
+
   private def deleteDraftRowsAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
       deleteEmailAddresses <- getEmailAddressesQuery(chatId, emailId).delete
+
+      deleteAttachments <- getEmailAttachmentsQuery(emailId).delete
 
       deleteEmail <- getDraftEmailQuery(chatId, emailId).delete
 
       updateUserChat <- UserChatsTable.decrementDrafts(userId, chatId)
 
-      numberOfDeletedRows = deleteEmailAddresses + deleteEmail //+ updateUserChat
+      numberOfDeletedRows = deleteEmailAddresses + deleteAttachments + deleteEmail //+ updateUserChat
     } yield numberOfDeletedRows > 0
   }
 
-  private def verifyConditionsToDeleteDraft(chatId: String, emailId: String, userId: String) = {
+  private def verifyConditionsToDeleteDraftAction(chatId: String, emailId: String, userId: String) = {
     for {
       optionUserChat <- getDraftsUserChat(userId, chatId).result.headOption
       optionDraft <- getDraftEmailQuery(chatId, emailId).result.headOption
