@@ -102,16 +102,33 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private[implementations] def getChatsPreviewAction(mailbox: Mailbox, userId: String) = {
 
     println("THIS IS THE USER GOING TO THE GETCHATSPREVIEW ALONG WITH THE MAILBOX", userId, mailbox)
+    println("\n")
+    println("THIS IS THE CHATS_TABLE BEFORE THE GETCHATSPREVIEW", Await.result(db.run(ChatsTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE CHATS_TABLE")
+    println("\n")
     println("THIS IS THE USER_CHATS_TABLE BEFORE THE GETCHATSPREVIEW", Await.result(db.run(UserChatsTable.all.result), Duration.Inf),
       "THIS IS THE END OF THE USER_CHATS_TABLE")
+    println("\n")
     println("THIS IS THE EMAIL_ADDRESS_TABLE", Await.result(db.run(EmailAddressesTable.all.result), Duration.Inf),
       "THIS IS THE END OF THE EMAIL_ADDRESS_TABLE")
+    println("\n")
     println("THIS IS THE ADDRESS_TABLE", Await.result(db.run(AddressesTable.all.result), Duration.Inf),
       "THIS IS THE END OF THE ADDRESS_TABLE")
+    println("\n")
     println("THIS IS THE EMAILS_TABLE", Await.result(db.run(EmailsTable.all.sortBy(_.chatId).result), Duration.Inf),
-      "THIS IS THE END OF THE EMAIL_ADDRESS_TABLE")
+      "THIS IS THE END OF THE EMAILS_TABLE")
+    println("\n")
+    println("THIS IS THE USERS_TABLE", Await.result(db.run(UsersTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE USERS_TABLE")
+    println("\n")
 
     val visibleEmailsQuery = getVisibleEmailsQuery(userId, Some(mailbox))
+
+    println(
+      "THIS IS THE RESULT OF THE VISIBLE_EMAILS_QUERY",
+      Await.result(db.run(visibleEmailsQuery.result), Duration.Inf),
+      "THIS IS THE END OF THE VISIBLE_EMAILS_QUERY")
+    println("\n")
 
     val groupedQuery = visibleEmailsQuery
       .map { case (chatId, emailId, body, date, sent) => (chatId, date) }
@@ -129,6 +146,12 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .groupBy(_._1)
       .map { case (chatId, emailId) => (chatId, emailId.map(_._2).min) }
 
+    println(
+      "THIS IS THE RESULT OF THE GROUPED_QUERY",
+      Await.result(db.run(groupedQuery.result), Duration.Inf),
+      "THIS IS THE END OF THE GROUPED_QUERY")
+    println("\n")
+
     val chatPreviewQuery = for {
       (chatId, emailId) <- groupedQuery
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
@@ -140,9 +163,15 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .map(_.addressId)
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
 
-      if emailId in visibleEmailsQuery.map(_._2)
+      if emailId in visibleEmailsQuery.map { case (_, visibleEmailId, _, _, _) => visibleEmailId }
 
     } yield (chatId, subject, address, date, body)
+
+    println(
+      "THIS IS THE RESULT OF THE CHAT_PREVIEW_QUERY",
+      Await.result(db.run(chatPreviewQuery.result), Duration.Inf),
+      "THIS IS THE END OF THE CHAT_PREVIEW_QUERY")
+    println("\n")
 
     chatPreviewQuery
       .sortBy(chatpreview => (chatpreview._4.desc, chatpreview._5.asc, chatpreview._3.asc))

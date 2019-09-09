@@ -1,17 +1,19 @@
 package utils
 
 import model.dtos._
-import model.types.{Mailbox, ParticipantType}
-import model.types.ParticipantType.{Bcc, Cc, From, To}
+import model.types.{ Mailbox, ParticipantType }
+import model.types.ParticipantType.{ Bcc, Cc, From, To }
 import org.scalacheck.Gen
 import play.api.libs.json._
 import repositories.dtos.ChatPreview
-import repositories.slick.implementations.{EmailViewerData, UserInfo}
+import repositories.slick.implementations.{ EmailViewerData, ParticipantsAddressRows, UserInfo }
+import repositories.slick.mappings._
 import utils.DateUtils._
 
 object TestGenerators {
 
   val genBoolean: Gen[Boolean] = Gen.oneOf(true, false)
+  val genBinary: Gen[Int] = Gen.oneOf(1, 0)
 
   val genUUID: Gen[String] = Gen.uuid.map(_.toString)
 
@@ -136,7 +138,7 @@ object TestGenerators {
       body <- genString
       sent <- genBoolean
     } yield UpsertEmailDTO(None, Some(from), Some(to), Some(bcc), Some(cc), Some(body), None, Some(sent))
-  
+
   val genUpsertEmailDTO: Gen[UpsertEmailDTO] =
     for {
       emailId <- genUUID
@@ -162,7 +164,7 @@ object TestGenerators {
       subject <- genString
       email <- genUpsertEmailDTOPost
     } yield CreateChatDTO(None, Some(subject), email)
-  
+
   val genCreateChatDTO: Gen[CreateChatDTO] =
     for {
       chatId <- genUUID
@@ -174,42 +176,89 @@ object TestGenerators {
     Gen.oneOf(Some("from"), Some("to"))
       .map(_.flatMap(str => ParticipantType(str)))
 
-  val genParticipantType: Gen[Option[ParticipantType]] =
+  val genParticipantTypeOLD: Gen[Option[ParticipantType]] =
     Gen.oneOf(Some("from"), Some("to"), Some("cc"), Some("bcc"), None)
       .map(_.flatMap(str => ParticipantType(str)))
+
+  val genParticipantType: Gen[Option[String]] =
+    Gen.oneOf(Some("from"), Some("to"), Some("cc"), Some("bcc"), None)
 
   val genUserInfo: Gen[UserInfo] =
     for {
       userId <- genUUID
       userAddress <- genEmailAddress
-    } yield UserInfo(userId,  userAddress)
-  
+    } yield UserInfo(userId, userAddress)
+
   def genEmailViewerData(viewerAddress: String): Gen[EmailViewerData] =
     for {
-      participantType <- genParticipantType
+      participantType <- genParticipantTypeOLD
       sent <- genBoolean
       senderInfo <- genUserInfo
       upsertEmailDTO <- genUpsertEmailDTO
     } yield participantType match {
       case Some(From) => EmailViewerData(upsertEmailDTO.copy(from = Some(viewerAddress)), participantType,
         sent, senderInfo.address, visible = true)
-        
+
       case Some(To) => EmailViewerData(
         upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerAddress)),
         participantType, sent, senderInfo.address, sent)
-  
+
       case Some(Cc) => EmailViewerData(
         upsertEmailDTO.copy(cc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerAddress)),
         participantType, sent, senderInfo.address, sent)
-  
+
       case Some(Bcc) => EmailViewerData(
         upsertEmailDTO.copy(cc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerAddress)),
         participantType, sent, senderInfo.address, sent)
-  
+
       case None => EmailViewerData(upsertEmailDTO, participantType, sent, senderInfo.address, visible = false)
     }
-  
+
   def genEmailList(viewerAddress: String): Gen[List[EmailViewerData]] =
-    genList(1,10,genEmailViewerData(viewerAddress))
-  
+    genList(1, 10, genEmailViewerData(viewerAddress))
+
+  val genAddressRow: Gen[AddressRow] =
+    for {
+      addressId <- genUUID
+      address <- genEmailAddress
+    } yield AddressRow(addressId, address)
+
+  val genChatRow: Gen[ChatRow] =
+    for {
+      chatId <- genUUID
+      subject <- genString
+    } yield ChatRow(chatId, subject)
+
+  def genUserRow(addressId: String): Gen[UserRow] =
+    for {
+      userId <- genUUID
+      firstName <- genString
+      lastName <- genString
+    } yield UserRow(userId, addressId, firstName, lastName)
+
+  def genEmailRow(chatId: String): Gen[EmailRow] =
+    for {
+      emailId <- genUUID
+      body <- genString
+      date = getCurrentDate
+      sent <- genBinary
+    } yield EmailRow(emailId, chatId, body, date, sent)
+
+  def genEmailAddressRow(emailId: String, chatId: String, addressId: String, participantType: String): Gen[EmailAddressRow] =
+    for {
+      emailAddressId <- genUUID
+    } yield EmailAddressRow(emailAddressId, emailId, chatId, addressId, participantType)
+
+  def genUserChatRow(userId: String, chatId: String): Gen[UserChatRow] =
+    for {
+      userChatId <- genUUID
+    } yield UserChatRow(userChatId, userId, chatId, 0, 0, 0, 0)
+
+  def genParticipantsAddressRows: Gen[ParticipantsAddressRows] =
+    for {
+      from <- genAddressRow
+      to <- genList(1, 4, genAddressRow)
+      cc <- genList(0, 1, genAddressRow)
+      bcc <- genList(0, 1, genAddressRow)
+    } yield ParticipantsAddressRows(from, to, cc, bcc)
 }
