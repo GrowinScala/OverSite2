@@ -1,6 +1,8 @@
 package utils
 
 import model.dtos._
+import model.types.ParticipantType
+import model.types.ParticipantType._
 import org.scalacheck.Gen
 import play.api.libs.json._
 import repositories.slick.implementations.ParticipantsAddressRows
@@ -123,12 +125,12 @@ object TestGenerators {
       email <- genUpsertEmailDTOption
     } yield CreateChatDTO(chatId, subject, email)
 
-  val genParticipantTypeTest6: Gen[Option[String]] =
-    Gen.oneOf(Some("from"), Some("to"), Some("cc"), Some("bcc"), None)
-	
-	val genParticipantType: Gen[Option[String]] =
-		Gen.oneOf(Some("from"), Some("to"), Some("cc"), Some("bcc"), Some("overseer"), None)
-	
+  val genSimpleParticipantType: Gen[Option[ParticipantType]] =
+    Gen.oneOf(Some(From), Some(To), Some(Cc), Some(Bcc), None)
+
+  val genParticipantType: Gen[Option[ParticipantType]] =
+    Gen.oneOf(Some(From), Some(To), Some(Cc), Some(Bcc), Some(Overseer), None)
+
   val genAddressRow: Gen[AddressRow] =
     for {
       addressId <- genUUID
@@ -173,4 +175,10 @@ object TestGenerators {
       cc <- genList(0, 1, genAddressRow)
       bcc <- genList(0, 1, genAddressRow)
     } yield ParticipantsAddressRows(from, to, cc, bcc)
+
+  def genOversightRow(chatId: String, overseerId: String, overseeId: String): Gen[OversightRow] =
+    for {
+      oversightId <- genUUID
+    } yield OversightRow(oversightId, chatId, overseerId, overseeId)
+
 }

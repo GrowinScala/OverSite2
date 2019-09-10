@@ -705,7 +705,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .map {
         case (_, emailId, body, date, sent) => (emailId, body, date, sent)
       }
-  
 
   /**
    * Method that, given the emailIds of the emails that the a user can see, for each participant of an email,

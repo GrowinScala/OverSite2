@@ -12,11 +12,14 @@ object ParticipantType {
 
   case object Bcc extends ParticipantType("bcc")
 
+  case object Overseer extends ParticipantType("overseer")
+
   def apply(s: String): Option[ParticipantType] = s.toLowerCase match {
     case From.value => Some(From)
     case To.value => Some(To)
     case Cc.value => Some(Cc)
     case Bcc.value => Some(Bcc)
+    case Overseer.value => Some(Overseer)
     case _ => None
 
   }
