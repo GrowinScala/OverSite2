@@ -374,10 +374,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       optionFromUserId <- UsersTable.all
         .filter(userRow => userRow.addressId.in(fromAddressIdQuery) && userRow.userId === userId)
         .result.headOption
-
-      condition = List(optionUserChat, optionDraft, optionFromUserId).forall(_.isDefined)
-
-    } yield condition
+    } yield List(optionUserChat, optionDraft, optionFromUserId).forall(_.isDefined)
   }
 
   /**
@@ -445,12 +442,12 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    */
   private def sendEmailAction(senderUserId: String, chatId: String, emailId: String, addresses: Set[String]): DBIO[Int] = {
     if (addresses.nonEmpty) {
-      for {
+      (for {
         updateReceiversChats <- updateReceiversUserChatsToInbox(chatId, addresses)
         updateEmailStatus <- EmailsTable.all
           .filter(_.emailId === emailId).map(emailRow => (emailRow.date, emailRow.sent)).update(DateUtils.getCurrentDate, 1)
         updateSenderChat <- UserChatsTable.userEmailWasSent(senderUserId, chatId)
-      } yield updateReceiversChats.sum + updateEmailStatus + updateSenderChat
+      } yield updateReceiversChats.sum + updateEmailStatus + updateSenderChat).transactionally
     } else DBIO.successful(0)
   }
 
