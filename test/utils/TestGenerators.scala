@@ -1,12 +1,9 @@
 package utils
 
 import model.dtos._
-import model.types.{ Mailbox, ParticipantType }
-import model.types.ParticipantType.{ Bcc, Cc, From, To }
 import org.scalacheck.Gen
 import play.api.libs.json._
-import repositories.dtos.ChatPreview
-import repositories.slick.implementations.{ EmailViewerData, ParticipantsAddressRows, UserInfo }
+import repositories.slick.implementations.ParticipantsAddressRows
 import repositories.slick.mappings._
 import utils.DateUtils._
 
@@ -22,12 +19,6 @@ object TestGenerators {
       stringSize <- Gen.choose(1, 7)
       charList <- Gen.listOfN(stringSize, Gen.alphaChar)
     } yield charList.mkString
-
-  def genListOfT[T](f: Unit => T): Gen[List[T]] =
-    for {
-      listSize <- Gen.choose(1, 10)
-      list <- Gen.listOfN(listSize, Gen.const(f))
-    } yield list.map(_.apply(()))
 
   val genEmailAddress: Gen[String] =
     for {
@@ -93,10 +84,6 @@ object TestGenerators {
       attachments <- genList(0, 1, genString).map(_.toSet)
     } yield EmailDTO(emailId, from, to, bcc, cc, body, date, sent, attachments)
 
-  def getaddresses(emails: Seq[EmailDTO]): Set[String] =
-    emails.foldLeft(Set.empty[String])((set, emailDTO) =>
-      set + emailDTO.from ++ emailDTO.to ++ emailDTO.bcc ++ emailDTO.cc)
-
   val genOverseersDTO: Gen[OverseersDTO] =
     for {
       user <- genEmailAddress
@@ -129,29 +116,6 @@ object TestGenerators {
       sent <- Gen.option(genBoolean)
     } yield UpsertEmailDTO(emailId, Some(from), to, bcc, cc, body, date, sent)
 
-  val genUpsertEmailDTOPost: Gen[UpsertEmailDTO] =
-    for {
-      from <- genEmailAddress
-      to <- genList(1, 4, genEmailAddress).map(_.toSet)
-      bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
-      cc <- genList(0, 1, genEmailAddress).map(_.toSet)
-      body <- genString
-      sent <- genBoolean
-    } yield UpsertEmailDTO(None, Some(from), Some(to), Some(bcc), Some(cc), Some(body), None, Some(sent))
-
-  val genUpsertEmailDTO: Gen[UpsertEmailDTO] =
-    for {
-      emailId <- genUUID
-      from <- genEmailAddress
-      to <- genList(1, 4, genEmailAddress).map(_.toSet)
-      bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
-      cc <- genList(0, 1, genEmailAddress).map(_.toSet)
-      body <- genString
-      date = getCurrentDate
-      sent <- genBoolean
-    } yield UpsertEmailDTO(Some(emailId), Some(from), Some(to), Some(bcc), Some(cc),
-      Some(body), Some(date), Some(sent))
-
   val genCreateChatDTOption: Gen[CreateChatDTO] =
     for {
       chatId <- Gen.option(genUUID)
@@ -159,64 +123,12 @@ object TestGenerators {
       email <- genUpsertEmailDTOption
     } yield CreateChatDTO(chatId, subject, email)
 
-  val genCreateChatDTOPost: Gen[CreateChatDTO] =
-    for {
-      subject <- genString
-      email <- genUpsertEmailDTOPost
-    } yield CreateChatDTO(None, Some(subject), email)
-
-  val genCreateChatDTO: Gen[CreateChatDTO] =
-    for {
-      chatId <- genUUID
-      subject <- genString
-      email <- genUpsertEmailDTO
-    } yield CreateChatDTO(Some(chatId), Some(subject), email)
-
-  val genParticipantTypeTest3: Gen[Option[ParticipantType]] =
-    Gen.oneOf(Some("from"), Some("to"))
-      .map(_.flatMap(str => ParticipantType(str)))
-
-  val genParticipantTypeOLD: Gen[Option[ParticipantType]] =
+  val genParticipantTypeTest6: Gen[Option[String]] =
     Gen.oneOf(Some("from"), Some("to"), Some("cc"), Some("bcc"), None)
-      .map(_.flatMap(str => ParticipantType(str)))
-
-  val genParticipantType: Gen[Option[String]] =
-    Gen.oneOf(Some("from"), Some("to"), Some("cc"), Some("bcc"), None)
-
-  val genUserInfo: Gen[UserInfo] =
-    for {
-      userId <- genUUID
-      userAddress <- genEmailAddress
-    } yield UserInfo(userId, userAddress)
-
-  def genEmailViewerData(viewerAddress: String): Gen[EmailViewerData] =
-    for {
-      participantType <- genParticipantTypeOLD
-      sent <- genBoolean
-      senderInfo <- genUserInfo
-      upsertEmailDTO <- genUpsertEmailDTO
-    } yield participantType match {
-      case Some(From) => EmailViewerData(upsertEmailDTO.copy(from = Some(viewerAddress)), participantType,
-        sent, senderInfo.address, visible = true)
-
-      case Some(To) => EmailViewerData(
-        upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerAddress)),
-        participantType, sent, senderInfo.address, sent)
-
-      case Some(Cc) => EmailViewerData(
-        upsertEmailDTO.copy(cc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerAddress)),
-        participantType, sent, senderInfo.address, sent)
-
-      case Some(Bcc) => EmailViewerData(
-        upsertEmailDTO.copy(cc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerAddress)),
-        participantType, sent, senderInfo.address, sent)
-
-      case None => EmailViewerData(upsertEmailDTO, participantType, sent, senderInfo.address, visible = false)
-    }
-
-  def genEmailList(viewerAddress: String): Gen[List[EmailViewerData]] =
-    genList(1, 10, genEmailViewerData(viewerAddress))
-
+	
+	val genParticipantType: Gen[Option[String]] =
+		Gen.oneOf(Some("from"), Some("to"), Some("cc"), Some("bcc"), Some("overseer"), None)
+	
   val genAddressRow: Gen[AddressRow] =
     for {
       addressId <- genUUID

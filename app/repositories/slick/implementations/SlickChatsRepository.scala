@@ -80,7 +80,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * - AND if email is draft (sent = 0), only the user with the "from" address can see it
    */
   private def getVisibleEmailsQuery(userId: String, optBox: Option[Mailbox] = None) =
-    for {
+    (for {
       userAddressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
 
       (chatId, emailId, body, date, sent) <- getChatsMetadataQueryByUserId(userId, optBox).filter {
@@ -89,7 +89,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
             (sent === 1 || (participantType === "from" && addressId === userAddressId))
       }.map(filteredRow => (filteredRow._1, filteredRow._2, filteredRow._3, filteredRow._4, filteredRow._5))
 
-    } yield (chatId, emailId, body, date, sent)
+    } yield (chatId, emailId, body, date, sent)).distinct
   //endregion
 
   /**
@@ -174,7 +174,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     println("\n")
 
     chatPreviewQuery
-      .sortBy(chatpreview => (chatpreview._4.desc, chatpreview._5.asc, chatpreview._3.asc))
+      .sortBy { case (chatId, subject, address, date, body) => (date.desc, body.asc, address.asc) }
       .result
       .map(_.map(ChatPreview.tupled))
   }
@@ -699,17 +699,13 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param userId ID of the user that requested the chat
    * @return for each email, returns a tuple (emailId, body, date, sent)
    */
-  private def getEmailsQuery(chatId: String, userId: String) = {
-    val query = getVisibleEmailsQuery(userId)
+  private def getEmailsQuery(chatId: String, userId: String) =
+    getVisibleEmailsQuery(userId)
       .filter(_._1 === chatId)
       .map {
         case (_, emailId, body, date, sent) => (emailId, body, date, sent)
       }
-
-    // Because for chats where a user is participant and is also overseeing another user (or more than one),
-    // the emails would be repeated
-    query.distinct
-  }
+  
 
   /**
    * Method that, given the emailIds of the emails that the a user can see, for each participant of an email,

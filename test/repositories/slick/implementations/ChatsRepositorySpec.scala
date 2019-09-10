@@ -1,9 +1,8 @@
 package repositories.slick.implementations
 
-import model.dtos.{ CreateChatDTO, UpsertEmailDTO }
+import model.dtos.UpsertEmailDTO
 import model.types.Mailbox._
 import model.types.{ Mailbox, ParticipantType }
-import model.types.ParticipantType._
 import org.scalacheck.Gen
 import org.scalatest._
 import play.api.inject.Injector
@@ -75,280 +74,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   //region Auxiliary Methods
 
-  /**
-   * Creates a DBIOAction that generates a User and registers them into the Database
-   * @return Action that returns a UserInfo case class that contains a User's Address and UserId
-   */
-  def newUser: DBIO[UserInfo] = {
-    val userId = genUUID.sample.value
-    val userAddress = genEmailAddress.sample.value
-    val firstName = genString.sample.value
-    val lastName = genString.sample.value
-
-    val insertUser = for {
-      addressId <- chatsRep.upsertAddress(userAddress)
-      _ <- UsersTable.all += UserRow(userId, addressId, firstName, lastName)
-    } yield addressId
-
-    insertUser.map(_ => UserInfo(userAddress, userId))
-  }
-
-  def sendEmailTo(upsertEmailDTO: UpsertEmailDTO, chatId: String,
-    receiverUserChatId: String, sent: Boolean): DBIO[ChatPreview] = {
-
-    for {
-      senderInfo <- newUser
-      _ <- giveUserChatAccess(senderInfo.userId, chatId)
-      optChat <- chatsRep.postEmailAction(upsertEmailDTO, chatId, senderInfo.userId)
-
-      chatpreview <- {
-        val chat = optChat.value
-        val email = chat.email
-        (if (sent) sendDraft(email.emailId.value, receiverUserChatId, To)
-        else DBIO.successful(()))
-          .map(_ => ChatPreview(chat.chatId.value, chat.subject.value,
-            senderInfo.address, email.date.value, email.body.value))
-      }
-    } yield chatpreview
-  }
-
-  def sendDraft(emailId: String, viewerUserChatId: String, participantType: ParticipantType): DBIO[Boolean] =
-    for {
-      emailSent <- EmailsTable.all.filter(_.emailId === emailId).map(_.sent).update(1)
-      mailBoxUpdated <- participantType match {
-        case From => UserChatsTable.all.filter(_.userChatId === viewerUserChatId)
-          .map(userChatRow => (userChatRow.sent, userChatRow.draft))
-          .update((1, 0))
-        case _ => UserChatsTable.all.filter(_.userChatId === viewerUserChatId)
-          .map(_.inbox)
-          .update(1)
-      }
-    } yield mailBoxUpdated == emailSent && emailSent == 1
-
-  def insertEmailTest4(participantType: Option[ParticipantType], chatId: String, viewerInfo: UserInfo,
-    viewerUserChatId: String, sent: Boolean): DBIO[ChatPreview] = {
-    val upsertEmailDTO = genUpsertEmailDTOPost.sample.value
-
-    participantType match {
-      case Some(From) =>
-        for {
-          optChat <- chatsRep.postEmailAction(upsertEmailDTO.copy(from = Some(viewerInfo.address)), chatId,
-            viewerInfo.userId)
-          sentOptChat <- if (sent) sendDraft(optChat.value.email.emailId.value, viewerUserChatId, From)
-            .map(_ => optChat)
-          else DBIO.successful(optChat)
-
-        } yield {
-          val chat = sentOptChat.value
-          val email = chat.email
-          ChatPreview(chat.chatId.value, chat.subject.value, viewerInfo.address, email.date.value, email.body.value)
-        }
-
-      case Some(To) => sendEmailTo(
-        upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId, sent)
-
-      case Some(Cc) => sendEmailTo(
-        upsertEmailDTO.copy(cc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId, sent)
-
-      case Some(Bcc) => sendEmailTo(
-        upsertEmailDTO.copy(bcc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId, sent)
-
-      case None =>
-        for {
-          receiverInfo <- newUser
-          receiverUserChatId <- giveUserChatAccess(receiverInfo.userId, chatId)
-          chatPreview <- sendEmailTo(
-            upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + receiverInfo.address)),
-            chatId, receiverUserChatId, sent)
-        } yield chatPreview
-    }
-  }
-
-  def insertEmail(chatId: String, viewerInfo: UserInfo, viewerUserChatId: String): DBIO[Option[(ChatPreview, ParticipantType, Boolean)]] = {
-
-    val upsertEmailDTO = genUpsertEmailDTOPost.sample.value
-    val participantType = genParticipantTypeOLD.sample.value
-    val sent = genBoolean.sample.value
-
-    participantType match {
-      case Some(From) =>
-        for {
-          optChat <- chatsRep.postEmailAction(upsertEmailDTO.copy(from = Some(viewerInfo.address)), chatId, viewerInfo.userId)
-          _ <- if (sent) sendDraft(optChat.value.email.emailId.value, viewerUserChatId, From)
-          else DBIO.successful(())
-
-        } yield {
-          val chat = optChat.value
-          val email = chat.email
-          Some((
-            ChatPreview(chat.chatId.value, chat.subject.value, viewerInfo.address, email.date.value, email.body.value),
-            From, sent))
-        }
-
-      case Some(To) => sendEmailTo(
-        upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId, sent).map(chatPreview => if (sent) Some((chatPreview, To, sent))
-        else None)
-
-      case Some(Cc) => sendEmailTo(
-        upsertEmailDTO.copy(cc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId, sent).map(chatPreview => if (sent) Some((chatPreview, Cc, sent))
-        else None)
-
-      case Some(Bcc) => sendEmailTo(
-        upsertEmailDTO.copy(bcc = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + viewerInfo.address)),
-        chatId, viewerUserChatId, sent).map(chatPreview => if (sent) Some((chatPreview, Bcc, sent))
-        else None)
-
-      case None =>
-        for {
-          receiverInfo <- newUser
-          receiverUserChatId <- giveUserChatAccess(receiverInfo.userId, chatId)
-          chatPreview <- sendEmailTo(
-            upsertEmailDTO.copy(to = Some(upsertEmailDTO.to.getOrElse(Set.empty[String]) + receiverInfo.address)),
-            chatId, receiverUserChatId, sent)
-        } yield None
-    }
-  }
-
-  /**
-   * Builds a DBIOAction that checks if a given user has access to a given chat.
-   * If not, gives the user access by creating a row on the UserChatTable with all the Mailboxes turned to 0
-   * and returns the Id of said row.
-   * Otherwise returns the Id of the already existing row.
-   * @param userId The Id of the user
-   * @param chatId The Id of the chat
-   * @return A DBIOAction containing the Id of the UserChat Row
-   */
-  def giveUserChatAccess(userId: String, chatId: String): DBIO[String] =
-    UserChatsTable.all.filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === chatId)
-      .map(_.userChatId).result.headOption.flatMap {
-        case Some(userChatId) => DBIO.successful(userChatId)
-        case None =>
-          val newUserChatId = genUUID.sample.value
-          UserChatsTable.all.+=(UserChatRow(newUserChatId, userId, chatId, 0, 0, 0, 0))
-            .andThen(DBIO.successful(newUserChatId))
-      }
-
   def participantIsReceiving(participantType: Option[String]): Boolean =
     participantType.contains("to") ||
       participantType.contains("cc") ||
       participantType.contains("bcc")
-
-  def participantIsReceivingOLD(participantType: ParticipantType): Boolean =
-    participantType == To ||
-      participantType == Cc ||
-      participantType == Bcc
-
-  /**
-   * Receives the Id of the viewer and creates a DBIOAction that creates a new Chat in the DB and
-   * gives the viewer access to it by creating a UserCHat row.
-   * Returns a CreateChatDTO and the Id of the viewer's UserChat row.
-   * Note that another User is also created in order to make the opening email of the chat.
-   * @param viewerId The Id of the viewer
-   * @return A DBIOAction that returns a tuple of the chat's CreateChatDTO and the viewer's UserChat row
-   */
-  def newChat(viewerId: String): DBIO[(CreateChatDTO, String)] = {
-    for {
-      userInfo <- newUser
-      createChatDTO = genCreateChatDTOPost.sample.value
-      newChat <- chatsRep.postChatAction(createChatDTO, userInfo.userId)
-      userChatId <- giveUserChatAccess(viewerId, newChat.chatId.value)
-    } yield (newChat, userChatId)
-  }
-
-  def visibleToMailbox(participantType: ParticipantType, sent: Boolean, mailbox: Mailbox): Boolean =
-    mailbox match {
-      case Inbox => participantIsReceivingOLD(participantType) && sent
-      case Sent => participantType == From && sent
-      case Drafts => participantType == From && !sent
-      case Trash => participantIsReceivingOLD(participantType) && sent || participantType == From
-    }
-
-  /* def fillChatNOTDEBUG(chatId: String, viewerInfo: UserInfo, viewerUserChatId: String, mailbox: Mailbox):
-   Future[Option[ChatPreview]] =
-    Future.sequence(
-      genListOfT(_ => insertEmail(chatId, viewerInfo, viewerUserChatId)).sample.value)
-      .map(_.filter { case (chatPreview, participantType, sent) => visibleToMailbox(participantType, sent, mailbox) }
-        .map(_._1)
-        .sortBy(chatpreview => (chatpreview.lastEmailDate, chatpreview.contentPreview, chatpreview.lastAddress))
-        .headOption)*/
-
-  def fillChatOLD(chatId: String, viewerInfo: UserInfo, viewerUserChatId: String, mailbox: Mailbox): DBIO[Option[ChatPreview]] = {
-    val emaiList = DBIO.sequence(
-      genListOfT(_ => insertEmail(chatId, viewerInfo, viewerUserChatId)).sample.value)
-      .map(_
-        .flatten.sortBy {
-          case (chatPreview, _, _) => (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress)
-        })
-
-    val chatIsVisible: DBIO[Boolean] = emaiList.map(_.foldLeft(false) {
-      case (agg, (chatPreview, participantType, sent)) => agg || visibleToMailbox(participantType, sent, mailbox)
-    })
-
-    chatIsVisible.flatMap(
-      if (_) emaiList.map(_.headOption.map(_._1))
-      else DBIO.successful(None))
-  }
-
-  /*  def makeChatsNOTDEBUG(viewerInfo: UserInfo, mailbox: Mailbox): Future[List[ChatPreview]] =
-    Future.sequence(
-      genListOfT(_ => newChat(viewerInfo.userId)).sample.value
-        .map(futureOfCreateChat => for {
-          (createChatDTO, viewerUserChatId) <- futureOfCreateChat
-          optChatPreview <- fillChat(createChatDTO.chatId.value, viewerInfo, viewerUserChatId, mailbox)
-          optDeletedChatPreview <- optChatPreview match {
-            case Some(chatPreview) =>
-              val delete = genBoolean.sample.get
-
-              if (delete) chatsRep.moveChatToTrash(chatPreview.chatId, viewerInfo.userId).map(_ =>
-                mailbox match {
-                  case Trash => Some(chatPreview)
-                  case _ => None
-                })
-              else Future.successful(mailbox match {
-                case Trash => None
-                case _ => Some(chatPreview)
-              })
-
-            case None => Future.successful(None)
-          }
-
-        } yield optDeletedChatPreview)).map(_.flatten)*/
-
-  /*  def makeChats(viewerInfo: UserInfo, mailbox: Mailbox): Future[List[ChatPreview]] =
-    Future.sequence(
-      {
-        val a = genListOfT(_ => newChat(viewerInfo.userId)).sample.value
-        println(
-          "THIS IS THE GENERATED LIST OF CHATS",
-          Await.result(Future.sequence(a), Duration.Inf))
-        a
-      }
-        .map(futureOfCreateChat => for {
-          (createChatDTO, viewerUserChatId) <- futureOfCreateChat
-          optChatPreview <- fillChat(createChatDTO.chatId.value, viewerInfo, viewerUserChatId, mailbox)
-          optDeletedChatPreview <- optChatPreview match {
-            case Some(chatPreview) =>
-              val delete = genBoolean.sample.get
-
-              if (delete) chatsRep.moveChatToTrash(chatPreview.chatId, viewerInfo.userId).map(_ =>
-                mailbox match {
-                  case Trash => Some(chatPreview)
-                  case _ => None
-                })
-              else Future.successful(mailbox match {
-                case Trash => None
-                case _ => Some(chatPreview)
-              })
-
-            case None => Future.successful(None)
-          }
-
-        } yield optDeletedChatPreview)).map(_.flatten)*/
 
   def addressRowToEmailAdressRow(emailId: String, chatId: String,
     addressRow: AddressRow, participantType: String): EmailAddressRow =
@@ -365,7 +94,105 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     participantsAddressRows.from +: participantsAddressRows.to ::: participantsAddressRows.cc :::
       participantsAddressRows.bcc
 
-  def fillChat(oldDBCreationData: DBCreationData): DBCreationData = {
+  def fillChatTest5(chatRow: ChatRow, viewerAddressRow: AddressRow, baseUserChatRow: UserChatRow): ChatCreationData = {
+    val chatSize = Gen.choose(1, 10).sample.value
+
+    @tailrec
+    def fillChatRecur(oldChatCreationData: ChatCreationData, chatSize: Int, acc: Int): ChatCreationData = {
+      if (acc == chatSize)
+        oldChatCreationData
+      else {
+        val oldUserChatRow = oldChatCreationData.userChatRow
+        val oldEmailPreview = oldChatCreationData.emailPreview
+
+        val emailRow = genEmailRow(chatRow.chatId).sample.value
+        val sent = emailRow.sent
+
+        val baseParticipantsAddressRows = genParticipantsAddressRows.sample.value
+        val viewerParticipantType = genParticipantTypeTest6.sample.value
+
+        val participantsAddressRows = viewerParticipantType match {
+          case Some("from") => baseParticipantsAddressRows.copy(from = viewerAddressRow)
+          case Some("to") => baseParticipantsAddressRows.copy(to =
+            viewerAddressRow +: baseParticipantsAddressRows.to)
+          case Some("cc") => baseParticipantsAddressRows.copy(cc =
+            viewerAddressRow +: baseParticipantsAddressRows.cc)
+          case Some("bcc") => baseParticipantsAddressRows.copy(bcc =
+            viewerAddressRow +: baseParticipantsAddressRows.bcc)
+          case None => baseParticipantsAddressRows
+          case Some(string) => fail(s""""The string "$string" does not correspont to a ParticipantType""")
+        }
+
+        val emailAddressRows = participantsToEmailAddressRows(
+          emailRow.emailId,
+          chatRow.chatId, participantsAddressRows)
+        val newAddressRows = (participantsToAddressRows(participantsAddressRows) ++ oldChatCreationData.addressRows)
+          .distinct
+
+        val newUserChatRow = (viewerParticipantType, sent) match {
+          case (Some("from"), 1) => oldUserChatRow.copy(sent = 1)
+          case (Some("from"), 0) => oldUserChatRow.copy(draft = oldUserChatRow.draft + 1)
+          case (Some(_), 1) => oldUserChatRow.copy(inbox = 1)
+          case _ => oldUserChatRow
+        }
+        val fromAddress = participantsAddressRows.from.address
+
+        val optionThisChatPreview = if ((participantIsReceiving(viewerParticipantType) && sent == 1) ||
+          viewerParticipantType.contains("from"))
+          Some(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress, emailRow.date, emailRow.body))
+        else None
+
+        val thisEmailPreview = optionThisChatPreview.map((emailRow.emailId, _))
+
+        val newEmailPreview = (oldEmailPreview, thisEmailPreview) match {
+          case (None, _) => thisEmailPreview
+          case (_, None) => oldEmailPreview
+
+          case (Some((oldEmailId, oldChatPreview)), Some((thisEmailId, thisChatPreview))) if oldChatPreview.lastEmailDate == thisChatPreview.lastEmailDate =>
+            if (oldEmailId < thisEmailId)
+              oldEmailPreview
+            else thisEmailPreview
+
+          case (Some((oldEmailId, oldChatPreview)), Some((thisEmailId, thisChatPreview))) =>
+            if (oldChatPreview.lastEmailDate > thisChatPreview.lastEmailDate)
+              oldEmailPreview
+            else thisEmailPreview
+        }
+
+        val newChatCreationData = oldChatCreationData.copy(
+          emailRows = emailRow +: oldChatCreationData.emailRows,
+          userChatRow = newUserChatRow,
+          addressRows = newAddressRows,
+          emailAddressRows = emailAddressRows ++ oldChatCreationData.emailAddressRows,
+          emailPreview = newEmailPreview)
+
+        fillChatRecur(newChatCreationData, chatSize, acc + 1)
+      }
+    }
+
+    val initChatCreationData = ChatCreationData(baseUserChatRow, List.empty[EmailRow], List.empty[AddressRow],
+      List.empty[EmailAddressRow], None)
+
+    fillChatRecur(initChatCreationData, chatSize, 0)
+  }
+
+  def updateListHead[T](list: List[T], newHead: T): List[T] =
+    list match {
+      case head +: Nil => List(newHead)
+      case head +: tail => newHead +: tail
+    }
+
+  def visibleToMailbox(userChatRow: UserChatRow, mailbox: Mailbox): Boolean = {
+    mailbox match {
+      case Inbox => userChatRow.inbox == 1
+      case Sent => userChatRow.sent == 1
+      case Drafts => userChatRow.draft == 1
+      case Trash => userChatRow.trash == 1
+    }
+
+  }
+
+  def fillChat(viewerAddressRow: AddressRow, oldDBCreationData: DBCreationData): DBCreationData = {
     val chatSize = Gen.choose(1, 10).sample.value
 
     @tailrec
@@ -373,16 +200,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       if (acc == chatSize)
         oldDBCreationData
       else {
-        val sent = genBinary.sample.value
         val chatRow = oldDBCreationData.chatRows.headOption.value
-        val oldUserChatRow = oldDBCreationData.userChatRow
+        val oldUserChatRow = oldDBCreationData.userChatRows.headOption.value
         val oldEmailPreview = oldDBCreationData.emailsPreview.headOption.value
-	      val viewerAddressRow = oldDBCreationData.viewerAddressRow
 
-        val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = sent)
+        val emailRow = genEmailRow(chatRow.chatId).sample.value
+        val sent = emailRow.sent
 
         val baseParticipantsAddressRows = genParticipantsAddressRows.sample.value
-        val viewerParticipantType = genParticipantType.sample.value
+        val viewerParticipantType = genParticipantTypeTest6.sample.value
 
         val participantsAddressRows = viewerParticipantType match {
           case Some("from") => baseParticipantsAddressRows.copy(from = viewerAddressRow)
@@ -415,14 +241,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           Some(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress, emailRow.date, emailRow.body))
         else None
 
-        val thisEmailPreview: EmailPreview = optionThisChatPreview.map((emailRow.emailId, _))
+        val thisEmailPreview = optionThisChatPreview.map((emailRow.emailId, _))
 
         val newEmailPreview = (oldEmailPreview, thisEmailPreview) match {
           case (None, _) => thisEmailPreview
           case (_, None) => oldEmailPreview
 
-          case (Some((oldEmailId, oldChatPreview)), Some((thisEmailId, thisChatPreview))) if
-          oldChatPreview.lastEmailDate == thisChatPreview.lastEmailDate =>
+          case (Some((oldEmailId, oldChatPreview)), Some((thisEmailId, thisChatPreview))) if oldChatPreview.lastEmailDate == thisChatPreview.lastEmailDate =>
             if (oldEmailId < thisEmailId)
               oldEmailPreview
             else thisEmailPreview
@@ -432,15 +257,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
               oldEmailPreview
             else thisEmailPreview
         }
-	      
-	      val newEmailsPreview = oldDBCreationData.emailsPreview match {
-		      case Nil => List(newEmailPreview)
-		      case list => newEmailPreview +: list
-	      }
+
+        val newEmailsPreview = updateListHead(oldDBCreationData.emailsPreview, newEmailPreview)
+
+        val newUserChatRows = updateListHead(oldDBCreationData.userChatRows, newUserChatRow)
 
         val newDBCreationData = oldDBCreationData.copy(
+          userChatRows = newUserChatRows,
           emailRows = emailRow +: oldDBCreationData.emailRows,
-          userChatRow = newUserChatRow,
           addressRows = newAddressRows,
           emailAddressRows = emailAddressRows ++ oldDBCreationData.emailAddressRows,
           emailsPreview = newEmailsPreview)
@@ -448,13 +272,56 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         fillChatRecur(newDBCreationData, chatSize, acc + 1)
       }
     }
-	  
+
     fillChatRecur(oldDBCreationData, chatSize, 0)
   }
-  
-  def filDB(viewerAddressRow: AddressRow, baseUserChatRow: UserChatRow) = {
+
+  def filDB(viewerAddressRow: AddressRow, viewerUserRow: UserRow, mailbox: Mailbox): DBCreationData = {
     val dbSize = Gen.choose(1, 10).sample.value
-    
+
+    @tailrec
+    def filDBRecur(oldDBCreationData: DBCreationData, dbSize: Int, acc: Int): DBCreationData = {
+      if (acc == dbSize)
+        oldDBCreationData
+      else {
+        val chatRow = genChatRow.sample.value
+        val baseUserChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        val trash = genBoolean.sample.value
+
+        val filledDBCreationData = fillChat(viewerAddressRow, oldDBCreationData
+          .copy(
+            chatRows = chatRow +: oldDBCreationData.chatRows,
+            userChatRows = baseUserChatRow +: oldDBCreationData.userChatRows,
+            emailsPreview = None +: oldDBCreationData.emailsPreview))
+
+        val trashedUserChatRow = filledDBCreationData.userChatRows.headOption.value
+          .copy(inbox = 0, sent = 0, draft = 0, trash = 1)
+
+        val trashedDBCreationData = if (trash)
+          filledDBCreationData
+            .copy(
+              userChatRows = updateListHead(
+                filledDBCreationData.userChatRows,
+                trashedUserChatRow))
+        else filledDBCreationData
+
+        val newEmailPreview = (
+          trashedDBCreationData.emailsPreview.headOption.value,
+          trashedDBCreationData.userChatRows.headOption.value) match {
+            case (Some((emailId, chatPreview)), userChatRow) if visibleToMailbox(userChatRow, mailbox) => Some((emailId, chatPreview))
+            case _ => None
+          }
+        val newDBCreationData = trashedDBCreationData
+          .copy(emailsPreview = updateListHead(trashedDBCreationData.emailsPreview, newEmailPreview))
+
+        filDBRecur(newDBCreationData, dbSize, acc + 1)
+      }
+    }
+
+    filDBRecur(
+      DBCreationData(List.empty[ChatRow], List.empty[UserChatRow], List.empty[EmailRow],
+        List.empty[AddressRow], List.empty[EmailAddressRow], List.empty[EmailPreview]),
+      dbSize, 0)
   }
 
   //endregion
@@ -566,18 +433,19 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       } yield chatsPreview mustBe expectedChatsPreview
 
     }
-
+  
+    //region  Test-4: 1 Chat, 1 Email, NOT Overseeing
     "be valid in [Test-4-A: 1 Chat, 1 Email, NOT Overseeing, Inbox]" in {
 
       val viewerAddressRow = genAddressRow.sample.value
       val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
       val chatRow = genChatRow.sample.value
-      val sent = genBinary.sample.value
-      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = sent)
+      val emailRow = genEmailRow(chatRow.chatId).sample.value
+      val sent = emailRow.sent
       val trash = genBoolean.sample.value
 
       val baseParticipantsAddressRows = genParticipantsAddressRows.sample.value
-      val viewerParticipantType = genParticipantType.sample.value
+      val viewerParticipantType = genParticipantTypeTest6.sample.value
 
       val participantsAddressRows = viewerParticipantType match {
         case Some("from") => baseParticipantsAddressRows.copy(from = viewerAddressRow)
@@ -633,12 +501,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val viewerAddressRow = genAddressRow.sample.value
       val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
       val chatRow = genChatRow.sample.value
-      val sent = genBinary.sample.value
-      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = sent)
+      val emailRow = genEmailRow(chatRow.chatId).sample.value
+      val sent = emailRow.sent
       val trash = genBoolean.sample.value
 
       val baseParticipantsAddressRows = genParticipantsAddressRows.sample.value
-      val viewerParticipantType = genParticipantType.sample.value
+      val viewerParticipantType = genParticipantTypeTest6.sample.value
 
       val participantsAddressRows = viewerParticipantType match {
         case Some("from") => baseParticipantsAddressRows.copy(from = viewerAddressRow)
@@ -695,12 +563,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val viewerAddressRow = genAddressRow.sample.value
       val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
       val chatRow = genChatRow.sample.value
-      val sent = genBinary.sample.value
-      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = sent)
+      val emailRow = genEmailRow(chatRow.chatId).sample.value
+      val sent = emailRow.sent
       val trash = genBoolean.sample.value
 
       val baseParticipantsAddressRows = genParticipantsAddressRows.sample.value
-      val viewerParticipantType = genParticipantType.sample.value
+      val viewerParticipantType = genParticipantTypeTest6.sample.value
 
       val participantsAddressRows = viewerParticipantType match {
         case Some("from") => baseParticipantsAddressRows.copy(from = viewerAddressRow)
@@ -751,18 +619,18 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       } yield chatsPreview mustBe expectedChatsPreview
 
     }
-	  
+
     "be valid in [Test-4-D: 1 Chat, 1 Email, NOT Overseeing, Trash]" in {
 
       val viewerAddressRow = genAddressRow.sample.value
       val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
       val chatRow = genChatRow.sample.value
-      val sent = genBinary.sample.value
-      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = sent)
+      val emailRow = genEmailRow(chatRow.chatId).sample.value
+      val sent = emailRow.sent
       val trash = genBoolean.sample.value
 
       val baseParticipantsAddressRows = genParticipantsAddressRows.sample.value
-      val viewerParticipantType = genParticipantType.sample.value
+      val viewerParticipantType = genParticipantTypeTest6.sample.value
 
       val participantsAddressRows = viewerParticipantType match {
         case Some("from") => baseParticipantsAddressRows.copy(from = viewerAddressRow)
@@ -814,28 +682,26 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       } yield chatsPreview mustBe expectedChatsPreview
 
     }
-
+    //endregion
+  
+    //region Test-5: 1 Chat, Many Emails, NOT Overseeing
     "be valid in [Test-5-A: 1 Chat, Many Emails, NOT Overseeing, Inbox]" in {
-	    
+
       val viewerAddressRow = genAddressRow.sample.value
       val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
       val chatRow = genChatRow.sample.value
       val baseUserChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
       val trash = genBoolean.sample.value
 
-	    
-      val dbCreationData = fillChat(DBCreationData(List(chatRow), List.empty[EmailRow], viewerAddressRow,
-	      baseUserChatRow, List.empty[AddressRow], List.empty[EmailAddressRow], List.empty[EmailPreview]))
+      val chatCreationData = fillChatTest5(chatRow, viewerAddressRow, baseUserChatRow)
 
       val trashedChatCreationData = if (trash)
-        dbCreationData
+        chatCreationData
           .copy(
-            userChatRow = dbCreationData.userChatRow.copy(inbox = 0, sent = 0, draft = 0, trash = 1),
-            emailsPreview = List.empty[EmailPreview])
-      else dbCreationData
+            userChatRow = chatCreationData.userChatRow.copy(inbox = 0, sent = 0, draft = 0, trash = 1))
+      else chatCreationData
 
-      val expectedChatsPreview = (trashedChatCreationData.emailsPreview.headOption.value,
-	      trashedChatCreationData.userChatRow) match {
+      val expectedChatsPreview = (trashedChatCreationData.emailPreview, trashedChatCreationData.userChatRow) match {
         case (Some((_, chatPreview)), userChatRow) if userChatRow.inbox == 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
@@ -865,19 +731,16 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val chatRow = genChatRow.sample.value
       val baseUserChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
       val trash = genBoolean.sample.value
-	
-	    val dbCreationData = fillChat(DBCreationData(List(chatRow), List.empty[EmailRow], viewerAddressRow,
-		    baseUserChatRow, List.empty[AddressRow], List.empty[EmailAddressRow], List.empty[EmailPreview]))
-	
-	    val trashedChatCreationData = if (trash)
-		                                  dbCreationData
-			                                  .copy(
-				                                  userChatRow = dbCreationData.userChatRow.copy(inbox = 0, sent = 0, draft = 0, trash = 1),
-				                                  emailsPreview = List.empty[EmailPreview])
-	                                  else dbCreationData
-	
-	    val expectedChatsPreview = (trashedChatCreationData.emailsPreview.headOption.value,
-		    trashedChatCreationData.userChatRow) match {
+
+      val chatCreationData = fillChatTest5(chatRow, viewerAddressRow, baseUserChatRow)
+
+      val trashedChatCreationData = if (trash)
+        chatCreationData
+          .copy(
+            userChatRow = chatCreationData.userChatRow.copy(inbox = 0, sent = 0, draft = 0, trash = 1))
+      else chatCreationData
+
+      val expectedChatsPreview = (trashedChatCreationData.emailPreview, trashedChatCreationData.userChatRow) match {
         case (Some((_, chatPreview)), userChatRow) if userChatRow.sent == 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
@@ -906,19 +769,16 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val chatRow = genChatRow.sample.value
       val baseUserChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
       val trash = genBoolean.sample.value
-	
-	    val dbCreationData = fillChat(DBCreationData(List(chatRow), List.empty[EmailRow], viewerAddressRow,
-		    baseUserChatRow, List.empty[AddressRow], List.empty[EmailAddressRow], List.empty[EmailPreview]))
-	
-	    val trashedChatCreationData = if (trash)
-		                                  dbCreationData
-			                                  .copy(
-				                                  userChatRow = dbCreationData.userChatRow.copy(inbox = 0, sent = 0, draft = 0, trash = 1),
-				                                  emailsPreview = List.empty[EmailPreview])
-	                                  else dbCreationData
-	
-	    val expectedChatsPreview = (trashedChatCreationData.emailsPreview.headOption.value,
-		    trashedChatCreationData.userChatRow) match {
+
+      val chatCreationData = fillChatTest5(chatRow, viewerAddressRow, baseUserChatRow)
+
+      val trashedChatCreationData = if (trash)
+        chatCreationData
+          .copy(
+            userChatRow = chatCreationData.userChatRow.copy(inbox = 0, sent = 0, draft = 0, trash = 1))
+      else chatCreationData
+
+      val expectedChatsPreview = (trashedChatCreationData.emailPreview, trashedChatCreationData.userChatRow) match {
         case (Some((_, chatPreview)), userChatRow) if userChatRow.draft >= 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
@@ -947,21 +807,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val chatRow = genChatRow.sample.value
       val baseUserChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
       val trash = genBoolean.sample.value
-	
-	    val dbCreationData = fillChat(DBCreationData(List(chatRow), List.empty[EmailRow], viewerAddressRow,
-		    baseUserChatRow, List.empty[AddressRow], List.empty[EmailAddressRow], List.empty[EmailPreview]))
-	
-	    val trashedChatCreationData = if (trash)
-		                                  dbCreationData
-			                                  .copy(
-				                                  userChatRow = dbCreationData.userChatRow.copy(inbox = 0, sent = 0, draft = 0, trash = 1))
-	                                  else dbCreationData
-		    .copy(emailsPreview = List.empty[EmailPreview])
-	
-	    
-	
-	    val expectedChatsPreview = (trashedChatCreationData.emailsPreview.headOption.value,
-		    trashedChatCreationData.userChatRow) match {
+
+      val chatCreationData = fillChatTest5(chatRow, viewerAddressRow, baseUserChatRow)
+
+      val trashedChatCreationData = if (trash)
+        chatCreationData.copy(userChatRow = chatCreationData.userChatRow
+          .copy(inbox = 0, sent = 0, draft = 0, trash = 1))
+      else chatCreationData
+
+      val expectedChatsPreview = (trashedChatCreationData.emailPreview, trashedChatCreationData.userChatRow) match {
         case (Some((_, chatPreview)), userChatRow) if userChatRow.trash == 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
@@ -983,67 +837,178 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         chatsPreview <- chatsRep.getChatsPreview(Trash, viewerUserRow.userId)
       } yield chatsPreview mustBe expectedChatsPreview
     }
-
-    
+    //endregion
+  
+    //region Test-6: Many Chats, Many Emails, NOT Overseeing
     "be valid in [Test-6-A: Many Chats, Many Emails, NOT Overseeing, Inbox]" in {
       val viewerAddressRow = genAddressRow.sample.value
       val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
-      
-      
-     /*
-     
-      val chatRow = genChatRow.sample.value
-      val baseUserChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
-      val trash = genBoolean.sample.value
-  
-      val chatCreationData = fillChat(chatRow, viewerAddressRow, baseUserChatRow)
-  
-      val trashedChatCreationData = if (trash)
-                                      chatCreationData
-                                        .copy(
-                                          userChatRow = chatCreationData.userChatRow.copy(inbox = 0, sent = 0, draft = 0, trash = 1),
-                                          emailPreview = None)
-                                    else chatCreationData
-  
-      val expectedChatsPreview = (trashedChatCreationData.emailPreview, trashedChatCreationData.userChatRow) match {
-        case (Some((_, chatPreview)), userChatRow) if userChatRow.inbox == 1 => Seq(chatPreview)
-        case _ => Seq.empty[ChatPreview]
-      }
-  
+
+      val dbCreationData = filDB(viewerAddressRow, viewerUserRow, Inbox)
+
+      val expectedChatsPreview = dbCreationData.emailsPreview.flatten.map(_._2)
+        .sortBy(chatPreview =>
+          (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
+          Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
+
       println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
       println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE TRASH", trash)
-      println("THIS IS THE ADDRESS_ROWS TO BE INSERTED", trashedChatCreationData.addressRows)
-  
       for {
         _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= trashedChatCreationData.addressRows,
+          AddressesTable.all ++= dbCreationData.addressRows,
+          ChatsTable.all ++= dbCreationData.chatRows,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all ++= dbCreationData.userChatRows,
+          EmailsTable.all ++= dbCreationData.emailRows,
+          EmailAddressesTable.all ++= dbCreationData.emailAddressRows))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+
+    }
+
+    "be valid in [Test-6-B: Many Chats, Many Emails, NOT Overseeing, Sent]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+
+      val dbCreationData = filDB(viewerAddressRow, viewerUserRow, Sent)
+
+      val expectedChatsPreview = dbCreationData.emailsPreview.flatten.map(_._2)
+        .sortBy(chatPreview =>
+          (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
+          Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
+
+      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
+      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= dbCreationData.addressRows,
+          ChatsTable.all ++= dbCreationData.chatRows,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all ++= dbCreationData.userChatRows,
+          EmailsTable.all ++= dbCreationData.emailRows,
+          EmailAddressesTable.all ++= dbCreationData.emailAddressRows))
+
+        chatsPreview <- chatsRep.getChatsPreview(Sent, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+
+    }
+
+    "be valid in [Test-6-C: Many Chats, Many Emails, NOT Overseeing, Drafts]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+
+      val dbCreationData = filDB(viewerAddressRow, viewerUserRow, Drafts)
+
+      val expectedChatsPreview = dbCreationData.emailsPreview.flatten.map(_._2)
+        .sortBy(chatPreview =>
+          (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
+          Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
+
+      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
+      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= dbCreationData.addressRows,
+          ChatsTable.all ++= dbCreationData.chatRows,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all ++= dbCreationData.userChatRows,
+          EmailsTable.all ++= dbCreationData.emailRows,
+          EmailAddressesTable.all ++= dbCreationData.emailAddressRows))
+
+        chatsPreview <- chatsRep.getChatsPreview(Drafts, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+
+    }
+
+    "be valid in [Test-6-D: Many Chats, Many Emails, NOT Overseeing, Trash]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+
+      val dbCreationData = filDB(viewerAddressRow, viewerUserRow, Trash)
+
+      val expectedChatsPreview = dbCreationData.emailsPreview.flatten.map(_._2)
+        .sortBy(chatPreview =>
+          (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
+          Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
+
+      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
+      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= dbCreationData.addressRows,
+          ChatsTable.all ++= dbCreationData.chatRows,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all ++= dbCreationData.userChatRows,
+          EmailsTable.all ++= dbCreationData.emailRows,
+          EmailAddressesTable.all ++= dbCreationData.emailAddressRows))
+
+        chatsPreview <- chatsRep.getChatsPreview(Trash, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+
+    }
+    //endregion
+  
+    "be valid in [Test-7-A: 1 Chat, 1 Email, Overseeing, Inbox]" in {
+    
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value
+      val sent = emailRow.sent
+      val trash = genBoolean.sample.value
+    
+      val baseParticipantsAddressRows = genParticipantsAddressRows.sample.value
+      val viewerParticipantType = genParticipantType.sample.value
+      
+      val (participantsAddressRows, oversightRow) = viewerParticipantType match {
+        case Some("from") => (baseParticipantsAddressRows.copy(from = viewerAddressRow), None)
+        case Some("to") => (baseParticipantsAddressRows.copy(to =
+          viewerAddressRow +: baseParticipantsAddressRows.to), None)
+        case Some("cc") => (baseParticipantsAddressRows.copy(cc =
+          viewerAddressRow +: baseParticipantsAddressRows.cc), None)
+        case Some("bcc") => (baseParticipantsAddressRows.copy(bcc =
+          viewerAddressRow +: baseParticipantsAddressRows.bcc), None)
+        case None => (baseParticipantsAddressRows, None)
+        case Some(string) => fail(s""""The string "$string" does not correspont to a ParticipantType""")
+      }
+    
+      val emailAddressRows = participantsToEmailAddressRows(emailRow.emailId, chatRow.chatId, participantsAddressRows)
+      val addressRows = participantsToAddressRows(participantsAddressRows)
+    
+      val baseUserChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+      val userChatRow = (viewerParticipantType, sent, trash) match {
+        case (_, _, true) => baseUserChatRow.copy(trash = 1)
+        case (Some("from"), 1, _) => baseUserChatRow.copy(sent = 1)
+        case (Some("from"), 0, _) => baseUserChatRow.copy(draft = 1)
+        case (Some(_), 1, _) => baseUserChatRow.copy(inbox = 1)
+        case _ => baseUserChatRow
+      }
+      val fromAddress = participantsAddressRows.from.address
+    
+      val expectedChatsPreview = if (participantIsReceiving(viewerParticipantType) && sent == 1 && !trash)
+                                   Seq(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress,
+                                     emailRow.date, emailRow.body))
+                                 else Seq.empty[ChatPreview]
+    
+      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
+      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      println("THIS IS THE PARTICIPANT_TYPE", viewerParticipantType)
+      println("THIS IS THE SENT", sent)
+      println("THIS IS THE TRASH", trash)
+    
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= addressRows,
           ChatsTable.all += chatRow,
           UsersTable.all += viewerUserRow,
-          UserChatsTable.all += trashedChatCreationData.userChatRow,
-          EmailsTable.all ++= trashedChatCreationData.emailRows,
-          EmailAddressesTable.all ++= trashedChatCreationData.emailAddressRows))
-    
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview*/
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all ++= emailAddressRows))
       
-     /*   for {
-        viewerInfo <- newUser
-
-        testChatspreview <- {
-          println("IT BEGINS  ", List.fill(170)("/").toString())
-          println(List.fill(170)("/").toString())
-          println(List.fill(170)("/").toString())
-          println("THIS IS THE VIEWER INFO", viewerInfo)
-          makeChats(viewerInfo, Inbox)
-        }
-
-        chatspreview <- chatsRep.getChatsPreview(Inbox, viewerInfo.userId)
-
-      } yield chatspreview mustBe testChatspreview*/
-  
-  
-      Future.successful(1 mustBe 1)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    
     }
 
     /*"be valid for User: 2 Mailbox: Inbox" in {
@@ -1360,7 +1325,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
 	  */
 
-   
   }
 
   /*
@@ -1535,23 +1499,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   */
 }
 
-case class UserInfo(userId: String, address: String)
-
-case class EmailViewerData(upsertEmailDTO: UpsertEmailDTO, viwerParticipantType: Option[ParticipantType],
-  sent: Boolean, senderAddress: String, visible: Boolean)
-
 case class ParticipantsAddressRows(from: AddressRow, to: List[AddressRow], cc: List[AddressRow], bcc: List[AddressRow])
 
-case class ChatCreationData(chatRow: ChatRow, emailRows: List[EmailRow],
-  viewerAddressRow: AddressRow, userChatRow: UserChatRow,
+case class ChatCreationData(userChatRow: UserChatRow, emailRows: List[EmailRow], addressRows: List[AddressRow],
+  emailAddressRows: List[EmailAddressRow], emailPreview: EmailPreview)
+
+case class DBCreationData(chatRows: List[ChatRow], userChatRows: List[UserChatRow], emailRows: List[EmailRow],
   addressRows: List[AddressRow], emailAddressRows: List[EmailAddressRow],
-  emailPreview: EmailPreview)
-
-
-
-case class DBCreationData(chatRows: List[ChatRow], emailRows: List[EmailRow],
-                            viewerAddressRow: AddressRow, userChatRow: UserChatRow,
-                            addressRows: List[AddressRow], emailAddressRows: List[EmailAddressRow],
-                            emailsPreview: List[EmailPreview])
-
+  emailsPreview: List[EmailPreview])
 
