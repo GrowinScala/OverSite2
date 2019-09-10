@@ -879,7 +879,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
 
         emailRow <- db.run(EmailsTable.all.filter(_.emailId === validDraftEmailId).result.headOption)
         emailAddressesRows <- db.run(EmailAddressesTable.all.filter(_.emailId === validDraftEmailId).result.headOption)
-        //attachmentsRows <- db.run(AttachmentsTable.all.filter(_.emailId === validSentEmailId).result.headOption)    //this example does not have attachments
       } yield assert(!deleteDraft && emailRow.nonEmpty && emailAddressesRows.nonEmpty)
     }
 
@@ -897,13 +896,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
 
         emailRow <- db.run(EmailsTable.all.filter(_.emailId === validSentEmailId).result.headOption)
         emailAddressesRows <- db.run(EmailAddressesTable.all.filter(_.emailId === validSentEmailId).result.headOption)
-        //attachmentsRows <- db.run(AttachmentsTable.all.filter(_.emailId === validSentEmailId).result.headOption)    //this example does not have attachments
         numberOfDraftsAfter <- db.run(UserChatsTable.all
           .filter(userChatRow => userChatRow.userId === senderUserId && userChatRow.chatId === validChatId).map(_.draft)
           .result.headOption)
 
       } yield assert(!deleteDraft && getEmail.nonEmpty &&
-        emailRow.nonEmpty && emailAddressesRows.nonEmpty && //attachmentsRows.nonEmpty &&    //this example does not have attachments
+        emailRow.nonEmpty && emailAddressesRows.nonEmpty &&
         numberOfDraftsAfter.value === numberOfDraftsBefore.value)
     }
 
