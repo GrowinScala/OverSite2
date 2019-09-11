@@ -631,13 +631,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         Seq(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress,
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE PARTICIPANT_TYPE", viewerParticipantType)
-      println("THIS IS THE SENT", sent)
-      println("THIS IS THE TRASH", trash)
-
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= addressRows,
@@ -692,12 +686,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
 
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE PARTICIPANT_TYPE", viewerParticipantType)
-      println("THIS IS THE SENT", sent)
-      println("THIS IS THE TRASH", trash)
-
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= addressRows,
@@ -753,12 +742,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         Seq(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress,
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE PARTICIPANT_TYPE", viewerParticipantType)
-      println("THIS IS THE SENT", sent)
-      println("THIS IS THE TRASH", trash)
+      
 
       for {
         _ <- db.run(DBIO.seq(
@@ -816,12 +800,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         Seq(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress,
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE PARTICIPANT_TYPE", viewerParticipantType)
-      println("THIS IS THE SENT", sent)
-      println("THIS IS THE TRASH", trash)
+      
 
       for {
         _ <- db.run(DBIO.seq(
@@ -859,12 +838,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         case (Some((_, chatPreview)), userChatRow) if userChatRow.inbox == 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE TRASH", trash)
-      println("THIS IS THE ADDRESS_ROWS TO BE INSERTED", trashedChatCreationData.addressRows)
-
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= trashedChatCreationData.addressRows,
@@ -898,12 +872,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         case (Some((_, chatPreview)), userChatRow) if userChatRow.sent == 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE TRASH", trash)
-      println("THIS IS THE ADDRESS_ROWS TO BE INSERTED", trashedChatCreationData.addressRows)
-
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= trashedChatCreationData.addressRows,
@@ -936,12 +905,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         case (Some((_, chatPreview)), userChatRow) if userChatRow.draft >= 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE TRASH", trash)
-      println("THIS IS THE ADDRESS_ROWS TO BE INSERTED", trashedChatCreationData.addressRows)
-
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= trashedChatCreationData.addressRows,
@@ -973,12 +937,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         case (Some((_, chatPreview)), userChatRow) if userChatRow.trash == 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE TRASH", trash)
-      println("THIS IS THE ADDRESS_ROWS TO BE INSERTED", trashedChatCreationData.addressRows)
-
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= trashedChatCreationData.addressRows,
@@ -992,7 +951,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       } yield chatsPreview mustBe expectedChatsPreview
     }
     //endregion
-
     //region Test-6: Many Chats, Many Emails, NOT Overseeing
     "be valid in [Test-6-A: Many Chats, Many Emails, NOT Overseeing, Inbox]" in {
       val viewerAddressRow = genAddressRow.sample.value
@@ -1004,9 +962,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1031,9 +987,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1058,9 +1012,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1085,9 +1037,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1144,13 +1094,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         Seq(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress,
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
-      println("THIS IS THE PARTICIPANT_TYPE", viewerParticipantType)
-      println("THIS IS THE SENT", sent)
-      println("THIS IS THE TRASH", trash)
-
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= addressRows,
@@ -1181,9 +1125,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1214,9 +1156,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1247,9 +1187,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1280,9 +1218,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-
-      println("THIS IS THE VIEWER_ADDRESS_ROW", viewerAddressRow)
-      println("THIS IS THE VIEWER_USER_ROW", viewerUserRow)
+      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1303,497 +1239,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     }
 
-    /*"be valid for User: 2 Mailbox: Inbox" in {
-
-      val chatsPreview = chatsRep.getChatsPreview(Inbox, "adcd6348-658a-4866-93c5-7e6d32271d8d")
-
-      chatsPreview.map(_ mustBe Seq(
-        ChatPreview("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento", "joao@mail.com", "2019-06-27 11:01:00", "Sim!"),
-        ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:02:00", "Scrum room")))
-    }
-
-    "be valid for User: 3 Mailbox: Inbox" in {
-
-      val chatsPreview = chatsRep.getChatsPreview(Inbox, "25689204-5a8e-453d-bfbc-4180ff0f97b9")
-
-      chatsPreview.map(_ mustBe Seq(
-        ChatPreview("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento", "joana@mail.com", "2019-06-27 11:03:00", "Já vou resolver o assunto!"),
-        ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema."),
-        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "joao@mail.com", "2019-06-17 10:00:00", "Where are you?")))
-    }
-
-    "be valid for User: 4 Mailbox: Inbox" in {
-
-      val chatsPreview = chatsRep.getChatsPreview(Inbox, "ef63108c-8128-4294-8346-bd9b5143ff22")
-
-      chatsPreview.map(_ mustBe Seq(
-        ChatPreview("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento", "joana@mail.com", "2019-06-27 11:03:00", "Já vou resolver o assunto!"),
-        ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "pedrol@mail.com", "2019-06-19 11:05:00", "Também vou!"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema."),
-        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "joao@mail.com", "2019-06-17 10:00:00", "Where are you?")))
-    }
-
-    "be valid for User: 5 Mailbox: Inbox" in {
-
-      val chatsPreview = chatsRep.getChatsPreview(Inbox, "e598ee8e-b459-499f-94d1-d4f66d583264")
-
-      chatsPreview.map(_ mustBe Seq(
-        ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "pedroc@mail.com", "2019-06-19 11:06:00", "Talvez vá"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema."),
-        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "joao@mail.com", "2019-06-17 10:00:00", "Where are you?")))
-    }
-
-    "be valid for User: 6 Mailbox: Inbox" in {
-
-      val chatsPreview = chatsRep.getChatsPreview(Inbox, "261c9094-6261-4704-bfd0-02821c235eff")
-
-      chatsPreview.map(_ mustBe Seq(
-        ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "valter@mail.com", "2019-06-19 11:04:00", "18h00"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "valter@mail.com", "2019-06-17 10:04:00", "Okay, não há problema."),
-        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "joao@mail.com", "2019-06-17 10:00:00", "Where are you?")))
-    }
-
-    "be valid for User: 1 Mailbox: Drafts" in {
-
-      val chatsPreview = chatsRep.getChatsPreview(Drafts, "148a3b1b-8326-466d-8c27-1bd09b8378f3")
-
-      chatsPreview.map(_ mustBe Seq(
-        ChatPreview("303c2b72-304e-4bac-84d7-385acb64a616", "Vencimento", "beatriz@mail.com", "2019-06-27 11:04:00", "Okay, obrigada!"),
-        ChatPreview("825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", "beatriz@mail.com", "2019-06-17 10:06:00", "Here"),
-        ChatPreview("b87041c7-9044-41a0-99d7-666ce71bbe8d", "Projeto Oversite2", "beatriz@mail.com", "2019-06-17 10:05:00", "Estou a chegar!")))
-    }
-
-    "be valid for User: 5 Mailbox: Drafts" in {
-
-      val chatsPreview = chatsRep.getChatsPreview(Drafts, "e598ee8e-b459-499f-94d1-d4f66d583264")
-
-      chatsPreview.map(_ mustBe Seq(
-        ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "pedroc@mail.com", "2019-06-19 11:06:00", "Talvez vá")))
-    }
-  }
-*/
-	 
+  
 	 
 
   }
 	
 	
-	/*
- "SlickChatsRepository#getChat" should {
-	 "return a chat for a user that has received an email and has a draft " +
-		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (1) 148a3b1b-8326-466d-8c27-1bd09b8378f3)" in {
 
-			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
-
-			 val expectedRepositoryResponse: Option[Chat] =
-				 Some(
-					 Chat(
-						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
-						 Set(
-							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
-							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-						 Seq(
-							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
-								 "Where are you?", "2019-06-17 10:00:00", 1, Set()),
-							 Email("fe4ff891-144a-4f61-af35-6d4a5ec76314", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(),
-								 "Here", "2019-06-17 10:06:00", 0, Set("b8c313cc-90a1-4f2f-81c6-e61a64fb0b16")))))
-
-			 chat.map(_ mustBe expectedRepositoryResponse)
-		 }
-
-	 "return a chat for a user that sent an email (with a bcc) " +
-		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (2) adcd6348-658a-4866-93c5-7e6d32271d8d)" in {
-
-			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "adcd6348-658a-4866-93c5-7e6d32271d8d")
-
-			 val expectedRepositoryResponse: Option[Chat] =
-				 Some(
-					 Chat(
-						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
-						 Set(
-							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
-							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-						 Seq(
-							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
-								 "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
-
-			 chat.map(_ mustBe expectedRepositoryResponse)
-		 }
-
-	 "return a chat for an overseer of a user (sees what their oversee sees, except for their drafts)" +
-		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (3) 25689204-5a8e-453d-bfbc-4180ff0f97b9)" in {
-
-			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "25689204-5a8e-453d-bfbc-4180ff0f97b9")
-
-			 val expectedRepositoryResponse: Option[Chat] =
-				 Some(
-					 Chat(
-						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
-						 Set(
-							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
-							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-						 Seq(
-							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
-								 "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
-
-			 chat.map(_ mustBe expectedRepositoryResponse)
-		 }
-
-	 "return a chat for a user that is a BCC of an email of that chat " +
-		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (4) ef63108c-8128-4294-8346-bd9b5143ff22)" in {
-
-			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "ef63108c-8128-4294-8346-bd9b5143ff22")
-
-			 val expectedRepositoryResponse: Option[Chat] =
-				 Some(
-					 Chat(
-						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
-						 Set(
-							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
-							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-						 Seq(
-							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
-								 "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
-
-			 chat.map(_ mustBe expectedRepositoryResponse)
-		 }
-
-	 "return a chat for an overseer of a user that appear as BCC " +
-		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (6) 261c9094-6261-4704-bfd0-02821c235eff)" in {
-
-			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "261c9094-6261-4704-bfd0-02821c235eff")
-
-			 val expectedRepositoryResponse: Option[Chat] =
-				 Some(
-					 Chat(
-						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
-						 Set(
-							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
-							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-						 Seq(
-							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
-								 "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
-
-			 chat.map(_ mustBe expectedRepositoryResponse)
-		 }
-
-	 "NOT return a chat for a user that does not exist " +
-		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user with random UUID)" in {
-
-			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", newUUID)
-
-			 //val expectedRepositoryResponse: Option[Chat] = NONE
-
-			 chat.map(_ mustBe None)
-		 }
-
-	 "NOT return a chat that does not exist " +
-		 "(chat with random UUID, user (1) 148a3b1b-8326-466d-8c27-1bd09b8378f3)" in {
-
-			 val chat = chatsRep.getChat(newUUID, "148a3b1b-8326-466d-8c27-1bd09b8378f3")
-
-			 //val expectedRepositoryResponse: Option[Chat] = NONE
-
-			 chat.map(_ mustBe None)
-		 }
-
- }
-
- "SlickChatsRepository#insertAddressIfNotExists" should {
-	 "insert a new address if it does not exist and return its addressId" in {
-
-
-		 val address = "alice@mail.com"
-		 for {
-			 inserted <- db.run(chatsRep.upsertAddress(address))
-			 selected <- db.run(AddressesTable.selectAddressId(address).result.head)
-		 } yield inserted mustBe selected
-
-		 //val debugPrint = db.run(AddressesTable.all.result).map(_.map(a => println(a.addressId + "-" + a.address)))
-	 }
-
-	 "return the addressId if the address already exists in the table" in {
-
-
-		 val address = "beatriz@mail.com"
-		 for {
-			 inserted <- db.run(chatsRep.upsertAddress(address))
-			 selected <- db.run(AddressesTable.selectAddressId(address).result.head)
-		 } yield inserted mustBe selected
-	 }
- }
-
- "SlickChatsRepository#postChat+getChat" should {
-
-
-	 val senderUserId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
-	 val receiverUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d" //joao@mail.com
-
-	 val createChatDTO =
-		 CreateChatDTO(
-			 chatId = None,
-			 subject = Some("Test Subject"),
-			 UpsertEmailDTO(
-				 emailId = None,
-				 from = Some("beatriz@mail.com"),
-				 to = Some(Set("joao@mail.com", "notuser@mail.com")),
-				 bcc = Some(Set("spy@mail.com")),
-				 cc = Some(Set("observer@mail.com")),
-				 body = Some("Test Body"),
-				 date = None,
-				 sent = None))
-
-	 "create a chat with an email draft for a user and then get the same chat for the same user: results must match" in {
-
-		 for {
-			 postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
-			 getResponse <- chatsRep.getChat(postResponse.chatId.value, senderUserId)
-		 } yield getResponse mustBe Some(chatsRep.fromCreateChatDTOtoChatDTO(postResponse))
-
-	 }
-
-	 "NOT show a chat for a user that is a receiver of the email (to) " +
-		 "because it was not sent yet (it's a draft, only the owner can see it)" in {
-
-			 for {
-				 postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
-				 getResponse <- chatsRep.getChat(postResponse.chatId.value, receiverUserId)
-			 } yield getResponse mustBe None
-
-		 }
-
-	 "create a chat with an EMPTY draft for a user and then get the same chat for the same user: results must match" in {
-		 val chatWithEmptyDraft =
-			 CreateChatDTO(
-				 chatId = None,
-				 subject = None,
-				 UpsertEmailDTO(
-					 emailId = None,
-					 from = Some("beatriz@mail.com"),
-					 to = None,
-					 bcc = None,
-					 cc = None,
-					 body = None,
-					 date = None,
-					 sent = None))
-
-		 for {
-			 postResponse <- chatsRep.postChat(chatWithEmptyDraft, senderUserId)
-			 getResponse <- chatsRep.getChat(postResponse.chatId.value, senderUserId)
-		 } yield getResponse mustBe Some(chatsRep.fromCreateChatDTOtoChatDTO(postResponse))
-
-	 }
-
- }
-
- }
-
- "SlickChatsRepository#moveChatToTrash" should {
-	 val chatsRep = new SlickChatsRepository(db)
-
-	 val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
-
-	 "remove the user's chat from inbox, sent and draft and move it to trash" in {
-		 val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
-		 for {
-			 result <- chatsRep.moveChatToTrash(validChatId, userId)
-			 optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
-		 } yield inside(optionUserChat) {
-			 case Some(userChat) =>
-				 assert(
-					 result &&
-						 userChat.inbox === 0 &&
-						 userChat.sent === 0 &&
-						 userChat.draft === 0 &&
-						 userChat.trash === 1)
-		 }
-	 }
-
-	 "return false if the user does not have a chat with that id" in {
-		 val invalidChatId = "00000000-0000-0000-0000-000000000000"
-		 for {
-			 result <- chatsRep.moveChatToTrash(invalidChatId, userId)
-			 optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === invalidChatId && uc.userId === userId).result.headOption)
-		 } yield assert(
-			 !result &&
-				 optionUserChat === None)
-	 }
-
-
-	 */
-
-  /*
-  "SlickChatsRepository#patchEmail" should {
-    val chatsRep = new SlickChatsRepository(db)
-    val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
-    val userAddress = "beatriz@mail.com"
-
-    "patch one or more fields of an email in draft state" in {
-      val createChatDTO = CreateChatDTO(None, Some("Test"),
-        UpsertEmailDTO(None, None, Some(Set("joao@mail.com")), None, None, Some("This is the email's body"), None, Some(false)))
-      for {
-        postChat <- chatsRep.postChat(createChatDTO, userId)
-        getPostedEmail = chatsRep.fromCreateChatDTOtoChatDTO(postChat).emails.head
-
-        patchBody = "This is me changing the body"
-        patchEmailDTO = UpsertEmailDTO(None, None, None, None, None, Some(patchBody), None, None)
-
-        patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
-      } yield patchEmail.value mustBe getPostedEmail.copy(body = patchBody, date = patchEmail.value.date)
-    }
-
-    "patch the email, send it if the field sent is true and " +
-      "the chat must appear in the sender and receivers' correct mailboxes" in {
-        val createChatDTO = CreateChatDTO(None, Some("Test"),
-          UpsertEmailDTO(None, None, Some(Set("joao@mail.com")), None, None, Some("This is the email's body"), None, Some(false)))
-        for {
-          postChat <- chatsRep.postChat(createChatDTO, userId)
-          getPostedChat = chatsRep.fromCreateChatDTOtoChatDTO(postChat)
-          getPostedEmail = getPostedChat.emails.head
-
-          patchCC = Set("valter@mail.com")
-          patchBody = "This is me changing the body"
-          patchSent = true
-          patchEmailDTO = UpsertEmailDTO(None, None, None, None, Some(patchCC), Some(patchBody), None, Some(patchSent))
-
-          patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
-
-          toUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d" //joao@mail.com
-          ccUserId = "25689204-5a8e-453d-bfbc-4180ff0f97b9" //valter@mail.com
-
-          toUserGetChat <- chatsRep.getChat(postChat.chatId.value, toUserId)
-          ccUserGetChat <- chatsRep.getChat(postChat.chatId.value, ccUserId)
-
-          //Sender UserChat
-          senderChatsPreviewSent <- chatsRep.getChatsPreview(Sent, userId)
-          senderChatsPreviewDrafts <- chatsRep.getChatsPreview(Drafts, userId)
-
-          //Receivers UserChat
-          toReceiverChatsPreviewInbox <- chatsRep.getChatsPreview(Inbox, toUserId)
-          ccReceiverChatsPreviewInbox <- chatsRep.getChatsPreview(Inbox, ccUserId)
-
-          expectedEmailAfterPatch = getPostedEmail.copy(cc = patchCC, body = patchBody,
-            date = patchEmail.value.date, sent = if (patchSent) 1 else 0)
-          expectedChatAfterPatch = getPostedChat.copy(
-            addresses = getPostedChat.addresses ++ patchCC,
-            emails = Seq(expectedEmailAfterPatch))
-
-          expectedChatPreview = ChatPreview(getPostedChat.chatId, getPostedChat.subject, userAddress, patchEmail.value.date, patchBody)
-
-        } yield assert(
-          patchEmail.value === expectedEmailAfterPatch &&
-            toUserGetChat.value === expectedChatAfterPatch &&
-            ccUserGetChat.value === expectedChatAfterPatch &&
-
-            senderChatsPreviewSent.contains(expectedChatPreview) &&
-            !senderChatsPreviewDrafts.contains(expectedChatPreview) &&
-
-            toReceiverChatsPreviewInbox.contains(expectedChatPreview) &&
-            ccReceiverChatsPreviewInbox.contains(expectedChatPreview))
-
-      }
-
-    "not send an email if the receivers list (to + bcc + cc) is empty" in {
-      val chatWithNoReceiversDTO = CreateChatDTO(None, Some("Test"),
-        UpsertEmailDTO(None, None, None, None, None, Some("This is an email with no receivers"), None, Some(false)))
-      for {
-        postChat <- chatsRep.postChat(chatWithNoReceiversDTO, userId)
-        getPostedEmail = chatsRep.fromCreateChatDTOtoChatDTO(postChat).emails.head
-
-        trySendEmailDTO = UpsertEmailDTO(None, None, None, None, None, None, None, Some(true))
-
-        patchEmail <- chatsRep.patchEmail(trySendEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
-      } yield assert(
-        patchEmail.value === getPostedEmail &&
-          patchEmail.value.sent === 0)
-    }
-
-    "replace the addresses field (to, bcc or cc) with the values specified in the patch (Some(...))" in {
-      val chatWithNoReceiversDTO = CreateChatDTO(None, Some("Test"),
-        UpsertEmailDTO(None, None, Some(Set("joao@mail.com", "mariana@mail.com")), None, Some(Set("ivo@mail.com")),
-          Some("This is an email with no receivers"), None, Some(false)))
-      for {
-        postChat <- chatsRep.postChat(chatWithNoReceiversDTO, userId)
-        getPostedEmail = chatsRep.fromCreateChatDTOtoChatDTO(postChat).emails.head
-
-        newToAddresses: Set[String] = Set("valter@mail.com", "joao@mail.com", "joana@mail.com")
-        newBccAddresses: Set[String] = Set("ivo@mail.com")
-        newCcAddresses: Set[String] = Set()
-
-        patchAddressesEmailDTO = UpsertEmailDTO(None, None,
-          Some(newToAddresses), Some(newBccAddresses), Some(newCcAddresses), None, None, None)
-
-        patchEmail <- chatsRep.patchEmail(patchAddressesEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
-      } yield patchEmail.value mustBe getPostedEmail.copy(to = newToAddresses, bcc = newBccAddresses,
-        cc = newCcAddresses, date = patchEmail.value.date)
-    }
-
-    "not update a field if it is not specified in the patch (None)" in {
-      val chatWithNoReceiversDTO = CreateChatDTO(None, Some("Test"),
-        UpsertEmailDTO(None, None, Some(Set("joao@mail.com", "valter@mail.com", "pedroc@mail.com")), None, Some(Set("ivo@mail.com")),
-          Some("This is an email with no receivers"), None, Some(false)))
-      for {
-        postChat <- chatsRep.postChat(chatWithNoReceiversDTO, userId)
-        getPostedEmail = chatsRep.fromCreateChatDTOtoChatDTO(postChat).emails.head
-
-        newBccAddresses: Set[String] = Set("rui@mail.com", "pedrol@mail.com")
-
-        patchAddressesEmailDTO = UpsertEmailDTO(None, None,
-          None, Some(newBccAddresses), None, None, None, None)
-
-        patchEmail <- chatsRep.patchEmail(patchAddressesEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
-      } yield patchEmail.value mustBe getPostedEmail.copy(bcc = newBccAddresses, date = patchEmail.value.date)
-    }
-
-    "not allow an email patch if the user requesting it is not the its owner (from)" in {
-      val createChatDTO = CreateChatDTO(None, Some("Test"),
-        UpsertEmailDTO(None, None, Some(Set("joao@mail.com", "pedroc@mail.com")), None, None, Some("This is the email's body"), None, Some(false)))
-      for {
-        postChat <- chatsRep.postChat(createChatDTO, userId)
-
-        patchEmailDTO = UpsertEmailDTO(None, None, None, None, None,
-          Some("This is an unauthorized user trying to patch the email"), None, None)
-        userIdNotAllowedToPatch = "adcd6348-658a-4866-93c5-7e6d32271d8d" //joao@mail.com
-
-        patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userIdNotAllowedToPatch)
-      } yield patchEmail mustBe None
-    }
-
-    "not allow an email patch if the email was already sent" in {
-      val createChatDTO = CreateChatDTO(None, Some("Test"),
-        UpsertEmailDTO(None, None, Some(Set("joao@mail.com", "pedroc@mail.com")), None, None, Some("This is the email's body"), None, Some(false)))
-      for {
-        postChat <- chatsRep.postChat(createChatDTO, userId)
-        sent = true
-        patchEmailDTO = UpsertEmailDTO(None, None, None, None, None, None, None, Some(sent))
-        patchEmail <- chatsRep.patchEmail(patchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
-
-        retryPatchEmailDTO = UpsertEmailDTO(None, None, None, None, None,
-          Some("Trying to change body after being sent"), None, None)
-        retryPatchEmailAfterSent <- chatsRep.patchEmail(retryPatchEmailDTO, postChat.chatId.value, postChat.email.emailId.value, userId)
-      } yield retryPatchEmailAfterSent mustBe None
-    }
-
-    "return None if the requested emailId is not a part of the chat with the specified chatId" in {
-      val createChatDTO = CreateChatDTO(None, Some("Test"),
-        UpsertEmailDTO(None, None, Some(Set("joao@mail.com", "pedroc@mail.com")), None, None, Some("This is the email's body"), None, Some(false)))
-      for {
-        postChat <- chatsRep.postChat(createChatDTO, userId)
-        createdChatId = postChat.chatId.value
-        invalidEmailId = "00000000-0000-0000-0000-000000000000"
-
-        patchEmailDTO = UpsertEmailDTO(None, None, None, None, None,
-          Some("This is an unauthorized user trying to patch the email"), None, None)
-        patchEmail <- chatsRep.patchEmail(patchEmailDTO, createdChatId, invalidEmailId, userId)
-
-      } yield patchEmail mustBe None
-    }
-
-  }
-
-  */
 	
 }
 
