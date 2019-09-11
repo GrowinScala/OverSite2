@@ -400,7 +400,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           case (None, _) => thisEmailPreview
           case (_, None) => oldEmailPreview
 
-          case (Some((oldEmailId, oldChatPreview)), Some((thisEmailId, thisChatPreview))) if oldChatPreview.lastEmailDate == thisChatPreview.lastEmailDate =>
+          case (Some((oldEmailId, oldChatPreview)), Some((thisEmailId, thisChatPreview))) if
+          oldChatPreview.lastEmailDate == thisChatPreview.lastEmailDate =>
             if (oldEmailId < thisEmailId)
               oldEmailPreview
             else thisEmailPreview
@@ -1372,251 +1373,256 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         ChatPreview("83fa0c9a-1833-4a50-95ac-53e25a2d21bf", "Laser Tag Quarta-feira", "pedroc@mail.com", "2019-06-19 11:06:00", "Talvez vá")))
     }
   }
-
-  "SlickChatsRepository#getChat" should {
-    "return a chat for a user that has received an email and has a draft " +
-      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (1) 148a3b1b-8326-466d-8c27-1bd09b8378f3)" in {
-
-        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
-
-        val expectedRepositoryResponse: Option[Chat] =
-          Some(
-            Chat(
-              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
-              Set(
-                Overseers("beatriz@mail.com", Set("valter@mail.com")),
-                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-              Seq(
-                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
-                  "Where are you?", "2019-06-17 10:00:00", 1, Set()),
-                Email("fe4ff891-144a-4f61-af35-6d4a5ec76314", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(),
-                  "Here", "2019-06-17 10:06:00", 0, Set("b8c313cc-90a1-4f2f-81c6-e61a64fb0b16")))))
-
-        chat.map(_ mustBe expectedRepositoryResponse)
-      }
-
-    "return a chat for a user that sent an email (with a bcc) " +
-      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (2) adcd6348-658a-4866-93c5-7e6d32271d8d)" in {
-
-        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "adcd6348-658a-4866-93c5-7e6d32271d8d")
-
-        val expectedRepositoryResponse: Option[Chat] =
-          Some(
-            Chat(
-              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
-              Set(
-                Overseers("beatriz@mail.com", Set("valter@mail.com")),
-                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-              Seq(
-                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
-                  "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
-
-        chat.map(_ mustBe expectedRepositoryResponse)
-      }
-
-    "return a chat for an overseer of a user (sees what their oversee sees, except for their drafts)" +
-      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (3) 25689204-5a8e-453d-bfbc-4180ff0f97b9)" in {
-
-        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "25689204-5a8e-453d-bfbc-4180ff0f97b9")
-
-        val expectedRepositoryResponse: Option[Chat] =
-          Some(
-            Chat(
-              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
-              Set(
-                Overseers("beatriz@mail.com", Set("valter@mail.com")),
-                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-              Seq(
-                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
-                  "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
-
-        chat.map(_ mustBe expectedRepositoryResponse)
-      }
-
-    "return a chat for a user that is a BCC of an email of that chat " +
-      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (4) ef63108c-8128-4294-8346-bd9b5143ff22)" in {
-
-        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "ef63108c-8128-4294-8346-bd9b5143ff22")
-
-        val expectedRepositoryResponse: Option[Chat] =
-          Some(
-            Chat(
-              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
-              Set(
-                Overseers("beatriz@mail.com", Set("valter@mail.com")),
-                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-              Seq(
-                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
-                  "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
-
-        chat.map(_ mustBe expectedRepositoryResponse)
-      }
-
-    "return a chat for an overseer of a user that appear as BCC " +
-      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (6) 261c9094-6261-4704-bfd0-02821c235eff)" in {
-
-        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "261c9094-6261-4704-bfd0-02821c235eff")
-
-        val expectedRepositoryResponse: Option[Chat] =
-          Some(
-            Chat(
-              "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
-              Set(
-                Overseers("beatriz@mail.com", Set("valter@mail.com")),
-                Overseers("pedrol@mail.com", Set("rui@mail.com"))),
-              Seq(
-                Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
-                  "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
-
-        chat.map(_ mustBe expectedRepositoryResponse)
-      }
-
-    "NOT return a chat for a user that does not exist " +
-      "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user with random UUID)" in {
-
-        val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", newUUID)
-
-        //val expectedRepositoryResponse: Option[Chat] = NONE
-
-        chat.map(_ mustBe None)
-      }
-
-    "NOT return a chat that does not exist " +
-      "(chat with random UUID, user (1) 148a3b1b-8326-466d-8c27-1bd09b8378f3)" in {
-
-        val chat = chatsRep.getChat(newUUID, "148a3b1b-8326-466d-8c27-1bd09b8378f3")
-
-        //val expectedRepositoryResponse: Option[Chat] = NONE
-
-        chat.map(_ mustBe None)
-      }
+*/
+	 
+	 
 
   }
+	
+	
+	/*
+ "SlickChatsRepository#getChat" should {
+	 "return a chat for a user that has received an email and has a draft " +
+		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (1) 148a3b1b-8326-466d-8c27-1bd09b8378f3)" in {
 
-  "SlickChatsRepository#insertAddressIfNotExists" should {
-    "insert a new address if it does not exist and return its addressId" in {
+			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+
+			 val expectedRepositoryResponse: Option[Chat] =
+				 Some(
+					 Chat(
+						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
+						 Set(
+							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
+							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+						 Seq(
+							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
+								 "Where are you?", "2019-06-17 10:00:00", 1, Set()),
+							 Email("fe4ff891-144a-4f61-af35-6d4a5ec76314", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(),
+								 "Here", "2019-06-17 10:06:00", 0, Set("b8c313cc-90a1-4f2f-81c6-e61a64fb0b16")))))
+
+			 chat.map(_ mustBe expectedRepositoryResponse)
+		 }
+
+	 "return a chat for a user that sent an email (with a bcc) " +
+		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (2) adcd6348-658a-4866-93c5-7e6d32271d8d)" in {
+
+			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "adcd6348-658a-4866-93c5-7e6d32271d8d")
+
+			 val expectedRepositoryResponse: Option[Chat] =
+				 Some(
+					 Chat(
+						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
+						 Set(
+							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
+							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+						 Seq(
+							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
+								 "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+
+			 chat.map(_ mustBe expectedRepositoryResponse)
+		 }
+
+	 "return a chat for an overseer of a user (sees what their oversee sees, except for their drafts)" +
+		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (3) 25689204-5a8e-453d-bfbc-4180ff0f97b9)" in {
+
+			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "25689204-5a8e-453d-bfbc-4180ff0f97b9")
+
+			 val expectedRepositoryResponse: Option[Chat] =
+				 Some(
+					 Chat(
+						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedroc@mail.com"),
+						 Set(
+							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
+							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+						 Seq(
+							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set(), Set("pedroc@mail.com"),
+								 "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+
+			 chat.map(_ mustBe expectedRepositoryResponse)
+		 }
+
+	 "return a chat for a user that is a BCC of an email of that chat " +
+		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (4) ef63108c-8128-4294-8346-bd9b5143ff22)" in {
+
+			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "ef63108c-8128-4294-8346-bd9b5143ff22")
+
+			 val expectedRepositoryResponse: Option[Chat] =
+				 Some(
+					 Chat(
+						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
+						 Set(
+							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
+							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+						 Seq(
+							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
+								 "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+
+			 chat.map(_ mustBe expectedRepositoryResponse)
+		 }
+
+	 "return a chat for an overseer of a user that appear as BCC " +
+		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user (6) 261c9094-6261-4704-bfd0-02821c235eff)" in {
+
+			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", "261c9094-6261-4704-bfd0-02821c235eff")
+
+			 val expectedRepositoryResponse: Option[Chat] =
+				 Some(
+					 Chat(
+						 "825ee397-f36e-4023-951e-89d6e43a8e7d", "Location", Set("beatriz@mail.com", "joao@mail.com", "pedrol@mail.com", "pedroc@mail.com"),
+						 Set(
+							 Overseers("beatriz@mail.com", Set("valter@mail.com")),
+							 Overseers("pedrol@mail.com", Set("rui@mail.com"))),
+						 Seq(
+							 Email("42508cff-a4cf-47e4-9b7d-db91e010b87a", "joao@mail.com", Set("beatriz@mail.com"), Set("pedrol@mail.com"), Set("pedroc@mail.com"),
+								 "Where are you?", "2019-06-17 10:00:00", 1, Set()))))
+
+			 chat.map(_ mustBe expectedRepositoryResponse)
+		 }
+
+	 "NOT return a chat for a user that does not exist " +
+		 "(chat (4) 825ee397-f36e-4023-951e-89d6e43a8e7d, user with random UUID)" in {
+
+			 val chat = chatsRep.getChat("825ee397-f36e-4023-951e-89d6e43a8e7d", newUUID)
+
+			 //val expectedRepositoryResponse: Option[Chat] = NONE
+
+			 chat.map(_ mustBe None)
+		 }
+
+	 "NOT return a chat that does not exist " +
+		 "(chat with random UUID, user (1) 148a3b1b-8326-466d-8c27-1bd09b8378f3)" in {
+
+			 val chat = chatsRep.getChat(newUUID, "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+
+			 //val expectedRepositoryResponse: Option[Chat] = NONE
+
+			 chat.map(_ mustBe None)
+		 }
+
+ }
+
+ "SlickChatsRepository#insertAddressIfNotExists" should {
+	 "insert a new address if it does not exist and return its addressId" in {
 
 
-      val address = "alice@mail.com"
-      for {
-        inserted <- db.run(chatsRep.upsertAddress(address))
-        selected <- db.run(AddressesTable.selectAddressId(address).result.head)
-      } yield inserted mustBe selected
+		 val address = "alice@mail.com"
+		 for {
+			 inserted <- db.run(chatsRep.upsertAddress(address))
+			 selected <- db.run(AddressesTable.selectAddressId(address).result.head)
+		 } yield inserted mustBe selected
 
-      //val debugPrint = db.run(AddressesTable.all.result).map(_.map(a => println(a.addressId + "-" + a.address)))
-    }
+		 //val debugPrint = db.run(AddressesTable.all.result).map(_.map(a => println(a.addressId + "-" + a.address)))
+	 }
 
-    "return the addressId if the address already exists in the table" in {
-
-
-      val address = "beatriz@mail.com"
-      for {
-        inserted <- db.run(chatsRep.upsertAddress(address))
-        selected <- db.run(AddressesTable.selectAddressId(address).result.head)
-      } yield inserted mustBe selected
-    }
-  }
-
-  "SlickChatsRepository#postChat+getChat" should {
+	 "return the addressId if the address already exists in the table" in {
 
 
-    val senderUserId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
-    val receiverUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d" //joao@mail.com
+		 val address = "beatriz@mail.com"
+		 for {
+			 inserted <- db.run(chatsRep.upsertAddress(address))
+			 selected <- db.run(AddressesTable.selectAddressId(address).result.head)
+		 } yield inserted mustBe selected
+	 }
+ }
 
-    val createChatDTO =
-      CreateChatDTO(
-        chatId = None,
-        subject = Some("Test Subject"),
-        UpsertEmailDTO(
-          emailId = None,
-          from = Some("beatriz@mail.com"),
-          to = Some(Set("joao@mail.com", "notuser@mail.com")),
-          bcc = Some(Set("spy@mail.com")),
-          cc = Some(Set("observer@mail.com")),
-          body = Some("Test Body"),
-          date = None,
-          sent = None))
-
-    "create a chat with an email draft for a user and then get the same chat for the same user: results must match" in {
-
-      for {
-        postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
-        getResponse <- chatsRep.getChat(postResponse.chatId.value, senderUserId)
-      } yield getResponse mustBe Some(chatsRep.fromCreateChatDTOtoChatDTO(postResponse))
-
-    }
-
-    "NOT show a chat for a user that is a receiver of the email (to) " +
-      "because it was not sent yet (it's a draft, only the owner can see it)" in {
-
-        for {
-          postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
-          getResponse <- chatsRep.getChat(postResponse.chatId.value, receiverUserId)
-        } yield getResponse mustBe None
-
-      }
-
-    "create a chat with an EMPTY draft for a user and then get the same chat for the same user: results must match" in {
-      val chatWithEmptyDraft =
-        CreateChatDTO(
-          chatId = None,
-          subject = None,
-          UpsertEmailDTO(
-            emailId = None,
-            from = Some("beatriz@mail.com"),
-            to = None,
-            bcc = None,
-            cc = None,
-            body = None,
-            date = None,
-            sent = None))
-
-      for {
-        postResponse <- chatsRep.postChat(chatWithEmptyDraft, senderUserId)
-        getResponse <- chatsRep.getChat(postResponse.chatId.value, senderUserId)
-      } yield getResponse mustBe Some(chatsRep.fromCreateChatDTOtoChatDTO(postResponse))
-
-    }
-
-  }
-
-  }
-
-  "SlickChatsRepository#moveChatToTrash" should {
-    val chatsRep = new SlickChatsRepository(db)
-
-    val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
-
-    "remove the user's chat from inbox, sent and draft and move it to trash" in {
-      val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
-      for {
-        result <- chatsRep.moveChatToTrash(validChatId, userId)
-        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
-      } yield inside(optionUserChat) {
-        case Some(userChat) =>
-          assert(
-            result &&
-              userChat.inbox === 0 &&
-              userChat.sent === 0 &&
-              userChat.draft === 0 &&
-              userChat.trash === 1)
-      }
-    }
-
-    "return false if the user does not have a chat with that id" in {
-      val invalidChatId = "00000000-0000-0000-0000-000000000000"
-      for {
-        result <- chatsRep.moveChatToTrash(invalidChatId, userId)
-        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === invalidChatId && uc.userId === userId).result.headOption)
-      } yield assert(
-        !result &&
-          optionUserChat === None)
-    }
+ "SlickChatsRepository#postChat+getChat" should {
 
 
-	  */
+	 val senderUserId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
+	 val receiverUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d" //joao@mail.com
 
-  }
+	 val createChatDTO =
+		 CreateChatDTO(
+			 chatId = None,
+			 subject = Some("Test Subject"),
+			 UpsertEmailDTO(
+				 emailId = None,
+				 from = Some("beatriz@mail.com"),
+				 to = Some(Set("joao@mail.com", "notuser@mail.com")),
+				 bcc = Some(Set("spy@mail.com")),
+				 cc = Some(Set("observer@mail.com")),
+				 body = Some("Test Body"),
+				 date = None,
+				 sent = None))
+
+	 "create a chat with an email draft for a user and then get the same chat for the same user: results must match" in {
+
+		 for {
+			 postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
+			 getResponse <- chatsRep.getChat(postResponse.chatId.value, senderUserId)
+		 } yield getResponse mustBe Some(chatsRep.fromCreateChatDTOtoChatDTO(postResponse))
+
+	 }
+
+	 "NOT show a chat for a user that is a receiver of the email (to) " +
+		 "because it was not sent yet (it's a draft, only the owner can see it)" in {
+
+			 for {
+				 postResponse <- chatsRep.postChat(createChatDTO, senderUserId)
+				 getResponse <- chatsRep.getChat(postResponse.chatId.value, receiverUserId)
+			 } yield getResponse mustBe None
+
+		 }
+
+	 "create a chat with an EMPTY draft for a user and then get the same chat for the same user: results must match" in {
+		 val chatWithEmptyDraft =
+			 CreateChatDTO(
+				 chatId = None,
+				 subject = None,
+				 UpsertEmailDTO(
+					 emailId = None,
+					 from = Some("beatriz@mail.com"),
+					 to = None,
+					 bcc = None,
+					 cc = None,
+					 body = None,
+					 date = None,
+					 sent = None))
+
+		 for {
+			 postResponse <- chatsRep.postChat(chatWithEmptyDraft, senderUserId)
+			 getResponse <- chatsRep.getChat(postResponse.chatId.value, senderUserId)
+		 } yield getResponse mustBe Some(chatsRep.fromCreateChatDTOtoChatDTO(postResponse))
+
+	 }
+
+ }
+
+ }
+
+ "SlickChatsRepository#moveChatToTrash" should {
+	 val chatsRep = new SlickChatsRepository(db)
+
+	 val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
+
+	 "remove the user's chat from inbox, sent and draft and move it to trash" in {
+		 val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
+		 for {
+			 result <- chatsRep.moveChatToTrash(validChatId, userId)
+			 optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+		 } yield inside(optionUserChat) {
+			 case Some(userChat) =>
+				 assert(
+					 result &&
+						 userChat.inbox === 0 &&
+						 userChat.sent === 0 &&
+						 userChat.draft === 0 &&
+						 userChat.trash === 1)
+		 }
+	 }
+
+	 "return false if the user does not have a chat with that id" in {
+		 val invalidChatId = "00000000-0000-0000-0000-000000000000"
+		 for {
+			 result <- chatsRep.moveChatToTrash(invalidChatId, userId)
+			 optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === invalidChatId && uc.userId === userId).result.headOption)
+		 } yield assert(
+			 !result &&
+				 optionUserChat === None)
+	 }
+
+
+	 */
 
   /*
   "SlickChatsRepository#patchEmail" should {
@@ -1788,6 +1794,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   }
 
   */
+	
 }
 
 case class ParticipantsAddressRows(from: AddressRow, to: List[AddressRow], cc: List[AddressRow], bcc: List[AddressRow])
