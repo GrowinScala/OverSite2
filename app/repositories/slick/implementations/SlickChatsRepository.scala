@@ -282,9 +282,54 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]] =
     db.run(patchEmailAction(upsertEmailDTO, chatId, emailId, userId).transactionally)
 
-  private[implementations] def moveChatToTrashAction(chatId: String, userId: String) =
-    UserChatsTable.moveChatToTrash(userId, chatId)
-      .map(_ != 0)
+  private[implementations] def moveChatToTrashAction(chatId: String, userId: String) = {
+    for {
+      optionIfChatInTrash <- verifyIfChatAlreadyInTrash(chatId, userId)
+
+      optionRestoreOrDelete <- DBIO.sequenceOption(optionIfChatInTrash.map(chatIsInTrash =>
+        if (chatIsInTrash) restoreChatAction(chatId, userId)
+        else UserChatsTable.moveChatToTrash(userId, chatId)))
+    } yield optionRestoreOrDelete match {
+      case Some(restoreOrDelete) => restoreOrDelete > 0
+      case None => false
+    }
+  }
+
+  private def verifyIfChatAlreadyInTrash(chatId: String, userId: String) = {
+    UserChatsTable.all.filter(userChat => userChat.chatId === chatId && userChat.userId === userId)
+      .map(userChat => (userChat.inbox, userChat.sent, userChat.draft, userChat.trash))
+      .result.headOption
+      .map(optionUserChat => optionUserChat.map(userChat => userChat == (0, 0, 0, 1)))
+  }
+
+  private def restoreChatAction(chatId: String, userId: String): DBIO[Int] = {
+    for {
+      chatParticipations: Seq[(String, Int)] <- EmailAddressesTable.all
+        .join(EmailsTable.all)
+        .on {
+          case (emailAddress, email) => emailAddress.chatId === chatId && emailAddress.emailId === email.emailId &&
+            emailAddress.addressId.in(UsersTable.getUserAddressId(userId))
+        }
+        .map { case (emailAddress, email) => (emailAddress.participantType, email.sent) }
+        .result
+
+      (sender, receiver) = chatParticipations.partition { case (participantType, _) => participantType == "from" }
+
+      //Count of the emails where the user is a receiver if and only if the email was already sent
+      inbox = if (receiver.count { case (_, sent) => sent == 1 } > 0) 1 else 0
+
+      numberSent = sender.map { case (_, sent) => sent }.sum
+      drafts = sender.size - numberSent
+
+      sent = if (sender.size - drafts > 0) 1 else 0
+
+      restoreUserChat <- UserChatsTable.all
+        .filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId)
+        .map(userChatRow => (userChatRow.inbox, userChatRow.sent, userChatRow.draft, userChatRow.trash))
+        .update(inbox, sent, drafts, 0)
+
+    } yield restoreUserChat
+  }
 
   def moveChatToTrash(chatId: String, userId: String): Future[Boolean] =
     db.run(moveChatToTrashAction(chatId, userId))

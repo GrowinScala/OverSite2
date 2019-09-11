@@ -91,15 +91,3 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
   }
 
 }
-
-//region Old
-/*
-	def deleteAddress(id: String): Action[AnyContent] =
-  Action.async {
-  addressService.deleteAddress(id).map {
-  case true => NoContent
-  case _ => NotFound
-}
-}*/
-//endregion
-
