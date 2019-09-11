@@ -100,9 +100,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         The preview of each chat only shows the most recent email
    */
   private[implementations] def getChatsPreviewAction(mailbox: Mailbox, userId: String) = {
-    
+
     val visibleEmailsQuery = getVisibleEmailsQuery(userId, Some(mailbox))
-    
+
     val groupedQuery = visibleEmailsQuery
       .map { case (chatId, emailId, body, date, sent) => (chatId, date) }
       .groupBy(_._1)
@@ -117,8 +117,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
           (chatId, emailId)
       }
       .groupBy(_._1)
-      .map { case (chatId, emailId) => (chatId, emailId.map(_._2).min) }
-    
+      .map {
+        case (chatId, chatEmailQuery) =>
+          (chatId, chatEmailQuery.map { case (chat, emailId) => emailId }.min)
+      }
 
     val chatPreviewQuery = for {
       (chatId, emailId) <- groupedQuery
@@ -131,10 +133,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .map(_.addressId)
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
 
-      if emailId in visibleEmailsQuery.map { case (_, visibleEmailId, _, _, _) => visibleEmailId }
-
     } yield (chatId, subject, address, date, body)
-    
 
     chatPreviewQuery
       .sortBy { case (chatId, subject, address, date, body) => (date.desc, body.asc, address.asc) }

@@ -75,6 +75,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   //region Auxiliary Methods
 
+  //region getChatsPreview#OLD
+
   def participantIsReceiving(participantType: Option[ParticipantType]): Boolean =
     participantType.contains(To) ||
       participantType.contains(Cc) ||
@@ -400,8 +402,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           case (None, _) => thisEmailPreview
           case (_, None) => oldEmailPreview
 
-          case (Some((oldEmailId, oldChatPreview)), Some((thisEmailId, thisChatPreview))) if
-          oldChatPreview.lastEmailDate == thisChatPreview.lastEmailDate =>
+          case (Some((oldEmailId, oldChatPreview)), Some((thisEmailId, thisChatPreview))) if oldChatPreview.lastEmailDate == thisChatPreview.lastEmailDate =>
             if (oldEmailId < thisEmailId)
               oldEmailPreview
             else thisEmailPreview
@@ -479,10 +480,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         List.empty[Option[OversightInfo]]),
       dbSize, 0)
   }
+  //endregion
+
+  //region getChatsPreview#NEW
 
   //endregion
 
-  "SlickChatsRepository#getChatsPreview" should {
+  //endregion
+
+  /*"SlickChatsRepository#getChatsPreview#OLD" should {
     "be valid in [Test-1: 1 Chat, 1 Email, Only From, Drafts]" in {
 
       val viewerAddressRow = genAddressRow.sample.value
@@ -631,7 +637,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         Seq(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress,
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= addressRows,
@@ -686,7 +692,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
 
-      
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= addressRows,
@@ -742,7 +747,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         Seq(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress,
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
-      
 
       for {
         _ <- db.run(DBIO.seq(
@@ -800,7 +804,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         Seq(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress,
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
-      
 
       for {
         _ <- db.run(DBIO.seq(
@@ -838,7 +841,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         case (Some((_, chatPreview)), userChatRow) if userChatRow.inbox == 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= trashedChatCreationData.addressRows,
@@ -872,7 +875,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         case (Some((_, chatPreview)), userChatRow) if userChatRow.sent == 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= trashedChatCreationData.addressRows,
@@ -905,7 +908,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         case (Some((_, chatPreview)), userChatRow) if userChatRow.draft >= 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= trashedChatCreationData.addressRows,
@@ -937,7 +940,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         case (Some((_, chatPreview)), userChatRow) if userChatRow.trash == 1 => Seq(chatPreview)
         case _ => Seq.empty[ChatPreview]
       }
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= trashedChatCreationData.addressRows,
@@ -962,7 +965,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -987,7 +990,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1012,7 +1015,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1037,7 +1040,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1094,7 +1097,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         Seq(ChatPreview(chatRow.chatId, chatRow.subject, fromAddress,
           emailRow.date, emailRow.body))
       else Seq.empty[ChatPreview]
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= addressRows,
@@ -1125,7 +1128,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1156,7 +1159,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1187,7 +1190,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1218,7 +1221,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
-      
+
       for {
         _ <- db.run(DBIO.seq(
           AddressesTable.all ++= dbCreationData.addressRows,
@@ -1239,14 +1242,482 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     }
 
-  
-	 
+  }*/
 
+  "SlickChatsRepository#getChatsPreview#NEW" should {
+    "detect a draft made by the viewer " in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += basicTestDB.viewerAddressRow,
+          ChatsTable.all += basicTestDB.chatRow,
+          UsersTable.all += basicTestDB.viewerUserRow,
+          UserChatsTable.all += basicTestDB.userChatRow.copy(draft = 1),
+          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
+          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+
+        chatsPreview <- chatsRep.getChatsPreview(Drafts, basicTestDB.viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "detect an email sent to the viewer [To]" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val senderEmailAddressesRow = genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+        senderAddressRow.addressId, "from").sample.value
+
+      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, senderAddressRow),
+          ChatsTable.all += basicTestDB.chatRow,
+          UsersTable.all += basicTestDB.viewerUserRow,
+          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
+          EmailsTable.all += basicTestDB.emailRow.copy(sent = 1),
+          EmailAddressesTable.all ++= List(
+            basicTestDB.emailAddressesRow.copy(participantType = "to"),
+            senderEmailAddressesRow)))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+
+    }
+
+    "detect an email sent to the viewer [Cc]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 1)
+      val viewerEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "cc").sample.value
+      val senderEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        senderAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(inbox = 1)
+
+      val expectedChatsPreview = Seq(ChatPreview(chatRow.chatId, chatRow.subject, senderAddressRow.address,
+        emailRow.date, emailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= Seq(viewerAddressRow, senderAddressRow),
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all ++= Seq(viewerEmailAddressesRow, senderEmailAddressesRow)))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "detect an email sent to the viewer [Bcc]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 1)
+      val viewerEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "bcc").sample.value
+      val senderEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        senderAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(inbox = 1)
+
+      val expectedChatsPreview = Seq(ChatPreview(chatRow.chatId, chatRow.subject, senderAddressRow.address,
+        emailRow.date, emailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= Seq(viewerAddressRow, senderAddressRow),
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all ++= Seq(viewerEmailAddressesRow, senderEmailAddressesRow)))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "Not detect an email addressed to the viewer, that has not been sent [To]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val viewerEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "to").sample.value
+      val senderEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        senderAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(inbox = 1)
+
+      val expectedChatsPreview = Seq.empty[ChatPreview]
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= Seq(viewerAddressRow, senderAddressRow),
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all ++= Seq(viewerEmailAddressesRow, senderEmailAddressesRow)))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "Not detect an email addressed to the viewer, that has not been sent [Cc]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val viewerEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "cc").sample.value
+      val senderEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        senderAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(inbox = 1)
+
+      val expectedChatsPreview = Seq.empty[ChatPreview]
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= Seq(viewerAddressRow, senderAddressRow),
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all ++= Seq(viewerEmailAddressesRow, senderEmailAddressesRow)))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "Not detect an email addressed to the viewer, that has not been sent [Bcc]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val viewerEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "bcc").sample.value
+      val senderEmailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        senderAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(inbox = 1)
+
+      val expectedChatsPreview = Seq.empty[ChatPreview]
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all ++= Seq(viewerAddressRow, senderAddressRow),
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all ++= Seq(viewerEmailAddressesRow, senderEmailAddressesRow)))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "detect a chat if it is visible in the mailbox being used [Inbox]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val emailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(inbox = 1)
+
+      val expectedChatsPreview = Seq(ChatPreview(chatRow.chatId, chatRow.subject, viewerAddressRow.address,
+        emailRow.date, emailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all += emailAddressesRow))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "detect a chat if it is visible in the mailbox being used [Sent]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val emailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(sent = 1)
+
+      val expectedChatsPreview = Seq(ChatPreview(chatRow.chatId, chatRow.subject, viewerAddressRow.address,
+        emailRow.date, emailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all += emailAddressesRow))
+
+        chatsPreview <- chatsRep.getChatsPreview(Sent, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "detect a chat if it is visible in the mailbox being used [Drafts]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val emailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(draft = 1)
+
+      val expectedChatsPreview = Seq(ChatPreview(chatRow.chatId, chatRow.subject, viewerAddressRow.address,
+        emailRow.date, emailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all += emailAddressesRow))
+
+        chatsPreview <- chatsRep.getChatsPreview(Drafts, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "detect a chat if it is visible in the mailbox being used [Trash]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val emailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(trash = 1)
+
+      val expectedChatsPreview = Seq(ChatPreview(chatRow.chatId, chatRow.subject, viewerAddressRow.address,
+        emailRow.date, emailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all += emailAddressesRow))
+
+        chatsPreview <- chatsRep.getChatsPreview(Trash, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "Not detect a chat if it isn't visible in the mailbox being used [Inbox]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val emailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+
+      val expectedChatsPreview = Seq.empty[ChatPreview]
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all += emailAddressesRow))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "Not detect a chat if it isn't visible in the mailbox being used [Sent]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val emailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+
+      val expectedChatsPreview = Seq.empty[ChatPreview]
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all += emailAddressesRow))
+
+        chatsPreview <- chatsRep.getChatsPreview(Sent, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "Not detect a chat if it isn't visible in the mailbox being used [Drafts]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val emailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+
+      val expectedChatsPreview = Seq.empty[ChatPreview]
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all += emailAddressesRow))
+
+        chatsPreview <- chatsRep.getChatsPreview(Drafts, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "Not detect a chat if it isn't visible in the mailbox being used [Trash]" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRow = genEmailRow(chatRow.chatId).sample.value.copy(sent = 0)
+      val emailAddressesRow = genEmailAddressRow(emailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+
+      val expectedChatsPreview = Seq.empty[ChatPreview]
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all += emailRow,
+          EmailAddressesTable.all += emailAddressesRow))
+
+        chatsPreview <- chatsRep.getChatsPreview(Trash, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "show only the most recent email" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val recentEmailRow = genEmailRow(chatRow.chatId).sample.value.copy(date = "2019")
+      val oldEmailRow = genEmailRow(chatRow.chatId).sample.value.copy(date = "2018")
+      val emailAddressesRows = List(genEmailAddressRow(recentEmailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value, genEmailAddressRow(oldEmailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value)
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(inbox = 1)
+
+      val expectedChatsPreview = Seq(ChatPreview(chatRow.chatId, chatRow.subject, viewerAddressRow.address,
+        recentEmailRow.date, recentEmailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all ++= List(recentEmailRow, oldEmailRow),
+          EmailAddressesTable.all ++= emailAddressesRows))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "show only the email with the lowest Id in case the dates are repeated" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val emailRowOne = genEmailRow(chatRow.chatId).sample.value.copy(date = "2019")
+      val emailRowTwo = genEmailRow(chatRow.chatId).sample.value.copy(date = "2019")
+      val emailAddressesRows = List(genEmailAddressRow(emailRowOne.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value, genEmailAddressRow(emailRowTwo.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value)
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(inbox = 1)
+
+      val predictedEmail = List(emailRowOne, emailRowTwo).minBy(_.emailId)
+
+      val expectedChatsPreview = Seq(ChatPreview(chatRow.chatId, chatRow.subject, viewerAddressRow.address,
+        predictedEmail.date, predictedEmail.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all ++= List(emailRowOne, emailRowTwo),
+          EmailAddressesTable.all ++= emailAddressesRows))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
+
+    "detect multiple chats" in {
+      val viewerAddressRow = genAddressRow.sample.value
+      val viewerUserRow = genUserRow(viewerAddressRow.addressId).sample.value
+      val chatRow = genChatRow.sample.value
+      val recentEmailRow = genEmailRow(chatRow.chatId).sample.value.copy(date = "2019")
+      val oldEmailRow = genEmailRow(chatRow.chatId).sample.value.copy(date = "2018")
+      val emailAddressesRows = List(genEmailAddressRow(recentEmailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value, genEmailAddressRow(oldEmailRow.emailId, chatRow.chatId,
+        viewerAddressRow.addressId, "from").sample.value)
+      val userChatRow = genUserChatRow(viewerUserRow.userId, chatRow.chatId).sample.value
+        .copy(inbox = 1)
+
+      val expectedChatsPreview = Seq(ChatPreview(chatRow.chatId, chatRow.subject, viewerAddressRow.address,
+        recentEmailRow.date, recentEmailRow.body))
+
+      for {
+        _ <- db.run(DBIO.seq(
+          AddressesTable.all += viewerAddressRow,
+          ChatsTable.all += chatRow,
+          UsersTable.all += viewerUserRow,
+          UserChatsTable.all += userChatRow,
+          EmailsTable.all ++= List(recentEmailRow, oldEmailRow),
+          EmailAddressesTable.all ++= emailAddressesRows))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, viewerUserRow.userId)
+      } yield chatsPreview mustBe expectedChatsPreview
+    }
   }
-	
-	
 
-	
 }
 
 case class ParticipantsAddressRows(from: AddressRow, to: List[AddressRow], cc: List[AddressRow], bcc: List[AddressRow])
@@ -1263,4 +1734,7 @@ case class DBCreationData(chatRows: List[ChatRow], userChatRows: List[UserChatRo
   emailsPreview: List[EmailPreview], oversightInfoList: List[Option[OversightInfo]])
 
 case class OversightInfo(overseeAddressRow: AddressRow, overseeUserRow: UserRow, oversightRow: OversightRow)
+
+case class BasicTestDB(viewerAddressRow: AddressRow, viewerUserRow: UserRow, chatRow: ChatRow, emailRow: EmailRow,
+  emailAddressesRow: EmailAddressRow, userChatRow: UserChatRow)
 
