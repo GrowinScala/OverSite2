@@ -1,10 +1,7 @@
 package repositories.slick.implementations
 
-import model.dtos.UpsertEmailDTO
+
 import model.types.Mailbox._
-import model.types.ParticipantType._
-import model.types.{ Mailbox, ParticipantType }
-import org.scalacheck.Gen
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
@@ -12,9 +9,6 @@ import repositories.dtos.ChatPreview
 import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
 import utils.TestGenerators._
-import model.types.testTypeAliases._
-
-import scala.annotation.tailrec
 import scala.concurrent.duration.Duration
 import scala.concurrent._
 
@@ -73,372 +67,358 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   }
   //endregion
 
+  def fillDB(addressRows: List[AddressRow], chatRows: List[ChatRow], userRows: List[UserRow],
+    userChatRows: List[UserChatRow], emailRows: List[EmailRow], emailAddressRows: List[EmailAddressRow],
+    oversightRows: List[OversightRow] = Nil): Future[Unit] =
+    db.run(DBIO.seq(
+      AddressesTable.all ++= addressRows,
+      ChatsTable.all ++= chatRows,
+      UsersTable.all ++= userRows,
+      UserChatsTable.all ++= userChatRows,
+      EmailsTable.all ++= emailRows,
+      EmailAddressesTable.all ++= emailAddressRows,
+      OversightsTable.all ++= oversightRows))
+
   "SlickChatsRepository#getChatsPreview" should {
     "detect a draft made by the viewer " in {
       val basicTestDB = genBasicTestDB.sample.value
 
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
-
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(draft = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(draft = 1)),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
 
         chatsPreview <- chatsRep.getChatsPreview(Drafts, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
     }
 
     "detect an email sent to the viewer [To]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 1),
-          EmailAddressesTable.all ++= List(
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.emailRow.copy(sent = 1)),
+          List(
             basicTestDB.emailAddressesRow.copy(participantType = "to"),
-            senderEmailAddressesRow)))
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
 
     }
 
     "detect an email sent to the viewer [CC]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 1),
-          EmailAddressesTable.all ++= List(
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.emailRow.copy(sent = 1)),
+          List(
             basicTestDB.emailAddressesRow.copy(participantType = "cc"),
-            senderEmailAddressesRow)))
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
     }
 
     "detect an email sent to the viewer [BCC]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 1),
-          EmailAddressesTable.all ++= List(
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.emailRow.copy(sent = 1)),
+          List(
             basicTestDB.emailAddressesRow.copy(participantType = "bcc"),
-            senderEmailAddressesRow)))
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
     }
 
     "Not detect an email addressed to the viewer, that has not been sent [To]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq.empty[ChatPreview]
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all ++= List(
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(
             basicTestDB.emailAddressesRow.copy(participantType = "to"),
-            senderEmailAddressesRow)))
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe empty
     }
 
     "Not detect an email addressed to the viewer, that has not been sent [CC]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq.empty[ChatPreview]
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all ++= List(
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(
             basicTestDB.emailAddressesRow.copy(participantType = "cc"),
-            senderEmailAddressesRow)))
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe empty
     }
 
     "Not detect an email addressed to the viewer, that has not been sent [BCC]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq.empty[ChatPreview]
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all ++= List(
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(
             basicTestDB.emailAddressesRow.copy(participantType = "bcc"),
-            senderEmailAddressesRow)))
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe empty
     }
 
     "detect a chat if it is visible in the mailbox being used [Inbox]" in {
       val basicTestDB = genBasicTestDB.sample.value
 
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
-
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
     }
 
     "detect a chat if it is visible in the mailbox being used [Sent]" in {
       val basicTestDB = genBasicTestDB.sample.value
 
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
-
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(sent = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(sent = 1)),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
 
         chatsPreview <- chatsRep.getChatsPreview(Sent, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
     }
 
     "detect a chat if it is visible in the mailbox being used [Drafts]" in {
       val basicTestDB = genBasicTestDB.sample.value
 
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
-
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(draft = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(draft = 1)),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
 
         chatsPreview <- chatsRep.getChatsPreview(Drafts, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
     }
 
     "detect a chat if it is visible in the mailbox being used [Trash]" in {
       val basicTestDB = genBasicTestDB.sample.value
 
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
-
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(trash = 1),
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(trash = 1)),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
 
         chatsPreview <- chatsRep.getChatsPreview(Trash, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body))
     }
 
     "Not detect a chat if it isn't visible in the mailbox being used [Inbox]" in {
       val basicTestDB = genBasicTestDB.sample.value
 
-      val expectedChatsPreview = Seq.empty[ChatPreview]
-
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow,
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe empty
     }
 
     "Not detect a chat if it isn't visible in the mailbox being used [Sent]" in {
       val basicTestDB = genBasicTestDB.sample.value
 
-      val expectedChatsPreview = Seq.empty[ChatPreview]
-
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow,
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
 
         chatsPreview <- chatsRep.getChatsPreview(Sent, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe empty
     }
 
     "Not detect a chat if it isn't visible in the mailbox being used [Drafts]" in {
       val basicTestDB = genBasicTestDB.sample.value
 
-      val expectedChatsPreview = Seq.empty[ChatPreview]
-
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow,
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
 
         chatsPreview <- chatsRep.getChatsPreview(Drafts, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe empty
     }
 
     "Not detect a chat if it isn't visible in the mailbox being used [Trash]" in {
       val basicTestDB = genBasicTestDB.sample.value
 
-      val expectedChatsPreview = Seq.empty[ChatPreview]
-
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow,
-          EmailsTable.all += basicTestDB.emailRow.copy(sent = 0),
-          EmailAddressesTable.all += basicTestDB.emailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
 
         chatsPreview <- chatsRep.getChatsPreview(Trash, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe empty
     }
 
     "show only the most recent email" in {
       val basicTestDB = genBasicTestDB.sample.value
       val oldEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(date = "2018")
-      val oldEmailAddressesRow = genEmailAddressRow(oldEmailRow.emailId, basicTestDB.chatRow.chatId,
-        basicTestDB.viewerAddressRow.addressId, "from").sample.value
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        basicTestDB.viewerAddressRow.address, "2019", basicTestDB.emailRow.body))
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          EmailsTable.all ++= List(basicTestDB.emailRow.copy(date = "2019"), oldEmailRow),
-          EmailAddressesTable.all ++= List(basicTestDB.emailAddressesRow, oldEmailAddressesRow)))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.emailRow.copy(date = "2019"), oldEmailRow),
+          List(
+            basicTestDB.emailAddressesRow,
+            genEmailAddressRow(oldEmailRow.emailId, basicTestDB.chatRow.chatId,
+              basicTestDB.viewerAddressRow.addressId, "from").sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        basicTestDB.viewerAddressRow.address, "2019", basicTestDB.emailRow.body))
     }
 
-    "show only the email with the lowest Id in case the dates are repeated" in {
+    "show only one email even if there are multiple emails with the latest date." in {
       val basicTestDB = genBasicTestDB.sample.value
       val otherEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(date = "2019")
-      val otherEmailAddressesRow = genEmailAddressRow(otherEmailRow.emailId, basicTestDB.chatRow.chatId,
-        basicTestDB.viewerAddressRow.addressId, "from").sample.value
-
-      val predictedEmail = List(basicTestDB.emailRow, otherEmailRow).minBy(_.emailId)
-
-      val expectedChatsPreview = Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        basicTestDB.viewerAddressRow.address, "2019", predictedEmail.body))
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          EmailsTable.all ++= List(basicTestDB.emailRow.copy(date = "2019"), otherEmailRow),
-          EmailAddressesTable.all ++= List(basicTestDB.emailAddressesRow, otherEmailAddressesRow)))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.emailRow.copy(date = "2019"), otherEmailRow),
+          List(
+            basicTestDB.emailAddressesRow,
+            genEmailAddressRow(otherEmailRow.emailId, basicTestDB.chatRow.chatId,
+              basicTestDB.viewerAddressRow.addressId, "from").sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        basicTestDB.viewerAddressRow.address, "2019", List(basicTestDB.emailRow, otherEmailRow).minBy(_.emailId).body))
 
     }
 
     "detect more than one chat" in {
       val basicTestDB = genBasicTestDB.sample.value
       val otherChatRow = genChatRow.sample.value
-      val otherUserChatRow = genUserChatRow(basicTestDB.viewerUserRow.userId, otherChatRow.chatId).sample.value
-        .copy(inbox = 1)
       val otherEmailRow = genEmailRow(otherChatRow.chatId).sample.value
       val otherEmailAddressesRow = genEmailAddressRow(otherEmailRow.emailId, otherChatRow.chatId,
         basicTestDB.viewerAddressRow.addressId, "from").sample.value
 
-      val expectedChatsPreview = List(
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow, otherChatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1), genUserChatRow(
+            basicTestDB.viewerUserRow.userId,
+            otherChatRow.chatId).sample.value.copy(inbox = 1)),
+          List(basicTestDB.emailRow, otherEmailRow),
+          List(
+            basicTestDB.emailAddressesRow,
+            genEmailAddressRow(otherEmailRow.emailId, otherChatRow.chatId,
+              basicTestDB.viewerAddressRow.addressId, "from").sample.value))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
+      } yield chatsPreview mustBe List(
         ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
           basicTestDB.viewerAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body),
         ChatPreview(otherChatRow.chatId, otherChatRow.subject,
@@ -447,251 +427,216 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String))
 
-      for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += basicTestDB.viewerAddressRow,
-          ChatsTable.all ++= List(basicTestDB.chatRow, otherChatRow),
-          UsersTable.all += basicTestDB.viewerUserRow,
-          UserChatsTable.all ++= List(basicTestDB.userChatRow.copy(inbox = 1), otherUserChatRow),
-          EmailsTable.all ++= List(basicTestDB.emailRow, otherEmailRow),
-          EmailAddressesTable.all ++= List(basicTestDB.emailAddressesRow, otherEmailAddressesRow)))
-
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
     }
 
     "detect an email made by the oversee if it was sent" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseeAddressRow = genAddressRow.sample.value
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
-      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
-        overseeUserRow.userId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
-      val overseeEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        overseeAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview =
-        Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-          overseeAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, overseeAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all ++= List(basicTestDB.viewerUserRow, overseeUserRow),
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          OversightsTable.all += oversightRow,
-          EmailsTable.all += overseeEmailRow,
-          EmailAddressesTable.all += overseeEmailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(overseeEmailRow),
+          List(genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+            overseeAddressRow.addressId, "from").sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        overseeAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
+
     }
 
     "Not detect an email made by the oversee if it wasn't sent" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseeAddressRow = genAddressRow.sample.value
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
-      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
-        overseeUserRow.userId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
-      val overseeEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        overseeAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq.empty[ChatPreview]
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, overseeAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all ++= List(basicTestDB.viewerUserRow, overseeUserRow),
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          OversightsTable.all += oversightRow,
-          EmailsTable.all += overseeEmailRow,
-          EmailAddressesTable.all += overseeEmailAddressesRow))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(overseeEmailRow),
+          List(genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+            overseeAddressRow.addressId, "from").sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe empty
     }
 
     "detect an email sent to an oversee [To]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseeAddressRow = genAddressRow.sample.value
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
-      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
-        overseeUserRow.userId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
-      val overseeEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        overseeAddressRow.addressId, "to").sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview =
-        Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-          senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
 
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all ++= List(basicTestDB.viewerUserRow, overseeUserRow),
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          OversightsTable.all += oversightRow,
-          EmailsTable.all += overseeEmailRow,
-          EmailAddressesTable.all ++= List(overseeEmailAddressesRow, senderEmailAddressesRow)))
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(overseeEmailRow),
+          List(
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              overseeAddressRow.addressId, "to").sample.value,
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
+
     }
 
     "detect an email sent to an oversee [CC]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseeAddressRow = genAddressRow.sample.value
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
-      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
-        overseeUserRow.userId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
-      val overseeEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        overseeAddressRow.addressId, "cc").sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview =
-        Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-          senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
-
+  
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all ++= List(basicTestDB.viewerUserRow, overseeUserRow),
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          OversightsTable.all += oversightRow,
-          EmailsTable.all += overseeEmailRow,
-          EmailAddressesTable.all ++= List(overseeEmailAddressesRow, senderEmailAddressesRow)))
-
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(overseeEmailRow),
+          List(
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              overseeAddressRow.addressId, "cc").sample.value,
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
+    
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
     }
 
     "detect an email sent to an oversee [BCC]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseeAddressRow = genAddressRow.sample.value
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
-      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
-        overseeUserRow.userId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
-      val overseeEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        overseeAddressRow.addressId, "bcc").sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview =
-        Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-          senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
-
+  
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all ++= List(basicTestDB.viewerUserRow, overseeUserRow),
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          OversightsTable.all += oversightRow,
-          EmailsTable.all += overseeEmailRow,
-          EmailAddressesTable.all ++= List(overseeEmailAddressesRow, senderEmailAddressesRow)))
-
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(overseeEmailRow),
+          List(
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              overseeAddressRow.addressId, "bcc").sample.value,
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
+    
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
+      
     }
 
     "Not detect an email addressed to an oversee but not sent [To]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseeAddressRow = genAddressRow.sample.value
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
-      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
-        overseeUserRow.userId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
-      val overseeEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        overseeAddressRow.addressId, "to").sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq.empty[ChatPreview]
-
+  
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all ++= List(basicTestDB.viewerUserRow, overseeUserRow),
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          OversightsTable.all += oversightRow,
-          EmailsTable.all += overseeEmailRow,
-          EmailAddressesTable.all ++= List(overseeEmailAddressesRow, senderEmailAddressesRow)))
-
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(overseeEmailRow),
+          List(
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              overseeAddressRow.addressId, "to").sample.value,
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
+    
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
     }
 
     "Not detect an email addressed to an oversee but not sent [CC]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseeAddressRow = genAddressRow.sample.value
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
-      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
-        overseeUserRow.userId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
-      val overseeEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        overseeAddressRow.addressId, "cc").sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq.empty[ChatPreview]
-
+  
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all ++= List(basicTestDB.viewerUserRow, overseeUserRow),
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          OversightsTable.all += oversightRow,
-          EmailsTable.all += overseeEmailRow,
-          EmailAddressesTable.all ++= List(overseeEmailAddressesRow, senderEmailAddressesRow)))
-
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(overseeEmailRow),
+          List(
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              overseeAddressRow.addressId, "cc").sample.value,
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
+    
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
     }
 
     "Not detect an email addressed to an oversee but not sent [BCC]" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseeAddressRow = genAddressRow.sample.value
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
-      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
-        overseeUserRow.userId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
-      val overseeEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        overseeAddressRow.addressId, "bcc").sample.value
       val senderAddressRow = genAddressRow.sample.value
-      val senderEmailAddressesRow = genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-        senderAddressRow.addressId, "from").sample.value
-
-      val expectedChatsPreview = Seq.empty[ChatPreview]
-
+  
       for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all ++= List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
-          ChatsTable.all += basicTestDB.chatRow,
-          UsersTable.all ++= List(basicTestDB.viewerUserRow, overseeUserRow),
-          UserChatsTable.all += basicTestDB.userChatRow.copy(inbox = 1),
-          OversightsTable.all += oversightRow,
-          EmailsTable.all += overseeEmailRow,
-          EmailAddressesTable.all ++= List(overseeEmailAddressesRow, senderEmailAddressesRow)))
-
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(overseeEmailRow),
+          List(
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              overseeAddressRow.addressId, "bcc").sample.value,
+            genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
+    
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe expectedChatsPreview
+      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
     }
 
   }
