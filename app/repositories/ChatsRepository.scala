@@ -18,7 +18,7 @@ trait ChatsRepository {
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]]
 
-  def moveChatToTrash(chatId: String, userId: String): Future[Boolean]
+  def patchChat(chatId: String, userId: String): Future[Boolean]
 
   def deleteChat(chatId: String, userId: String): Future[Boolean]
 

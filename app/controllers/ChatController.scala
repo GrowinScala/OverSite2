@@ -71,9 +71,9 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
     }
   }
 
-  def moveChatToTrash(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
+  def patchChat(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      chatService.moveChatToTrash(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
+      chatService.patchChat(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
   }
 
   def getEmail(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {

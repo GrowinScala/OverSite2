@@ -32,8 +32,8 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
     chatsRep.patchEmail(upsertEmailDTO, chatId, emailId, userId).map(toEmailDTO)
   }
 
-  def moveChatToTrash(chatId: String, userId: String): Future[Boolean] = {
-    chatsRep.moveChatToTrash(chatId, userId)
+  def patchChat(chatId: String, userId: String): Future[Boolean] = {
+    chatsRep.patchChat(chatId, userId)
   }
 
   def deleteChat(chatId: String, userId: String): Future[Boolean] = {

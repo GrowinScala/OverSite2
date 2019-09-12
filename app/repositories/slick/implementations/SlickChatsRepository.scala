@@ -282,7 +282,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]] =
     db.run(patchEmailAction(upsertEmailDTO, chatId, emailId, userId).transactionally)
 
-  private[implementations] def moveChatToTrashAction(chatId: String, userId: String) = {
+  private[implementations] def patchChatAction(chatId: String, userId: String): DBIO[Boolean] = {
     for {
       optionIfChatInTrash <- verifyIfChatAlreadyInTrash(chatId, userId)
 
@@ -295,40 +295,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     }
   }
 
-  private def verifyIfChatAlreadyInTrash(chatId: String, userId: String) = {
-    UserChatsTable.all.filter(userChat => userChat.chatId === chatId && userChat.userId === userId)
-      .map(userChat => (userChat.inbox, userChat.sent, userChat.draft, userChat.trash))
-      .result.headOption
-      .map(optionUserChat => optionUserChat.map(userChat => userChat == (0, 0, 0, 1)))
-  }
-
-  private def restoreChatAction(chatId: String, userId: String): DBIO[Int] = {
-    for {
-      participations <- getUserParticipationsOnChatAction(chatId, userId)
-
-      (sender, receiver) = participations.partition { case (participantType, _) => participantType == "from" }
-
-      chatOversees <- getOverseesUserChat(chatId, userId)
-
-      //The overseer is allowed to see an oversee's chat if it is in the oversee's inbox or/and sent mailbox
-      numberOversights = chatOversees.map(userChat => userChat.inbox + userChat.sent).sum
-
-      //Count of the emails where the user is a receiver if and only if the email was already sent
-      numberInbox = receiver.count { case (_, sent) => sent == 1 }
-      inbox = if (numberOversights > 0 || numberInbox > 0) 1 else 0
-
-      numberSent = sender.map { case (_, sent) => sent }.sum
-      numberDrafts = sender.size - numberSent
-
-      sent = if (sender.size - numberDrafts > 0) 1 else 0
-
-      restoreUserChat <- UserChatsTable.restoreChat(userId, chatId, inbox, sent, numberDrafts)
-
-    } yield restoreUserChat
-  }
-
-  def moveChatToTrash(chatId: String, userId: String): Future[Boolean] =
-    db.run(moveChatToTrashAction(chatId, userId))
+  def patchChat(chatId: String, userId: String): Future[Boolean] =
+    db.run(patchChatAction(chatId, userId))
 
   private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String) = {
     getChatAction(chatId, userId)
@@ -360,6 +328,38 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def deleteChat(chatId: String, userId: String): Future[Boolean] =
     db.run(deleteChatAction(chatId, userId))
+
+  private def verifyIfChatAlreadyInTrash(chatId: String, userId: String): DBIO[Option[Boolean]] = {
+    UserChatsTable.all.filter(userChat => userChat.chatId === chatId && userChat.userId === userId)
+      .map(userChat => (userChat.inbox, userChat.sent, userChat.draft, userChat.trash))
+      .result.headOption
+      .map(optionUserChat => optionUserChat.map(userChat => userChat == (0, 0, 0, 1)))
+  }
+
+  private def restoreChatAction(chatId: String, userId: String): DBIO[Int] = {
+    for {
+      participations <- getUserParticipationsOnChatAction(chatId, userId)
+
+      (sender, receiver) = participations.partition { case (participantType, _) => participantType == "from" }
+
+      chatOversees <- getOverseesUserChat(chatId, userId)
+
+      //The overseer is allowed to see in its inbox an oversee's chat if it is in the oversee's inbox or/and sent mailbox
+      numberOversights = chatOversees.map(userChat => userChat.inbox + userChat.sent).sum
+
+      //Count of the emails where the user is a receiver if and only if the email was already sent
+      numberInbox = receiver.count { case (_, sent) => sent == 1 }
+      inbox = if (numberOversights > 0 || numberInbox > 0) 1 else 0
+
+      numberSent = sender.map { case (_, sent) => sent }.sum
+      numberDrafts = sender.size - numberSent
+
+      sent = if (sender.size - numberDrafts > 0) 1 else 0
+
+      restoreUserChat <- UserChatsTable.restoreChat(userId, chatId, inbox, sent, numberDrafts)
+
+    } yield restoreUserChat
+  }
 
   private def getUserParticipationsOnChatAction(chatId: String, userId: String): DBIO[Seq[(String, Int)]] = {
     EmailAddressesTable.all
