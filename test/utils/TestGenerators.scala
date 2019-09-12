@@ -5,7 +5,7 @@ import model.types.ParticipantType
 import model.types.ParticipantType._
 import org.scalacheck.Gen
 import play.api.libs.json._
-import repositories.slick.implementations.{ BasicTestDB, ParticipantsAddressRows }
+import repositories.slick.implementations.BasicTestDB
 import repositories.slick.mappings._
 import utils.DateUtils._
 
@@ -168,14 +168,7 @@ object TestGenerators {
       userChatId <- genUUID
     } yield UserChatRow(userChatId, userId, chatId, 0, 0, 0, 0)
 
-  def genParticipantsAddressRows: Gen[ParticipantsAddressRows] =
-    for {
-      from <- genAddressRow
-      to <- genList(1, 4, genAddressRow)
-      cc <- genList(0, 1, genAddressRow)
-      bcc <- genList(0, 1, genAddressRow)
-    } yield ParticipantsAddressRows(from, to, cc, bcc)
-
+  
   def genOversightRow(chatId: String, overseerId: String, overseeId: String): Gen[OversightRow] =
     for {
       oversightId <- genUUID
