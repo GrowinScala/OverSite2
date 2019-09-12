@@ -5,7 +5,9 @@ import model.types.Mailbox.Inbox
 import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
-import repositories.dtos.Email
+import repositories.dtos._
+
+import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 
 import scala.concurrent.Future
 import utils.TestGenerators._
@@ -127,6 +129,56 @@ class ChatServiceSpec extends AsyncWordSpec
       val serviceResponse = chatService.patchEmail(upsertEmailDTO, "chatId", "emailId", "userId")
 
       serviceResponse.map(_ mustBe Some(expectedResponse))
+    }
+  }
+
+  "ChatService#getEmail" should {
+    "return a ChatDTO with the requested email" in {
+      val mockChatsRep = mock[ChatsRepository]
+
+      val chatId = "6c664490-eee9-4820-9eda-3110d794a998"
+      val emailId = "f15967e6-532c-40a6-9335-064d884d4906"
+      val userId = "685c9120-6616-47ab-b1a7-c5bd9b11c32b"
+
+      val repositoryChatResponse = Chat(
+        chatId, "Subject", Set("address1", "address2"),
+        Set(Overseers("address1", Set("address3"))),
+        Seq(Email(emailId, "address1", Set("address2"), Set(), Set(),
+          "This is the body", "2019-07-19 10:00:00", 1, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
+
+      mockChatsRep.getEmail(*, *, *)
+        .returns(Future.successful(Some(repositoryChatResponse)))
+
+      val chatService = new ChatService(mockChatsRep)
+
+      val expectedServiceResponse = ChatDTO(chatId, "Subject", Set("address1", "address2"),
+        Set(OverseersDTO("address1", Set("address3"))),
+        Seq(EmailDTO(emailId, "address1", Set("address2"), Set(), Set(),
+          "This is the body", "2019-07-19 10:00:00", sent = true, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
+
+      chatService.getEmail(chatId, emailId, userId).map(
+        serviceResponse => serviceResponse.value mustBe expectedServiceResponse)
+    }
+  }
+
+  "ChatService#deleteChat" should {
+    "return true if the ChatsRepository returns true" in {
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.deleteChat(*, *)
+        .returns(Future.successful(true))
+
+      val chatServiceImpl = new ChatService(mockChatsRep)
+      val moveChatToTrashService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      moveChatToTrashService.map(_ mustBe true)
+    }
+    "return false if the ChatsRepository returns false" in {
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.deleteChat(*, *)
+        .returns(Future.successful(false))
+
+      val chatServiceImpl = new ChatService(mockChatsRep)
+      val moveChatToTrashService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      moveChatToTrashService.map(_ mustBe false)
     }
   }
 

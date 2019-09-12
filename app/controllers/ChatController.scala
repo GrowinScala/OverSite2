@@ -74,6 +74,20 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       chatService.moveChatToTrash(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
   }
 
+  def getEmail(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+
+      chatService.getEmail(chatId, emailId, authenticatedRequest.userId).map {
+        case Some(chatDTO) => Ok(Json.toJson(chatDTO))
+        case None => NotFound
+      }
+  }
+
+  def deleteChat(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.deleteChat(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
+  }
+
 }
 
 //region Old
