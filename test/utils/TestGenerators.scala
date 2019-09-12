@@ -168,7 +168,6 @@ object TestGenerators {
       userChatId <- genUUID
     } yield UserChatRow(userChatId, userId, chatId, 0, 0, 0, 0)
 
-  
   def genOversightRow(chatId: String, overseerId: String, overseeId: String): Gen[OversightRow] =
     for {
       oversightId <- genUUID
