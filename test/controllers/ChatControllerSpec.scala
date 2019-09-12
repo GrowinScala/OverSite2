@@ -313,6 +313,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
   "ChatController#getEmail" should {
     "return Json for some ChatDTO with one email" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
       val chatId = "6c664490-eee9-4820-9eda-3110d794a998"
       val emailId = "f15967e6-532c-40a6-9335-064d884d4906"
 
@@ -320,50 +321,39 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         Seq(EmailDTO(emailId, "address1", Set("address2"), Set(), Set(), "This is the body", "2019-07-19 10:00:00", sent = true,
           Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
 
-      val mockChatService = mock[ChatService]
       mockChatService.getEmail(*, *, *)
         .returns(Future.successful(Some(responseChatDto)))
 
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
-      controller.getEmail(chatId, emailId).apply(FakeRequest()).map(
+      chatController.getEmail(chatId, emailId).apply(FakeRequest()).map(
         result => result mustBe Ok(Json.toJson(responseChatDto)))
     }
 
     "return NotFound if service response is None" in {
-      val mockChatService = mock[ChatService]
+      val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.getEmail(*, *, *)
         .returns(Future.successful(None))
 
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
-      controller.getEmail("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000").apply(FakeRequest())
+      chatController.getEmail("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000000").apply(FakeRequest())
         .map(_ mustBe NotFound)
     }
   }
 
   "ChatController#deleteChat" should {
     "return NoContent if the response from the service is true" in {
-
-      val mockChatService = mock[ChatService]
+      val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.deleteChat(*, *)
         .returns(Future.successful(true))
 
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
-      controller.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616").apply(FakeRequest())
+      chatController.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616").apply(FakeRequest())
         .map(result => result mustBe NoContent)
     }
 
     "return NotFound if the response from the service is NOT true" in {
-
-      val mockChatService = mock[ChatService]
+      val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.deleteChat(*, *)
         .returns(Future.successful(false))
 
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
-      controller.deleteChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(FakeRequest())
+      chatController.deleteChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(FakeRequest())
         .map(result => result mustBe NotFound)
     }
   }

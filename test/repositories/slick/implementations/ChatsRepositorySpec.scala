@@ -1,6 +1,5 @@
 package repositories.slick.implementations
 
-
 import model.types.Mailbox._
 import org.scalatest._
 import play.api.inject.Injector
@@ -509,7 +508,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
       val senderAddressRow = genAddressRow.sample.value
-  
+
       for {
         _ <- fillDB(
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
@@ -524,7 +523,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
               senderAddressRow.addressId, "from").sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
             overseeUserRow.userId).sample.value))
-    
+
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
       } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
@@ -536,7 +535,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
       val senderAddressRow = genAddressRow.sample.value
-  
+
       for {
         _ <- fillDB(
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
@@ -551,11 +550,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
               senderAddressRow.addressId, "from").sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
             overseeUserRow.userId).sample.value))
-    
+
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
       } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
-      
+
     }
 
     "Not detect an email addressed to an oversee but not sent [To]" in {
@@ -564,7 +563,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
       val senderAddressRow = genAddressRow.sample.value
-  
+
       for {
         _ <- fillDB(
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
@@ -579,10 +578,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
               senderAddressRow.addressId, "from").sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
             overseeUserRow.userId).sample.value))
-    
+
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
+      } yield chatsPreview mustBe empty
     }
 
     "Not detect an email addressed to an oversee but not sent [CC]" in {
@@ -591,7 +589,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
       val senderAddressRow = genAddressRow.sample.value
-  
+
       for {
         _ <- fillDB(
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
@@ -606,10 +604,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
               senderAddressRow.addressId, "from").sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
             overseeUserRow.userId).sample.value))
-    
+
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
+      } yield chatsPreview mustBe empty
     }
 
     "Not detect an email addressed to an oversee but not sent [BCC]" in {
@@ -618,7 +615,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
       val overseeEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
       val senderAddressRow = genAddressRow.sample.value
-  
+
       for {
         _ <- fillDB(
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
@@ -633,10 +630,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
               senderAddressRow.addressId, "from").sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
             overseeUserRow.userId).sample.value))
-    
+
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
-      } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-        senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body))
+      } yield chatsPreview mustBe empty
     }
 
   }
