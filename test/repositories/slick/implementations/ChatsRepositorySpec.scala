@@ -4,10 +4,11 @@ import model.types.Mailbox._
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
-import repositories.dtos.ChatPreview
+import repositories.dtos._
 import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
 import utils.TestGenerators._
+
 import scala.concurrent.duration.Duration
 import scala.concurrent._
 
@@ -78,7 +79,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       EmailAddressesTable.all ++= emailAddressRows,
       OversightsTable.all ++= oversightRows))
 
-  "SlickChatsRepository#getChatsPreview" should {
+  /* "SlickChatsRepository#getChatsPreview" should {
     "detect a draft made by the viewer " in {
       val basicTestDB = genBasicTestDB.sample.value
 
@@ -105,7 +106,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 1)),
           List(
             basicTestDB.emailAddressesRow.copy(participantType = "to"),
@@ -127,7 +128,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 1)),
           List(
             basicTestDB.emailAddressesRow.copy(participantType = "cc"),
@@ -148,7 +149,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 1)),
           List(
             basicTestDB.emailAddressesRow.copy(participantType = "bcc"),
@@ -169,7 +170,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(
             basicTestDB.emailAddressesRow.copy(participantType = "to"),
@@ -189,7 +190,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(
             basicTestDB.emailAddressesRow.copy(participantType = "cc"),
@@ -209,7 +210,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(
             basicTestDB.emailAddressesRow.copy(participantType = "bcc"),
@@ -228,7 +229,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressesRow))
 
@@ -296,7 +297,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow),
+          List(basicTestDB.userChatRow.copy(inbox = 0)),
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressesRow))
 
@@ -361,7 +362,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(date = "2019"), oldEmailRow),
           List(
             basicTestDB.emailAddressesRow,
@@ -382,7 +383,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(date = "2019"), otherEmailRow),
           List(
             basicTestDB.emailAddressesRow,
@@ -407,9 +408,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow),
           List(basicTestDB.chatRow, otherChatRow),
           List(basicTestDB.viewerUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1), genUserChatRow(
+          List(basicTestDB.userChatRow, genUserChatRow(
             basicTestDB.viewerUserRow.userId,
-            otherChatRow.chatId).sample.value.copy(inbox = 1)),
+            otherChatRow.chatId).sample.value),
           List(basicTestDB.emailRow, otherEmailRow),
           List(
             basicTestDB.emailAddressesRow,
@@ -439,7 +440,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, overseeAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow, overseeUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
             overseeAddressRow.addressId, "from").sample.value),
@@ -463,7 +464,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, overseeAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow, overseeUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
             overseeAddressRow.addressId, "from").sample.value),
@@ -486,7 +487,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow, overseeUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
@@ -514,7 +515,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow, overseeUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
@@ -541,7 +542,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow, overseeUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
@@ -569,7 +570,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow, overseeUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
@@ -595,7 +596,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow, overseeUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
@@ -621,7 +622,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.viewerUserRow, overseeUserRow),
-          List(basicTestDB.userChatRow.copy(inbox = 1)),
+          List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
@@ -634,6 +635,422 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.viewerUserRow.userId)
       } yield chatsPreview mustBe empty
     }
+
+  }*/
+
+  "SlickChatsRepository#getChat" should {
+    "Not detect a non existing chat" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
+
+        optChat <- chatsRep.getChat(genUUID.sample.value, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe None
+    }
+
+    "Not detect a chat the user does not have access to" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe None
+    }
+
+    "detect a draft made by the viewer " in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressesRow))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(basicTestDB.viewerAddressRow.address), Set(),
+        Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.viewerAddressRow.address, Set(), Set(), Set(),
+          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 0, Set()))))
+    }
+
+    "detect only emails addressed to the viewer that were sent [To]" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val notSentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(sent = 1), notSentEmail),
+          List(
+            basicTestDB.emailAddressesRow.copy(participantType = "to"),
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.viewerAddressRow.addressId,
+              "to").sample.value))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(basicTestDB.viewerAddressRow.address, senderAddressRow.address), Set(),
+        Seq(Email(basicTestDB.emailRow.emailId, senderAddressRow.address,
+          Set(basicTestDB.viewerAddressRow.address), Set(), Set(),
+          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+
+    }
+
+    "detect only emails addressed to the viewer that were sent [CC]" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val notSentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(sent = 1), notSentEmail),
+          List(
+            basicTestDB.emailAddressesRow.copy(participantType = "cc"),
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.viewerAddressRow.addressId,
+              "cc").sample.value))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(basicTestDB.viewerAddressRow.address, senderAddressRow.address), Set(),
+        Seq(Email(basicTestDB.emailRow.emailId, senderAddressRow.address,
+          Set(), Set(), Set(basicTestDB.viewerAddressRow.address),
+          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+    }
+
+    "detect only emails addressed to the viewer that were sent [BCC]" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val notSentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(sent = 1), notSentEmail),
+          List(
+            basicTestDB.emailAddressesRow.copy(participantType = "bcc"),
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.viewerAddressRow.addressId,
+              "bcc").sample.value))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(basicTestDB.viewerAddressRow.address, senderAddressRow.address), Set(),
+        Seq(Email(basicTestDB.emailRow.emailId, senderAddressRow.address,
+          Set(), Set(basicTestDB.viewerAddressRow.address), Set(),
+          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+    }
+
+    "show the emails ordered by date" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val oldEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(date = "2018")
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow.copy(date = "2019"), oldEmailRow),
+          List(
+            basicTestDB.emailAddressesRow,
+            genEmailAddressRow(oldEmailRow.emailId, basicTestDB.chatRow.chatId,
+              basicTestDB.viewerAddressRow.addressId, "from").sample.value))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(basicTestDB.viewerAddressRow.address), Set(),
+        Seq(
+          Email(oldEmailRow.emailId, basicTestDB.viewerAddressRow.address, Set(), Set(), Set(),
+            oldEmailRow.body, oldEmailRow.date, oldEmailRow.sent, Set()),
+          Email(basicTestDB.emailRow.emailId, basicTestDB.viewerAddressRow.address, Set(), Set(), Set(),
+            basicTestDB.emailRow.body, "2019", basicTestDB.emailRow.sent, Set()))))
+    }
+
+    "detect only emails made by the oversee if they were sent" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseeAddressRow = genAddressRow.sample.value
+      val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
+      val sentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
+      val notSentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow),
+          List(sentEmail, notSentEmail),
+          List(
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "from")
+              .sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(overseeAddressRow.address),
+        Set(Overseers(overseeAddressRow.address, Set(basicTestDB.viewerAddressRow.address))),
+        Seq(Email(sentEmail.emailId, overseeAddressRow.address, Set(), Set(), Set(),
+          sentEmail.body, sentEmail.date, sent = 1, Set()))))
+
+    }
+
+    "detect only emails addressed to the oversee if they were sent [To]" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseeAddressRow = genAddressRow.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
+      val sentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
+      val notSentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow),
+          List(sentEmail, notSentEmail),
+          List(
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "to")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "to")
+              .sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(overseeAddressRow.address, senderAddressRow.address),
+        Set(Overseers(overseeAddressRow.address, Set(basicTestDB.viewerAddressRow.address))),
+        Seq(Email(sentEmail.emailId, senderAddressRow.address, Set(overseeAddressRow.address), Set(), Set(),
+          sentEmail.body, sentEmail.date, sent = 1, Set()))))
+
+    }
+
+    "detect only emails addressed to the oversee if they were sent [CC]" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseeAddressRow = genAddressRow.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
+      val sentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
+      val notSentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow),
+          List(sentEmail, notSentEmail),
+          List(
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "cc")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "cc")
+              .sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(overseeAddressRow.address, senderAddressRow.address),
+        Set(Overseers(overseeAddressRow.address, Set(basicTestDB.viewerAddressRow.address))),
+        Seq(Email(sentEmail.emailId, senderAddressRow.address, Set(), Set(), Set(overseeAddressRow.address),
+          sentEmail.body, sentEmail.date, sent = 1, Set()))))
+
+    }
+
+    "detect only emails addressed to the oversee if they were sent [BCC]" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseeAddressRow = genAddressRow.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
+      val sentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 1)
+      val notSentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, overseeAddressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow),
+          List(sentEmail, notSentEmail),
+          List(
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "bcc")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "bcc")
+              .sample.value),
+          List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId,
+            overseeUserRow.userId).sample.value))
+
+        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(overseeAddressRow.address, senderAddressRow.address),
+        Set(Overseers(overseeAddressRow.address, Set(basicTestDB.viewerAddressRow.address))),
+        Seq(Email(sentEmail.emailId, senderAddressRow.address, Set(), Set(overseeAddressRow.address), Set(),
+          sentEmail.body, sentEmail.date, sent = 1, Set()))))
+
+    }
+
+ /*   "show a bcc address to an Overseer only if their Oversee is the sender of the email " +
+      "or is the user linked to said bcc address" in {
+        val basicTestDB = genBasicTestDB.sample.value
+        val toAddressRow = genAddressRow.sample.value
+        val ccAddressRow = genAddressRow.sample.value
+        val bccAddressRow = genAddressRow.sample.value
+      val fromOverseerAddressRow = genAddressRow.sample.value
+      val toOverseerAddressRow = genAddressRow.sample.value
+      val ccOverseerAddressRow = genAddressRow.sample.value
+      val bccOverseerAddressRow = genAddressRow.sample.value
+      val toUserRow = genUserRow(toAddressRow.addressId).sample.value
+        val ccUserRow = genUserRow(ccAddressRow.addressId).sample.value
+        val bccUserRow = genUserRow(bccAddressRow.addressId).sample.value
+      val fromOverseerUserRow = genUserRow(fromOverseerAddressRow.addressId).sample.value
+      val toOverseerUserRow = genUserRow(toOverseerAddressRow.addressId).sample.value
+      val ccOverseerUserRow = genUserRow(ccOverseerAddressRow.addressId).sample.value
+      val bccOverseerUserRow = genUserRow(bccOverseerAddressRow.addressId).sample.value
+
+        val visibleBCCOptChat = Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+          Set(basicTestDB.viewerAddressRow.address, toAddressRow.address, ccAddressRow.address, bccAddressRow.address),
+          Set(Overseers(basicTestDB.viewerAddressRow.)),
+          Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.viewerAddressRow.address,
+            Set(toAddressRow.address), Set(bccAddressRow.address), Set(ccAddressRow.address),
+            basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+
+        val notVisibleBCCOptChat = Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+          Set(basicTestDB.viewerAddressRow.address, toAddressRow.address, ccAddressRow.address), Set(),
+          Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.viewerAddressRow.address,
+            Set(toAddressRow.address), Set(), Set(ccAddressRow.address),
+            basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+
+        for {
+          _ <- fillDB(
+            List(basicTestDB.viewerAddressRow, toAddressRow, ccAddressRow, bccAddressRow),
+            List(basicTestDB.chatRow),
+            List(basicTestDB.viewerUserRow, toUserRow, ccUserRow, bccUserRow),
+            List(basicTestDB.userChatRow, genUserChatRow(toUserRow.userId, basicTestDB.chatRow.chatId).sample.value,
+              genUserChatRow(ccUserRow.userId, basicTestDB.chatRow.chatId).sample.value,
+              genUserChatRow(bccUserRow.userId, basicTestDB.chatRow.chatId).sample.value),
+            List(basicTestDB.emailRow.copy(sent = 1)),
+            List(
+              basicTestDB.emailAddressesRow,
+              genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+                toAddressRow.addressId, "to").sample.value,
+              genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+                ccAddressRow.addressId, "cc").sample.value,
+              genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+                bccAddressRow.addressId, "bcc").sample.value))
+
+          optChatFrom <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+          optChatTo <- chatsRep.getChat(basicTestDB.chatRow.chatId, toUserRow.userId)
+          optChatCC <- chatsRep.getChat(basicTestDB.chatRow.chatId, ccUserRow.userId)
+          optChatBCC <- chatsRep.getChat(basicTestDB.chatRow.chatId, bccUserRow.userId)
+
+        } yield assert(
+          optChatFrom === visibleBCCOptChat &&
+            optChatTo === notVisibleBCCOptChat &&
+            optChatCC === notVisibleBCCOptChat &&
+            optChatBCC === visibleBCCOptChat)
+
+      }
+
+    "show all bcc addresses to the sender of the email, but each bcc user can only see their own address" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val bccOneAddressRow = genAddressRow.sample.value
+      val bccTwoAddressRow = genAddressRow.sample.value
+      val bccOneUserRow = genUserRow(bccOneAddressRow.addressId).sample.value
+      val bccTwoUserRow = genUserRow(bccTwoAddressRow.addressId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.viewerAddressRow, bccOneAddressRow, bccTwoAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.viewerUserRow, bccOneUserRow, bccTwoUserRow),
+          List(basicTestDB.userChatRow, genUserChatRow(bccOneUserRow.userId, basicTestDB.chatRow.chatId).sample.value,
+            genUserChatRow(bccTwoUserRow.userId, basicTestDB.chatRow.chatId).sample.value),
+          List(basicTestDB.emailRow.copy(sent = 1)),
+          List(
+            basicTestDB.emailAddressesRow,
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              bccOneAddressRow.addressId, "bcc").sample.value,
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              bccTwoAddressRow.addressId, "bcc").sample.value))
+
+        optChatFrom <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.viewerUserRow.userId)
+        optChatBCCOne <- chatsRep.getChat(basicTestDB.chatRow.chatId, bccOneUserRow.userId)
+        optChatBCCTwo <- chatsRep.getChat(basicTestDB.chatRow.chatId, bccTwoUserRow.userId)
+
+      } yield assert(
+        optChatFrom === Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+          Set(basicTestDB.viewerAddressRow.address, bccOneAddressRow.address, bccTwoAddressRow.address), Set(),
+          Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.viewerAddressRow.address,
+            Set(), Set(bccOneAddressRow.address, bccTwoAddressRow.address), Set(),
+            basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+          &&
+          optChatBCCOne === Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+            Set(basicTestDB.viewerAddressRow.address, bccOneAddressRow.address), Set(),
+            Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.viewerAddressRow.address,
+              Set(), Set(bccOneAddressRow.address), Set(),
+              basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+          &&
+          optChatBCCTwo === Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+            Set(basicTestDB.viewerAddressRow.address, bccTwoAddressRow.address), Set(),
+            Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.viewerAddressRow.address,
+              Set(), Set(bccTwoAddressRow.address), Set(),
+              basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set())))))
+
+    }*/
 
   }
 

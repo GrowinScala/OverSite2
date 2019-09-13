@@ -705,7 +705,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .filter(_._1 === chatId)
       .map {
         case (_, emailId, body, date, sent) => (emailId, body, date, sent)
-      }
+      }.sortBy { case (_, _, date, _) => date }
 
   /**
    * Method that, given the emailIds of the emails that the a user can see, for each participant of an email,

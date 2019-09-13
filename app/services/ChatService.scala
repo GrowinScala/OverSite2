@@ -82,7 +82,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
               email.body,
               email.date,
               email.sent != 0,
-              email.attachments)).sortBy(_.date))
+              email.attachments)))
     }
 
   }
