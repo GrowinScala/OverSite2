@@ -320,6 +320,63 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def deleteChat(chatId: String, userId: String): Future[Boolean] =
     db.run(deleteChatAction(chatId, userId))
 
+  private[implementations] def deleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
+    for {
+      allowedToDeleteDraft <- verifyConditionsToDeleteDraftAction(chatId, emailId, userId)
+
+      deleted <- if (allowedToDeleteDraft) deleteDraftRowsAction(chatId, emailId, userId).transactionally
+      else DBIO.successful(false)
+    } yield deleted
+  }
+
+  def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean] = {
+    db.run(deleteDraftAction(chatId, emailId, userId))
+  }
+
+/*** Auxiliary methods ***/
+
+  private def getDraftsUserChat(userId: String, chatId: String) =
+    UserChatsTable.all
+      .filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === chatId && userChatRow.draft > 0)
+
+  private def getDraftEmailQuery(chatId: String, emailId: String) =
+    EmailsTable.all
+      .filter(emailRow => emailRow.chatId === chatId && emailRow.emailId === emailId && emailRow.sent === 0)
+
+  private def getEmailAddressesQuery(chatId: String, emailId: String) =
+    EmailAddressesTable.all
+      .filter(emailAddressRow => emailAddressRow.chatId === chatId && emailAddressRow.emailId === emailId)
+
+  private def getEmailAttachmentsQuery(emailId: String) =
+    AttachmentsTable.all.filter(_.emailId === emailId)
+
+  private def deleteDraftRowsAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
+    for {
+      deleteEmailAddresses <- getEmailAddressesQuery(chatId, emailId).delete
+
+      deleteAttachments <- getEmailAttachmentsQuery(emailId).delete
+
+      deleteEmail <- getDraftEmailQuery(chatId, emailId).delete
+
+      updateUserChat <- UserChatsTable.decrementDrafts(userId, chatId)
+
+      numberOfDeletedRows = deleteEmailAddresses + deleteAttachments + deleteEmail
+    } yield numberOfDeletedRows > 0
+  }
+
+  private def verifyConditionsToDeleteDraftAction(chatId: String, emailId: String, userId: String) = {
+    for {
+      optionUserChat <- getDraftsUserChat(userId, chatId).result.headOption
+      optionDraft <- getDraftEmailQuery(chatId, emailId).result.headOption
+
+      fromAddressIdQuery = getEmailAddressesQuery(chatId, emailId).filter(_.participantType === "from").map(_.addressId)
+
+      optionFromUserId <- UsersTable.all
+        .filter(userRow => userRow.addressId.in(fromAddressIdQuery) && userRow.userId === userId)
+        .result.headOption
+    } yield List(optionUserChat, optionDraft, optionFromUserId).forall(_.isDefined)
+  }
+
   /**
    * Method that returns an action containing an instance of the class Email
    * @param userId ID of the user
@@ -385,11 +442,12 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    */
   private def sendEmailAction(senderUserId: String, chatId: String, emailId: String, addresses: Set[String]): DBIO[Int] = {
     if (addresses.nonEmpty) {
-      for {
+      (for {
         updateReceiversChats <- updateReceiversUserChatsToInbox(chatId, addresses)
-        updateEmailStatus <- EmailsTable.all.filter(_.emailId === emailId).map(_.sent).update(1)
+        updateEmailStatus <- EmailsTable.all
+          .filter(_.emailId === emailId).map(emailRow => (emailRow.date, emailRow.sent)).update(DateUtils.getCurrentDate, 1)
         updateSenderChat <- UserChatsTable.userEmailWasSent(senderUserId, chatId)
-      } yield updateReceiversChats.sum + updateEmailStatus + updateSenderChat
+      } yield updateReceiversChats.sum + updateEmailStatus + updateSenderChat).transactionally
     } else DBIO.successful(0)
   }
 
@@ -670,7 +728,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     (for {
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
       _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId &&
-        (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft === 1 || userChatRow.trash === 1))
+        (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft >= 1 || userChatRow.trash === 1))
       addressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
     } yield (chatId, subject, address)).result.headOption

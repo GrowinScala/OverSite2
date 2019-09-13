@@ -172,8 +172,8 @@ class ChatServiceSpec extends AsyncWordSpec with OptionValues with AsyncIdiomati
         .returns(Future.successful(true))
 
       val chatServiceImpl = new ChatService(mockChatsRep)
-      val moveChatToTrashService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
-      moveChatToTrashService.map(_ mustBe true)
+      val deleteChatService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      deleteChatService.map(_ mustBe true)
     }
     "return false if the ChatsRepository returns false" in {
       val mockChatsRep = mock[ChatsRepository]
@@ -181,8 +181,33 @@ class ChatServiceSpec extends AsyncWordSpec with OptionValues with AsyncIdiomati
         .returns(Future.successful(false))
 
       val chatServiceImpl = new ChatService(mockChatsRep)
-      val moveChatToTrashService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
-      moveChatToTrashService.map(_ mustBe false)
+      val deleteChatService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      deleteChatService.map(_ mustBe false)
+    }
+  }
+
+  "ChatService#deleteDraft" should {
+    "return true if the ChatsRepository returns true" in {
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.deleteDraft(*, *, *)
+        .returns(Future.successful(true))
+
+      val chatServiceImpl = new ChatService(mockChatsRep)
+      val deleteDraftService = chatServiceImpl.deleteDraft(
+        "303c2b72-304e-4bac-84d7-385acb64a616",
+        "f203c270-5f37-4437-956a-3cf478f5f28f", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      deleteDraftService.map(_ mustBe true)
+    }
+    "return false if the ChatsRepository returns false" in {
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.deleteDraft(*, *, *)
+        .returns(Future.successful(false))
+
+      val chatServiceImpl = new ChatService(mockChatsRep)
+      val deleteDraftService = chatServiceImpl.deleteDraft(
+        "303c2b72-304e-4bac-84d7-385acb64a616",
+        "825ee397-f36e-4023-951e-89d6e43a8e7d", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      deleteDraftService.map(_ mustBe false)
     }
   }
 
