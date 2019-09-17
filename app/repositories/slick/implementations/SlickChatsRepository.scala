@@ -295,19 +295,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         }))
 
     } yield restoreOrDelete.map(_ => patchChatDTO)
-
-    /*
-    for {
-      optionIfChatInTrash <- verifyIfChatAlreadyInTrash(chatId, userId)
-
-      optionRestoreOrDelete <- DBIO.sequenceOption(optionIfChatInTrash.map(chatIsInTrash =>
-        if (chatIsInTrash) restoreChatAction(chatId, userId)
-        else UserChatsTable.moveChatToTrash(userId, chatId)))
-    } yield optionRestoreOrDelete match {
-      case Some(restoreOrDelete) => restoreOrDelete > 0
-      case None => false
-    }
-    */
   }
 
   def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] =
