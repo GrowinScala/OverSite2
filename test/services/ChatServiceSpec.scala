@@ -93,33 +93,30 @@ class ChatServiceSpec extends AsyncWordSpec
 
   "ChatService#patchChat" should {
     "return some MoveToTrash DTO if the ChatsRepository returns some MoveToTrash DTO" in {
-      val mockChatsRep = mock[ChatsRepository]
+      val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchChat(MoveToTrash, *, *)
         .returns(Future.successful(Some(MoveToTrash)))
-
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val moveChatToTrashService = chatServiceImpl
-        .patchChat(MoveToTrash, "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      
+      val moveChatToTrashService = chatService.
+        patchChat(MoveToTrash, "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       moveChatToTrashService.map(_ mustBe Some(MoveToTrash))
     }
     "return some Restore DTO if the ChatsRepository returns some Restore DTO" in {
-      val mockChatsRep = mock[ChatsRepository]
+      val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchChat(Restore, *, *)
         .returns(Future.successful(Some(Restore)))
-
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val moveChatToTrashService = chatServiceImpl
-        .patchChat(Restore, "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      
+      val moveChatToTrashService = chatService.
+        patchChat(Restore, "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       moveChatToTrashService.map(_ mustBe Some(Restore))
     }
     "return None if the ChatsRepository returns None" in {
-      val mockChatsRep = mock[ChatsRepository]
+      val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchChat(*, *, *)
         .returns(Future.successful(None))
-
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val moveChatToTrashService = chatServiceImpl
-        .patchChat(MoveToTrash, "00000000-0000-0000-0000-000000000000", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      
+      val moveChatToTrashService = chatService.
+        patchChat(MoveToTrash, "00000000-0000-0000-0000-000000000000", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       moveChatToTrashService.map(_ mustBe None)
     }
   }
@@ -179,41 +176,37 @@ class ChatServiceSpec extends AsyncWordSpec
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.deleteChat(*, *)
         .returns(Future.successful(true))
-
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val deleteChatService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      
+      val deleteChatService = chatService.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       deleteChatService.map(_ mustBe true)
     }
     "return false if the ChatsRepository returns false" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.deleteChat(*, *)
         .returns(Future.successful(false))
-
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val deleteChatService = chatServiceImpl.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      
+      val deleteChatService = chatService.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       deleteChatService.map(_ mustBe false)
     }
   }
 
   "ChatService#deleteDraft" should {
     "return true if the ChatsRepository returns true" in {
-      val mockChatsRep = mock[ChatsRepository]
+      val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.deleteDraft(*, *, *)
         .returns(Future.successful(true))
-
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val deleteDraftService = chatServiceImpl.deleteDraft(
+      
+      val deleteDraftService = chatService.deleteDraft(
         "303c2b72-304e-4bac-84d7-385acb64a616",
         "f203c270-5f37-4437-956a-3cf478f5f28f", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       deleteDraftService.map(_ mustBe true)
     }
     "return false if the ChatsRepository returns false" in {
-      val mockChatsRep = mock[ChatsRepository]
+      val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.deleteDraft(*, *, *)
         .returns(Future.successful(false))
-
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val deleteDraftService = chatServiceImpl.deleteDraft(
+      
+      val deleteDraftService = chatService.deleteDraft(
         "303c2b72-304e-4bac-84d7-385acb64a616",
         "825ee397-f36e-4023-951e-89d6e43a8e7d", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       deleteDraftService.map(_ mustBe false)

@@ -227,77 +227,68 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
   "ChatController#patchChat" should {
     "return Ok and the request body if the response from the service is Some(MoveToTrash)" in {
-
-      val mockChatService = mock[ChatService]
+      val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.patchChat(*, *, *)
         .returns(Future.successful(Some(MoveToTrash)))
-
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
+      
       val patchChatJsonRequest = Json.parse("""{"command": "moveToTrash"}""")
 
       val request = FakeRequest(PATCH, "/chats/825ee397-f36e-4023-951e-89d6e43a8e7d")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
         .withBody(patchChatJsonRequest)
 
-      val result: Future[Result] = controller.patchChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(request)
+      val result: Future[Result] = chatController.patchChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(request)
 
       status(result) mustBe OK
       contentAsJson(result) mustBe patchChatJsonRequest
     }
 
     "return Ok and the request body if the response from the service is Some(Restore)" in {
-
-      val mockChatService = mock[ChatService]
+  
+      val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.patchChat(*, *, *)
         .returns(Future.successful(Some(Restore)))
-
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
+      
       val patchChatJsonRequest = Json.parse("""{"command": "restore"}""")
 
       val request = FakeRequest(PATCH, "/chats/825ee397-f36e-4023-951e-89d6e43a8e7d")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
         .withBody(patchChatJsonRequest)
 
-      val result: Future[Result] = controller.patchChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(request)
+      val result: Future[Result] = chatController.patchChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(request)
 
       status(result) mustBe OK
       contentAsJson(result) mustBe patchChatJsonRequest
     }
 
     "return NotFound if the response from the service is None" in {
-
-      val mockChatService = mock[ChatService]
+  
+      val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.patchChat(*, *, *)
         .returns(Future.successful(None))
-
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
+      
       val patchChatJsonRequest = Json.parse("""{"command": "restore"}""")
 
       val request = FakeRequest(PATCH, "/chats/825ee397-f36e-4023-951e-89d6e43a8e7d")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
         .withBody(patchChatJsonRequest)
 
-      val result: Future[Result] = controller.patchChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(request)
+      val result: Future[Result] = chatController.patchChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(request)
 
       result.map(_ mustBe NotFound)
     }
 
     "return BadRequest if the command is unknown" in {
-
-      val mockChatService = mock[ChatService]
-
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
+  
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      
       val patchChatJsonRequest = Json.parse("""{"command": "unknownCommand"}""")
 
       val request = FakeRequest(PATCH, "/chats/00000000-0000-0000-0000-000000000000")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
         .withBody(patchChatJsonRequest)
 
-      val result: Future[Result] = controller.patchChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(request)
+      val result: Future[Result] = chatController.patchChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(request)
 
       result.map(_ mustBe BadRequest)
     }
@@ -417,26 +408,22 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   "ChatController#deleteDraft" should {
     "return NoContent if the response from the service is true" in {
 
-      val mockChatService = mock[ChatService]
+      val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.deleteDraft(*, *, *)
         .returns(Future.successful(true))
-
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
-      controller.deleteDraft("303c2b72-304e-4bac-84d7-385acb64a616", "f203c270-5f37-4437-956a-3cf478f5f28f")
+      
+      chatController.deleteDraft("303c2b72-304e-4bac-84d7-385acb64a616", "f203c270-5f37-4437-956a-3cf478f5f28f")
         .apply(FakeRequest())
         .map(result => result mustBe NoContent)
     }
 
     "return NotFound if the response from the service is NOT true" in {
 
-      val mockChatService = mock[ChatService]
+      val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.deleteDraft(*, *, *)
         .returns(Future.successful(false))
-
-      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
-
-      controller.deleteDraft("825ee397-f36e-4023-951e-89d6e43a8e7d", "f203c270-5f37-4437-956a-3cf478f5f28f")
+      
+      chatController.deleteDraft("825ee397-f36e-4023-951e-89d6e43a8e7d", "f203c270-5f37-4437-956a-3cf478f5f28f")
         .apply(FakeRequest())
         .map(result => result mustBe NotFound)
     }
