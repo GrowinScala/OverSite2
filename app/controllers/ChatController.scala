@@ -1,7 +1,7 @@
 package controllers
 
 import javax.inject._
-import model.dtos.{ CreateChatDTO, UpsertEmailDTO }
+import model.dtos.{ CreateChatDTO, PatchChatDTO, UpsertEmailDTO }
 import play.api.mvc._
 import play.api.libs.json.{ JsError, JsValue, Json }
 import services.ChatService
@@ -71,9 +71,19 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
     }
   }
 
-  def patchChat(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
-    authenticatedRequest =>
-      chatService.patchChat(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
+  def patchChat(chatId: String): Action[JsValue] = {
+    authenticatedUserAction.async(parse.json) { authenticatedRequest =>
+      val jsonValue = authenticatedRequest.request.body
+
+      jsonValue.validate[PatchChatDTO].fold(
+        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        patchChatDTO =>
+          //trash and restore cannot both be true
+          chatService.patchChat(patchChatDTO, chatId, authenticatedRequest.userId).map {
+            case Some(result) => Ok(Json.toJson(result))
+            case None => NotFound(chatNotFound)
+          })
+    }
   }
 
   def getEmail(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {

@@ -3,7 +3,8 @@ package repositories.slick.implementations
 import java.util.UUID
 
 import javax.inject.Inject
-import model.dtos.{ CreateChatDTO, UpsertEmailDTO }
+import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
+import model.dtos.{ CreateChatDTO, PatchChatDTO, UpsertEmailDTO }
 import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
@@ -282,7 +283,20 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]] =
     db.run(patchEmailAction(upsertEmailDTO, chatId, emailId, userId).transactionally)
 
-  private[implementations] def patchChatAction(chatId: String, userId: String): DBIO[Boolean] = {
+  private[implementations] def patchChatAction(patchChatDTO: PatchChatDTO, chatId: String, userId: String): DBIO[Option[PatchChatDTO]] = {
+    for {
+      optionIfChatInTrash <- verifyIfChatAlreadyInTrash(chatId, userId)
+
+      restoreOrDelete <- DBIO.sequenceOption(optionIfChatInTrash.map(chatIsInTrash =>
+        patchChatDTO match {
+          case MoveToTrash => UserChatsTable.moveChatToTrash(userId, chatId)
+          case Restore if chatIsInTrash => restoreChatAction(chatId, userId)
+          case _ => DBIO.successful(patchChatDTO)
+        }))
+
+    } yield restoreOrDelete.map(_ => patchChatDTO)
+
+    /*
     for {
       optionIfChatInTrash <- verifyIfChatAlreadyInTrash(chatId, userId)
 
@@ -293,10 +307,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       case Some(restoreOrDelete) => restoreOrDelete > 0
       case None => false
     }
+    */
   }
 
-  def patchChat(chatId: String, userId: String): Future[Boolean] =
-    db.run(patchChatAction(chatId, userId))
+  def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] =
+    db.run(patchChatAction(patchChatDTO, chatId, userId))
 
   private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String) = {
     getChatAction(chatId, userId)
@@ -331,9 +346,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private def verifyIfChatAlreadyInTrash(chatId: String, userId: String): DBIO[Option[Boolean]] = {
     UserChatsTable.all.filter(userChat => userChat.chatId === chatId && userChat.userId === userId)
-      .map(userChat => (userChat.inbox, userChat.sent, userChat.draft, userChat.trash))
+      .map(_.trash)
       .result.headOption
-      .map(optionUserChat => optionUserChat.map(userChat => userChat == (0, 0, 0, 1)))
+      .map(optionUserChat => optionUserChat.map(_ == 1))
   }
 
   private def restoreChatAction(chatId: String, userId: String): DBIO[Int] = {
