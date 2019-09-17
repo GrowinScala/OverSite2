@@ -175,12 +175,12 @@ object TestGenerators {
 
   def genBasicTestDB: Gen[BasicTestDB] =
     for {
-      viewerAddressRow <- genAddressRow
-      viewerUserRow <- genUserRow(viewerAddressRow.addressId)
+      addressRow <- genAddressRow
+      userRow <- genUserRow(addressRow.addressId)
       chatRow <- genChatRow
       emailRow <- genEmailRow(chatRow.chatId)
-      emailAddressesRow <- genEmailAddressRow(emailRow.emailId, chatRow.chatId, viewerAddressRow.addressId, "from")
-      userChatRow <- genUserChatRow(viewerUserRow.userId, chatRow.chatId)
-    } yield BasicTestDB(viewerAddressRow, viewerUserRow, chatRow, emailRow, emailAddressesRow, userChatRow)
+      emailAddressRow <- genEmailAddressRow(emailRow.emailId, chatRow.chatId, addressRow.addressId, "from")
+      userChatRow <- genUserChatRow(userRow.userId, chatRow.chatId)
+    } yield BasicTestDB(addressRow, userRow, chatRow, emailRow, emailAddressRow, userChatRow)
 
 }

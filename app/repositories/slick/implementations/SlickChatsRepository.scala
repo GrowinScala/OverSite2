@@ -162,6 +162,30 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    */
   private[implementations] def getChatAction(chatId: String, userId: String) = {
 
+    println(s"THIS IS THE VIEWER_ID: $userId")
+    println("\n")
+    println("THIS IS THE CHATS_TABLE", Await.result(db.run(ChatsTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE CHATS_TABLE")
+    println("\n")
+    println("THIS IS THE USER_CHATS_TABLE", Await.result(db.run(UserChatsTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE USER_CHATS_TABLE")
+    println("\n")
+    println("THIS IS THE EMAIL_ADDRESS_TABLE", Await.result(db.run(EmailAddressesTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE EMAIL_ADDRESS_TABLE")
+    println("\n")
+    println("THIS IS THE ADDRESS_TABLE", Await.result(db.run(AddressesTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE ADDRESS_TABLE")
+    println("\n")
+    println("THIS IS THE EMAILS_TABLE", Await.result(db.run(EmailsTable.all.sortBy(_.chatId).result), Duration.Inf),
+      "THIS IS THE END OF THE EMAILS_TABLE")
+    println("\n")
+    println("THIS IS THE USERS_TABLE", Await.result(db.run(UsersTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE USERS_TABLE")
+    println("\n")
+    println("THIS IS THE OVERSIGHTS TABLE", Await.result(db.run(OversightsTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE OVERSIGHTS TABLE")
+    println("\n")
+
     for {
       chatData <- getChatDataAction(chatId, userId)
       (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
@@ -645,7 +669,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chat instance of the class CreateChatDTO
    * @return an instance of class Chat
    */
-  private[implementations] def fromCreateChatDTOtoChatDTO(chat: CreateChatDTO): Chat = {
+  private[implementations] def fromCreateChatDTOtoChat(chat: CreateChatDTO): Chat = {
     val email = chat.email
 
     Chat(
@@ -664,6 +688,19 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
           date = email.date.getOrElse(""),
           sent = 0,
           attachments = Set())))
+  }
+
+  private[implementations] def fromUpsertEmailDTOtoEmail(upsertEmail: UpsertEmailDTO): Email = {
+    Email(
+      emailId = upsertEmail.emailId.getOrElse(""),
+      from = upsertEmail.from.getOrElse(""),
+      to = upsertEmail.to.getOrElse(Set()),
+      bcc = upsertEmail.bcc.getOrElse(Set()),
+      cc = upsertEmail.cc.getOrElse(Set()),
+      body = upsertEmail.body.getOrElse(""),
+      date = upsertEmail.date.getOrElse(""),
+      sent = 0,
+      attachments = Set())
   }
 
   private[implementations] def getUserChatOverseersAction(overseeUserId: String, chatId: String): DBIO[Seq[String]] = {
@@ -685,7 +722,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     (for {
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
       _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId &&
-        (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft === 1 || userChatRow.trash === 1))
+        (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft >= 1 || userChatRow.trash === 1))
       addressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
     } yield (chatId, subject, address)).result.headOption
@@ -705,7 +742,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .filter(_._1 === chatId)
       .map {
         case (_, emailId, body, date, sent) => (emailId, body, date, sent)
-      }.sortBy { case (_, _, date, _) => date }
+      }.sortBy { case (emailId, _, date, _) => (date, emailId) }
 
   /**
    * Method that, given the emailIds of the emails that the a user can see, for each participant of an email,
