@@ -1,5 +1,6 @@
 package services
 
+import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
 import model.dtos._
 import model.types.Mailbox.Inbox
 import org.mockito.scalatest.AsyncIdiomaticMockito
@@ -91,24 +92,36 @@ class ChatServiceSpec extends AsyncWordSpec with OptionValues with AsyncIdiomati
     }
   }
 
-  "ChatService#moveChatToTrash" should {
-    "return true if the ChatsRepository returns true" in {
+  "ChatService#patchChat" should {
+    "return some MoveToTrash DTO if the ChatsRepository returns some MoveToTrash DTO" in {
       val mockChatsRep = mock[ChatsRepository]
-      mockChatsRep.moveChatToTrash(*, *)
-        .returns(Future.successful(true))
+      mockChatsRep.patchChat(MoveToTrash, *, *)
+        .returns(Future.successful(Some(MoveToTrash)))
 
       val chatServiceImpl = new ChatService(mockChatsRep)
-      val moveChatToTrashService = chatServiceImpl.moveChatToTrash("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
-      moveChatToTrashService.map(_ mustBe true)
+      val moveChatToTrashService = chatServiceImpl
+        .patchChat(MoveToTrash, "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      moveChatToTrashService.map(_ mustBe Some(MoveToTrash))
     }
-    "return false if the ChatsRepository returns false" in {
+    "return some Restore DTO if the ChatsRepository returns some Restore DTO" in {
       val mockChatsRep = mock[ChatsRepository]
-      mockChatsRep.moveChatToTrash(*, *)
-        .returns(Future.successful(false))
+      mockChatsRep.patchChat(Restore, *, *)
+        .returns(Future.successful(Some(Restore)))
 
       val chatServiceImpl = new ChatService(mockChatsRep)
-      val moveChatToTrashService = chatServiceImpl.moveChatToTrash("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
-      moveChatToTrashService.map(_ mustBe false)
+      val moveChatToTrashService = chatServiceImpl
+        .patchChat(Restore, "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      moveChatToTrashService.map(_ mustBe Some(Restore))
+    }
+    "return None if the ChatsRepository returns None" in {
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.patchChat(*, *, *)
+        .returns(Future.successful(None))
+
+      val chatServiceImpl = new ChatService(mockChatsRep)
+      val moveChatToTrashService = chatServiceImpl
+        .patchChat(MoveToTrash, "00000000-0000-0000-0000-000000000000", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      moveChatToTrashService.map(_ mustBe None)
     }
   }
 

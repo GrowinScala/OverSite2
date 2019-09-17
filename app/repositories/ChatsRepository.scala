@@ -1,6 +1,6 @@
 package repositories
 
-import model.dtos.{ CreateChatDTO, EmailDTO, UpsertEmailDTO }
+import model.dtos.{ CreateChatDTO, EmailDTO, PatchChatDTO, UpsertEmailDTO }
 import model.types.Mailbox
 import repositories.dtos.{ Chat, ChatPreview, Email }
 
@@ -18,7 +18,7 @@ trait ChatsRepository {
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]]
 
-  def moveChatToTrash(chatId: String, userId: String): Future[Boolean]
+  def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]]
 
   def deleteChat(chatId: String, userId: String): Future[Boolean]
 

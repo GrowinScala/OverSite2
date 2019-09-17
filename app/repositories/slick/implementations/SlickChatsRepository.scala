@@ -3,7 +3,8 @@ package repositories.slick.implementations
 import java.util.UUID
 
 import javax.inject.Inject
-import model.dtos.{ CreateChatDTO, UpsertEmailDTO }
+import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
+import model.dtos.{ CreateChatDTO, PatchChatDTO, UpsertEmailDTO }
 import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
@@ -282,12 +283,22 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]] =
     db.run(patchEmailAction(upsertEmailDTO, chatId, emailId, userId).transactionally)
 
-  private[implementations] def moveChatToTrashAction(chatId: String, userId: String) =
-    UserChatsTable.moveChatToTrash(userId, chatId)
-      .map(_ != 0)
+  private[implementations] def patchChatAction(patchChatDTO: PatchChatDTO, chatId: String, userId: String): DBIO[Option[PatchChatDTO]] = {
+    for {
+      optionIfChatInTrash <- verifyIfChatAlreadyInTrash(chatId, userId)
 
-  def moveChatToTrash(chatId: String, userId: String): Future[Boolean] =
-    db.run(moveChatToTrashAction(chatId, userId))
+      restoreOrDelete <- DBIO.sequenceOption(optionIfChatInTrash.map(chatIsInTrash =>
+        patchChatDTO match {
+          case MoveToTrash => UserChatsTable.moveChatToTrash(userId, chatId)
+          case Restore if chatIsInTrash => restoreChatAction(chatId, userId)
+          case _ => DBIO.successful(patchChatDTO)
+        }))
+
+    } yield restoreOrDelete.map(_ => patchChatDTO)
+  }
+
+  def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] =
+    db.run(patchChatAction(patchChatDTO, chatId, userId))
 
   private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String) = {
     getChatAction(chatId, userId)
@@ -375,6 +386,61 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .filter(userRow => userRow.addressId.in(fromAddressIdQuery) && userRow.userId === userId)
         .result.headOption
     } yield List(optionUserChat, optionDraft, optionFromUserId).forall(_.isDefined)
+  }
+
+  private def verifyIfChatAlreadyInTrash(chatId: String, userId: String): DBIO[Option[Boolean]] = {
+    UserChatsTable.all.filter(userChat => userChat.chatId === chatId && userChat.userId === userId)
+      .map(_.trash)
+      .result.headOption
+      .map(optionUserChat => optionUserChat.map(_ == 1))
+  }
+
+  private def restoreChatAction(chatId: String, userId: String): DBIO[Int] = {
+    for {
+      participations <- getUserParticipationsOnChatAction(chatId, userId)
+
+      (sender, receiver) = participations.partition { case (participantType, _) => participantType == "from" }
+
+      chatOversees <- getOverseesUserChat(chatId, userId)
+
+      //The overseer is allowed to see in its inbox an oversee's chat if it is in the oversee's inbox or/and sent mailbox
+      numberOversights = chatOversees.map(userChat => userChat.inbox + userChat.sent).sum
+
+      //Count of the emails where the user is a receiver if and only if the email was already sent
+      numberInbox = receiver.count { case (_, sent) => sent == 1 }
+      inbox = if (numberOversights > 0 || numberInbox > 0) 1 else 0
+
+      numberSent = sender.map { case (_, sent) => sent }.sum
+      numberDrafts = sender.size - numberSent
+
+      sent = if (sender.size - numberDrafts > 0) 1 else 0
+
+      restoreUserChat <- UserChatsTable.restoreChat(userId, chatId, inbox, sent, numberDrafts)
+
+    } yield restoreUserChat
+  }
+
+  private def getUserParticipationsOnChatAction(chatId: String, userId: String): DBIO[Seq[(String, Int)]] = {
+    EmailAddressesTable.all
+      .join(EmailsTable.all)
+      .on {
+        case (emailAddress, email) =>
+          emailAddress.chatId === chatId && emailAddress.emailId === email.emailId &&
+            emailAddress.addressId.in(UsersTable.getUserAddressId(userId))
+      }
+      .map { case (emailAddress, email) => (emailAddress.participantType, email.sent) }
+      .result
+  }
+
+  private def getOverseesUserChat(chatId: String, userId: String): DBIO[Seq[UserChatRow]] = {
+    OversightsTable.all.join(UserChatsTable.all)
+      .on {
+        case (oversight, userChat) =>
+          oversight.chatId === chatId && userChat.chatId === oversight.chatId &&
+            oversight.overseerId === userId && oversight.overseeId === userChat.userId
+      }
+      .map { case (_, userChat) => userChat }
+      .result
   }
 
   /**

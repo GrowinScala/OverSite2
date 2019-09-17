@@ -1,5 +1,6 @@
 package repositories.slick.implementations
 
+import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
 import model.dtos.{ CreateChatDTO, UpsertEmailDTO }
 import model.types.Mailbox.{ Drafts, Inbox, Sent }
 import org.scalatest._
@@ -528,20 +529,20 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
 
   }
 
-  "SlickChatsRepository#moveChatToTrash" should {
+  "SlickChatsRepository#patchChat" should {
     val chatsRep = new SlickChatsRepository(db)
 
     val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
+    val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
 
     "remove the user's chat from inbox, sent and draft and move it to trash" in {
-      val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
       for {
-        result <- chatsRep.moveChatToTrash(validChatId, userId)
+        result <- chatsRep.patchChat(MoveToTrash, validChatId, userId)
         optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
       } yield inside(optionUserChat) {
         case Some(userChat) =>
           assert(
-            result &&
+            result === Some(MoveToTrash) &&
               userChat.inbox === 0 &&
               userChat.sent === 0 &&
               userChat.draft === 0 &&
@@ -549,13 +550,60 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
       }
     }
 
-    "return false if the user does not have a chat with that id" in {
+    "restore the user's chat if it is already in trash" in {
+      for {
+        result <- chatsRep.patchChat(Restore, validChatId, userId)
+        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
+      } yield inside(optionUserChat) {
+        case Some(userChat) =>
+          assert(
+            result === Some(Restore) &&
+              userChat.inbox === 1 &&
+              userChat.sent === 1 &&
+              userChat.draft === 1 &&
+              userChat.trash === 0)
+      }
+    }
+
+    "move to trash a chat in which the user is an overseer" in {
+      val overseerUserId = "25689204-5a8e-453d-bfbc-4180ff0f97b9" //valter@mail.com
+      for {
+        result <- chatsRep.patchChat(MoveToTrash, validChatId, overseerUserId)
+        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId).result.headOption)
+      } yield inside(optionUserChat) {
+        case Some(userChat) =>
+          assert(
+            result === Some(MoveToTrash) &&
+              userChat.inbox === 0 &&
+              userChat.sent === 0 &&
+              userChat.draft === 0 &&
+              userChat.trash === 1)
+      }
+    }
+
+    "restore a chat in which the user is an overseer" in {
+      val overseerUserId = "25689204-5a8e-453d-bfbc-4180ff0f97b9" //valter@mail.com
+      for {
+        result <- chatsRep.patchChat(Restore, validChatId, overseerUserId)
+        optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId).result.headOption)
+      } yield inside(optionUserChat) {
+        case Some(userChat) =>
+          assert(
+            result === Some(Restore) &&
+              userChat.inbox === 1 &&
+              userChat.sent === 0 &&
+              userChat.draft === 0 &&
+              userChat.trash === 0)
+      }
+    }
+
+    "return None if the user does not have a chat with that id" in {
       val invalidChatId = "00000000-0000-0000-0000-000000000000"
       for {
-        result <- chatsRep.moveChatToTrash(invalidChatId, userId)
+        result <- chatsRep.patchChat(MoveToTrash, invalidChatId, userId)
         optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === invalidChatId && uc.userId === userId).result.headOption)
       } yield assert(
-        !result &&
+        result === None &&
           optionUserChat === None)
     }
   }
@@ -790,14 +838,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
 
     "definitely delete a chat from trash" in {
       for {
-        moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
+        moveChatToTrash <- chatsRep.patchChat(MoveToTrash, validChatId, userId)
         deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
 
         optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
       } yield inside(optionUserChat) {
         case Some(userChat) =>
           assert(
-            moveChatToTrash &&
+            moveChatToTrash.value === MoveToTrash &&
               deleteDefinitely &&
               userChat.inbox === 0 &&
               userChat.sent === 0 &&
@@ -821,7 +869,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
 
     "return false if the user already definitely deleted the chat" in {
       for {
-        moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
+        moveChatToTrash <- chatsRep.patchChat(MoveToTrash, validChatId, userId)
         deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
 
         deleteDefinitelySecondTry <- chatsRep.deleteChat(validChatId, userId)
@@ -830,7 +878,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
       } yield inside(optionUserChat) {
         case Some(userChat) =>
           assert(
-            moveChatToTrash &&
+            moveChatToTrash.value === MoveToTrash &&
               deleteDefinitely &&
               !deleteDefinitelySecondTry &&
               userChat.inbox === 0 &&
@@ -852,12 +900,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with MustMatchers with OptionVal
         overseerUserId = overseerUserIds.headOption
         overseerUserChatBefore <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId.value).result.headOption)
 
-        moveChatToTrash <- chatsRep.moveChatToTrash(validChatId, userId)
+        moveChatToTrash <- chatsRep.patchChat(MoveToTrash, validChatId, userId)
         deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
 
         overseerUserChatAfter <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId.value).result.headOption)
       } yield assert(
-        moveChatToTrash &&
+        moveChatToTrash.value === MoveToTrash &&
           deleteDefinitely &&
           overseerUserChatBefore.value.inbox === overseerUserChatAfter.value.inbox &&
           overseerUserChatBefore.value.sent === overseerUserChatAfter.value.sent &&

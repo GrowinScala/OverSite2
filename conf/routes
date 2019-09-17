@@ -14,11 +14,11 @@ POST    /chats                              controllers.ChatController.postChat
 
 POST    /chats/:id/emails                   controllers.ChatController.postEmail(id : String)
 
-PATCH   /chats/:chatId/emails/:emailId     controllers.ChatController.patchEmail(chatId : String, emailId : String)
+PATCH   /chats/:chatId/emails/:emailId      controllers.ChatController.patchEmail(chatId : String, emailId : String)
 
-PATCH   /chats/:id                         controllers.ChatController.moveChatToTrash(id : String)
+PATCH   /chats/:id                          controllers.ChatController.patchChat(id : String)
 
-DELETE  /chats/:id                         controllers.ChatController.deleteChat(id : String)
+DELETE  /chats/:id                          controllers.ChatController.deleteChat(id : String)
 
 DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
