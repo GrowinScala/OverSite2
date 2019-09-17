@@ -31,12 +31,16 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.patchEmail(upsertEmailDTO, chatId, emailId, userId).map(toEmailDTO)
   }
 
-  def moveChatToTrash(chatId: String, userId: String): Future[Boolean] = {
-    chatsRep.moveChatToTrash(chatId, userId)
+  def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] = {
+    chatsRep.patchChat(patchChatDTO, chatId, userId)
   }
 
   def deleteChat(chatId: String, userId: String): Future[Boolean] = {
     chatsRep.deleteChat(chatId, userId)
+  }
+
+  def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean] = {
+    chatsRep.deleteDraft(chatId, emailId, userId)
   }
 
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[ChatDTO]] = {
