@@ -40,6 +40,10 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
     chatsRep.deleteChat(chatId, userId)
   }
 
+  def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean] = {
+    chatsRep.deleteDraft(chatId, emailId, userId)
+  }
+
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[ChatDTO]] = {
     chatsRep.getEmail(chatId, emailId, userId).map(toChatDTO)
   }
