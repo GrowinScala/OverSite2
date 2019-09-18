@@ -162,31 +162,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         and the emails of the chat (that the user can see)
    */
   private[implementations] def getChatAction(chatId: String, userId: String) = {
-
-    println(s"THIS IS THE VIEWER_ID: $userId")
-    println("\n")
-    println("THIS IS THE CHATS_TABLE", Await.result(db.run(ChatsTable.all.result), Duration.Inf),
-      "THIS IS THE END OF THE CHATS_TABLE")
-    println("\n")
-    println("THIS IS THE USER_CHATS_TABLE", Await.result(db.run(UserChatsTable.all.result), Duration.Inf),
-      "THIS IS THE END OF THE USER_CHATS_TABLE")
-    println("\n")
-    println("THIS IS THE EMAIL_ADDRESS_TABLE", Await.result(db.run(EmailAddressesTable.all.result), Duration.Inf),
-      "THIS IS THE END OF THE EMAIL_ADDRESS_TABLE")
-    println("\n")
-    println("THIS IS THE ADDRESS_TABLE", Await.result(db.run(AddressesTable.all.result), Duration.Inf),
-      "THIS IS THE END OF THE ADDRESS_TABLE")
-    println("\n")
-    println("THIS IS THE EMAILS_TABLE", Await.result(db.run(EmailsTable.all.sortBy(_.chatId).result), Duration.Inf),
-      "THIS IS THE END OF THE EMAILS_TABLE")
-    println("\n")
-    println("THIS IS THE USERS_TABLE", Await.result(db.run(UsersTable.all.result), Duration.Inf),
-      "THIS IS THE END OF THE USERS_TABLE")
-    println("\n")
-    println("THIS IS THE OVERSIGHTS TABLE", Await.result(db.run(OversightsTable.all.result), Duration.Inf),
-      "THIS IS THE END OF THE OVERSIGHTS TABLE")
-    println("\n")
-
+    
     for {
       chatData <- getChatDataAction(chatId, userId)
       (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
@@ -441,10 +417,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       (sender, receiver) = participations.partition { case (participantType, _) => participantType == "from" }
 
       chatOversees <- getOverseesUserChat(chatId, userId)
-
-      //The overseer is allowed to see in its inbox an oversee's chat if it is in the oversee's inbox or/and sent mailbox
-      /*numberOversights = chatOversees.map(userChat => userChat.inbox + userChat.sent).sum*/
-
+      
       //Count of the emails where the user is a receiver if and only if the email was already sent
       numberInbox = receiver.count { case (_, sent) => sent == 1 }
       inbox = if (chatOversees.nonEmpty || numberInbox > 0) 1 else 0
