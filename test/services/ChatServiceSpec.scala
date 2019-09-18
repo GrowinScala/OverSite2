@@ -96,51 +96,44 @@ class ChatServiceSpec extends AsyncWordSpec
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchChat(MoveToTrash, *, *)
         .returns(Future.successful(Some(MoveToTrash)))
-      
+
       val moveChatToTrashService = chatService.
-        patchChat(MoveToTrash, "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+        patchChat(MoveToTrash, genUUID.sample.value, genUUID.sample.value)
       moveChatToTrashService.map(_ mustBe Some(MoveToTrash))
     }
     "return some Restore DTO if the ChatsRepository returns some Restore DTO" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchChat(Restore, *, *)
         .returns(Future.successful(Some(Restore)))
-      
+
       val moveChatToTrashService = chatService.
-        patchChat(Restore, "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+        patchChat(Restore, genUUID.sample.value, genUUID.sample.value)
       moveChatToTrashService.map(_ mustBe Some(Restore))
     }
     "return None if the ChatsRepository returns None" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchChat(*, *, *)
         .returns(Future.successful(None))
-      
+
       val moveChatToTrashService = chatService.
-        patchChat(MoveToTrash, "00000000-0000-0000-0000-000000000000", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+        patchChat(MoveToTrash, genUUID.sample.value, genUUID.sample.value)
       moveChatToTrashService.map(_ mustBe None)
     }
   }
 
   "ChatService#patchEmail" should {
     "return an EmailDTO that contains the email with the updated/patched fields" in {
-      val upsertEmailDTO =
-        UpsertEmailDTO(None, None, Some(Set("joao@mail.com")), None, Some(Set("")),
-          Some("This is the patched body"), None, Some(false))
-
-      val returnedEmail = Email("emailId", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(), "This is the patched body",
-        "2019-09-02 12:00:00", 0, Set())
-
-      val expectedResponse =
-        EmailDTO("emailId", "beatriz@mail.com", Set("joao@mail.com"), Set(), Set(), "This is the patched body",
-          "2019-09-02 12:00:00", sent = false, Set())
+      val returnedEmail = genEmail.sample.value
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchEmail(*, *, *, *)
         .returns(Future.successful(Some(returnedEmail)))
 
-      val serviceResponse = chatService.patchEmail(upsertEmailDTO, "chatId", "emailId", "userId")
+      val serviceResponse = chatService.patchEmail(
+        genUpsertEmailDTOption.sample.value,
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe Some(expectedResponse))
+      serviceResponse.map(_ mustBe chatService.toEmailDTO(Some(returnedEmail)))
     }
   }
 
@@ -148,26 +141,15 @@ class ChatServiceSpec extends AsyncWordSpec
     "return a ChatDTO with the requested email" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
 
-      val chatId = "6c664490-eee9-4820-9eda-3110d794a998"
-      val emailId = "f15967e6-532c-40a6-9335-064d884d4906"
-      val userId = "685c9120-6616-47ab-b1a7-c5bd9b11c32b"
-
-      val repositoryChatResponse = Chat(
-        chatId, "Subject", Set("address1", "address2"),
-        Set(Overseers("address1", Set("address3"))),
-        Seq(Email(emailId, "address1", Set("address2"), Set(), Set(),
-          "This is the body", "2019-07-19 10:00:00", 1, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
+      val repositoryChatResponse = genChat.sample.value
 
       mockChatsRep.getEmail(*, *, *)
         .returns(Future.successful(Some(repositoryChatResponse)))
 
-      val expectedServiceResponse = ChatDTO(chatId, "Subject", Set("address1", "address2"),
-        Set(OverseersDTO("address1", Set("address3"))),
-        Seq(EmailDTO(emailId, "address1", Set("address2"), Set(), Set(),
-          "This is the body", "2019-07-19 10:00:00", sent = true, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0"))))
+      val expectedServiceResponse = chatService.toChatDTO(Some(repositoryChatResponse))
 
-      chatService.getEmail(chatId, emailId, userId).map(
-        serviceResponse => serviceResponse.value mustBe expectedServiceResponse)
+      chatService.getEmail(genUUID.sample.value, genUUID.sample.value, genUUID.sample.value).map(
+        serviceResponse => serviceResponse.value mustBe expectedServiceResponse.value)
     }
   }
 
@@ -176,16 +158,16 @@ class ChatServiceSpec extends AsyncWordSpec
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.deleteChat(*, *)
         .returns(Future.successful(true))
-      
-      val deleteChatService = chatService.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+
+      val deleteChatService = chatService.deleteChat(genUUID.sample.value, genUUID.sample.value)
       deleteChatService.map(_ mustBe true)
     }
     "return false if the ChatsRepository returns false" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.deleteChat(*, *)
         .returns(Future.successful(false))
-      
-      val deleteChatService = chatService.deleteChat("303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+
+      val deleteChatService = chatService.deleteChat(genUUID.sample.value, genUUID.sample.value)
       deleteChatService.map(_ mustBe false)
     }
   }
@@ -195,20 +177,18 @@ class ChatServiceSpec extends AsyncWordSpec
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.deleteDraft(*, *, *)
         .returns(Future.successful(true))
-      
+
       val deleteDraftService = chatService.deleteDraft(
-        "303c2b72-304e-4bac-84d7-385acb64a616",
-        "f203c270-5f37-4437-956a-3cf478f5f28f", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
       deleteDraftService.map(_ mustBe true)
     }
     "return false if the ChatsRepository returns false" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.deleteDraft(*, *, *)
         .returns(Future.successful(false))
-      
+
       val deleteDraftService = chatService.deleteDraft(
-        "303c2b72-304e-4bac-84d7-385acb64a616",
-        "825ee397-f36e-4023-951e-89d6e43a8e7d", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
       deleteDraftService.map(_ mustBe false)
     }
   }

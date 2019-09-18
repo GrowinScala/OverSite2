@@ -49,7 +49,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
 
   //region Auxiliary conversion methods
 
-  private def toEmailDTO(optionEmail: Option[Email]): Option[EmailDTO] = {
+  private[services] def toEmailDTO(optionEmail: Option[Email]): Option[EmailDTO] = {
     optionEmail.map {
       email =>
         EmailDTO(
@@ -65,7 +65,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     }
   }
 
-  private def toChatDTO(optionChat: Option[Chat]): Option[ChatDTO] = {
+  private[services] def toChatDTO(optionChat: Option[Chat]): Option[ChatDTO] = {
     optionChat.map {
       chat =>
         ChatDTO(

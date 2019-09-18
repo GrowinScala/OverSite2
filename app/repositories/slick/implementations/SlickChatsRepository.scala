@@ -443,11 +443,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       chatOversees <- getOverseesUserChat(chatId, userId)
 
       //The overseer is allowed to see in its inbox an oversee's chat if it is in the oversee's inbox or/and sent mailbox
-      numberOversights = chatOversees.map(userChat => userChat.inbox + userChat.sent).sum
+      /*numberOversights = chatOversees.map(userChat => userChat.inbox + userChat.sent).sum*/
 
       //Count of the emails where the user is a receiver if and only if the email was already sent
       numberInbox = receiver.count { case (_, sent) => sent == 1 }
-      inbox = if (numberOversights > 0 || numberInbox > 0) 1 else 0
+      inbox = if (chatOversees.nonEmpty || numberInbox > 0) 1 else 0
 
       numberSent = sender.map { case (_, sent) => sent }.sum
       numberDrafts = sender.size - numberSent

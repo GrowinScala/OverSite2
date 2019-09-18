@@ -5,6 +5,7 @@ import model.types.ParticipantType
 import model.types.ParticipantType._
 import org.scalacheck.Gen
 import play.api.libs.json._
+import repositories.dtos._
 import repositories.slick.implementations.BasicTestDB
 import repositories.slick.mappings._
 import utils.DateUtils._
@@ -93,6 +94,13 @@ object TestGenerators {
 
     } yield OverseersDTO(user, overseers)
 
+  val genOverseers: Gen[Overseers] =
+    for {
+      user <- genEmailAddress
+      overseers <- genList(1, 2, genEmailAddress).map(_.toSet)
+
+    } yield Overseers(user, overseers)
+
   val genChatDTO: Gen[ChatDTO] =
     genList(1, 4, genEmailDTO).flatMap(emails => {
       val addresses = emails.foldLeft(Set.empty[String])((set, emailDTO) =>
@@ -173,7 +181,7 @@ object TestGenerators {
       oversightId <- genUUID
     } yield OversightRow(oversightId, chatId, overseerId, overseeId)
 
-  def genBasicTestDB: Gen[BasicTestDB] =
+  val genBasicTestDB: Gen[BasicTestDB] =
     for {
       addressRow <- genAddressRow
       userRow <- genUserRow(addressRow.addressId)
@@ -182,5 +190,31 @@ object TestGenerators {
       emailAddressRow <- genEmailAddressRow(emailRow.emailId, chatRow.chatId, addressRow.addressId, "from")
       userChatRow <- genUserChatRow(userRow.userId, chatRow.chatId)
     } yield BasicTestDB(addressRow, userRow, chatRow, emailRow, emailAddressRow, userChatRow)
+
+  val genEmail: Gen[Email] =
+    for {
+      emailId <- genUUID
+      from <- genEmailAddress
+      to <- genList(1, 4, genEmailAddress).map(_.toSet)
+      bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
+      cc <- genList(0, 1, genEmailAddress).map(_.toSet)
+      body <- genString
+      date <- genString
+      sent <- genBinary
+      attachments <- genList(0, 1, genString).map(_.toSet)
+    } yield Email(emailId, from, to, bcc, cc, body, date, sent, attachments)
+
+  val genChat: Gen[Chat] =
+    genList(1, 4, genEmail).flatMap(emails => {
+      val addresses = emails.foldLeft(Set.empty[String])((set, emailDTO) =>
+        set + emailDTO.from ++ emailDTO.to ++ emailDTO.bcc ++ emailDTO.cc)
+
+      for {
+        chatId <- genUUID
+        subject <- genString
+        overseers <- genList(0, 2, genOverseers).map(_.toSet)
+      } yield Chat(chatId, subject, addresses, overseers, emails.sortBy(_.date))
+
+    })
 
 }

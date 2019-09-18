@@ -1,24 +1,25 @@
 package repositories.slick.implementations
 
 import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
-import model.dtos.PatchChatDTO.{MoveToTrash, Restore}
-import model.dtos.{CreateChatDTO, UpsertEmailDTO}
-import model.types.Mailbox.{Drafts, Inbox, Sent}
+import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
+import model.dtos.{ CreateChatDTO, PatchChatDTO, UpsertEmailDTO }
+import model.types.Mailbox.{ Drafts, Inbox, Sent }
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
 import repositories.dtos.ChatPreview
-import repositories.dtos.{Chat, Email, Overseers}
-import repositories.slick.mappings.{EmailRow, _}
+import repositories.dtos.{ Chat, Email, Overseers }
+import repositories.slick.mappings.{ EmailRow, _ }
 import slick.jdbc.MySQLProfile.api._
 import utils.Generators._
 
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
+import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor }
 import model.types.Mailbox._
 import repositories.dtos._
 import repositories.slick.mappings._
 import utils.TestGenerators._
+
 import scala.concurrent._
 
 class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatchers with BeforeAndAfterAll
@@ -99,7 +100,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       email.bcc.getOrElse(Set.empty[String])
   }
 
-  
   "SlickChatsRepository#getChatsPreview" should {
     "detect a draft made by the viewer " in {
       val basicTestDB = genBasicTestDB.sample.value
@@ -1131,7 +1131,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   }
 
-  "SlickChatsRepository#postChat+getChat" should {
+  "SlickChatsRepository#postChat" should {
 
     "create a chat with an email draft for a user and then get the same chat for the same user: results must match" in {
       val basicTestDB = genBasicTestDB.sample.value
@@ -1230,7 +1230,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   }
 
-  "SlickChatsRepository#postEmail+getChat" should {
+  "SlickChatsRepository#postEmail" should {
 
     "add an email draft to a chat and then get the same chat with the added email" in {
       val basicTestDB = genBasicTestDB.sample.value
@@ -1279,8 +1279,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       } yield patchEmail.value mustBe getPostedEmail.copy(body = patchBody, date = patchEmail.value.date)
     }
 
-    "patch all the email addresses, and send the email " +
-      "the chat must appear in the sender and receivers' correct mailboxes" in {
+    "patch all the email addresses, and send the email." +
+      " The chat must appear in the sender and receivers' correct mailboxes" in {
         val basicTestDB = genBasicTestDB.sample.value
         val toAddressRow = genAddressRow.sample.value
         val ccAddressRow = genAddressRow.sample.value
@@ -1317,7 +1317,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
           invisibleBccExpectedEmailAfterPatch = getPostedEmail.copy(
             to = Set(toAddressRow.address),
-            cc = Set(ccAddressRow.address), bcc = Set(), sent = 1)
+            cc = Set(ccAddressRow.address), bcc = Set(), sent = 1, date = patchEmail.value.date)
 
           visibleBccExpectedEmailAfterPatch = invisibleBccExpectedEmailAfterPatch.copy(bcc = Set(bccAddressRow.address))
 
@@ -1391,12 +1391,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     "not allow an email patch if the email was already sent" in {
       val basicTestDB = genBasicTestDB.sample.value
+      val origCreateChatDTO = genCreateChatDTOption.sample.value
 
       for {
         _ <- fillDB(
           List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
-        postChat <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+        postChat <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
+          .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
         getPostedEmail = chatsRep.fromCreateChatDTOtoChat(postChat).emails.headOption.value
 
         patchEmail <- chatsRep.patchEmail(
@@ -1428,92 +1430,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     }
 
   }
-	
-	  "SlickChatsRepository#patchChat" should {
-		  val chatsRep = new SlickChatsRepository(db)
-		
-		  val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
-		  val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
-		
-		  "remove the user's chat from inbox, sent and draft and move it to trash" in {
-			  for {
-				  result <- chatsRep.patchChat(MoveToTrash, validChatId, userId)
-				  optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
-			  } yield inside(optionUserChat) {
-				  case Some(userChat) =>
-					  assert(
-						  result === Some(MoveToTrash) &&
-							  userChat.inbox === 0 &&
-							  userChat.sent === 0 &&
-							  userChat.draft === 0 &&
-							  userChat.trash === 1)
-			  }
-		  }
-		
-		  "restore the user's chat if it is already in trash" in {
-			  for {
-				  result <- chatsRep.patchChat(Restore, validChatId, userId)
-				  optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
-			  } yield inside(optionUserChat) {
-				  case Some(userChat) =>
-					  assert(
-						  result === Some(Restore) &&
-							  userChat.inbox === 1 &&
-							  userChat.sent === 1 &&
-							  userChat.draft === 1 &&
-							  userChat.trash === 0)
-			  }
-		  }
-		
-		  "move to trash a chat in which the user is an overseer" in {
-			  val overseerUserId = "25689204-5a8e-453d-bfbc-4180ff0f97b9" //valter@mail.com
-			  for {
-				  result <- chatsRep.patchChat(MoveToTrash, validChatId, overseerUserId)
-				  optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId).result.headOption)
-			  } yield inside(optionUserChat) {
-				  case Some(userChat) =>
-					  assert(
-						  result === Some(MoveToTrash) &&
-							  userChat.inbox === 0 &&
-							  userChat.sent === 0 &&
-							  userChat.draft === 0 &&
-							  userChat.trash === 1)
-			  }
-		  }
-		
-		  "restore a chat in which the user is an overseer" in {
-			  val overseerUserId = "25689204-5a8e-453d-bfbc-4180ff0f97b9" //valter@mail.com
-			  for {
-				  result <- chatsRep.patchChat(Restore, validChatId, overseerUserId)
-				  optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId).result.headOption)
-			  } yield inside(optionUserChat) {
-				  case Some(userChat) =>
-					  assert(
-						  result === Some(Restore) &&
-							  userChat.inbox === 1 &&
-							  userChat.sent === 0 &&
-							  userChat.draft === 0 &&
-							  userChat.trash === 0)
-			  }
-		  }
-		
-		  "return None if the user does not have a chat with that id" in {
-			  val invalidChatId = "00000000-0000-0000-0000-000000000000"
-			  for {
-				  result <- chatsRep.patchChat(MoveToTrash, invalidChatId, userId)
-				  optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === invalidChatId && uc.userId === userId).result.headOption)
-			  } yield assert(
-				  result === None &&
-					  optionUserChat === None)
-		  }
-	  }
-	  
-	  
-	  
-	  
-  "SlickChatsRepository#moveChatToTrash" should {
+
+  "SlickChatsRepository#patchChat" should {
+
     "remove the user's chat from inbox, sent and draft and move it to trash" in {
-      /*val basicTestDB = genBasicTestDB.sample.value
+      val basicTestDB = genBasicTestDB.sample.value
 
       for {
         _ <- fillDB(
@@ -1521,23 +1442,80 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.chatRow),
           List(basicTestDB.userRow),
           List(basicTestDB.userChatRow.copy(sent = 1, draft = 1)))
-        result <- chatsRep.moveChatToTrash(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
+        result <- chatsRep.patchChat(MoveToTrash, basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
         optUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === basicTestDB.chatRow.chatId
           && uc.userId === basicTestDB.userRow.userId)
           .result.headOption)
         userChat = optUserChat.value
       } yield assert(
-        result &&
+        result === Some(MoveToTrash) &&
           userChat.inbox === 0 &&
           userChat.sent === 0 &&
           userChat.draft === 0 &&
-          userChat.trash === 1)*/
-      
-      Future.successful(1 mustBe 1)
+          userChat.trash === 1)
+
     }
 
-    "return false if the user does not have a chat with that id" in {
-      /*val basicTestDB = genBasicTestDB.sample.value
+    "restore the user's chat if it is already in trash" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val origCreateChatDTO = genCreateChatDTOption.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+        createdChatDTO <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
+          .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
+        _ <- chatsRep.postEmail(genUpsertEmailDTOption.sample.value, createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+        _ <- chatsRep.patchEmail(
+          UpsertEmailDTO(None, None, None, None, None, None, None, Some(true)),
+          createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, basicTestDB.userRow.userId)
+        _ <- chatsRep.patchChat(MoveToTrash, createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+        result <- chatsRep.patchChat(Restore, createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+        optUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === createdChatDTO.chatId.value
+          && uc.userId === basicTestDB.userRow.userId)
+          .result.headOption)
+        userChat = optUserChat.value
+      } yield assert(
+        result === Some(Restore) &&
+          userChat.inbox === 1 &&
+          userChat.sent === 1 &&
+          userChat.draft === 1 &&
+          userChat.trash === 0)
+    }
+
+    "restore a chat in which the user is an overseer" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseeAddressRow = genAddressRow.sample.value
+      val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseeAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow, overseeUserRow),
+          List(
+            basicTestDB.userChatRow.copy(inbox = 0, trash = 1),
+            genUserChatRow(overseeUserRow.userId, basicTestDB.chatRow.chatId).sample.value),
+          oversightRows = List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
+            overseeUserRow.userId).sample.value))
+
+        result <- chatsRep.patchChat(Restore, basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
+        optUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === basicTestDB.chatRow.chatId &&
+          uc.userId === basicTestDB.userRow.userId).result.headOption)
+        userChat = optUserChat.value
+      } yield assert(
+        result === Some(Restore) &&
+          userChat.inbox === 1 &&
+          userChat.sent === 0 &&
+          userChat.draft === 0 &&
+          userChat.trash === 0)
+
+    }
+
+    "return None if the user does not have a chat with that id" in {
+      val basicTestDB = genBasicTestDB.sample.value
       val invalidChatId = genUUID.sample.value
 
       for {
@@ -1546,174 +1524,350 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.chatRow),
           List(basicTestDB.userRow),
           List(basicTestDB.userChatRow.copy(sent = 1, draft = 1)))
-        result <- chatsRep.moveChatToTrash(invalidChatId, basicTestDB.userRow.userId)
+        result <- chatsRep.patchChat(MoveToTrash, invalidChatId, basicTestDB.userRow.userId)
         optUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === invalidChatId &&
           uc.userId === basicTestDB.userRow.userId)
           .result.headOption)
-      } yield assert(!result && optUserChat === None)*/
-  
-      Future.successful(1 mustBe 1)
+      } yield assert(result === None && optUserChat === None)
 
     }
   }
-	
-	
-	"SlickChatsRepository#deleteChat" should {
-		val chatsRep = new SlickChatsRepository(db)
-		val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
-		val validChatId = "303c2b72-304e-4bac-84d7-385acb64a616"
-		
-		"definitely delete a chat from trash" in {
-			for {
-				moveChatToTrash <- chatsRep.patchChat(MoveToTrash, validChatId, userId)
-				deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
-				
-				optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
-			} yield inside(optionUserChat) {
-				case Some(userChat) =>
-					assert(
-						moveChatToTrash.value === MoveToTrash &&
-							deleteDefinitely &&
-							userChat.inbox === 0 &&
-							userChat.sent === 0 &&
-							userChat.draft === 0 &&
-							userChat.trash === 0)
-			}
-		}
-		
-		"not definitely delete a chat if it is not in trash" in {
-			for {
-				chatBeforeDeleteTry <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
-				deleteTry <- chatsRep.deleteChat(validChatId, userId)
-				chatAfterDeleteTry <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
-			} yield assert(
-				!deleteTry &&
-					chatBeforeDeleteTry.value.inbox === chatAfterDeleteTry.value.inbox &&
-					chatBeforeDeleteTry.value.sent === chatAfterDeleteTry.value.sent &&
-					chatBeforeDeleteTry.value.draft === chatAfterDeleteTry.value.draft &&
-					chatBeforeDeleteTry.value.trash === chatAfterDeleteTry.value.trash)
-		}
-		
-		"return false if the user already definitely deleted the chat" in {
-			for {
-				moveChatToTrash <- chatsRep.patchChat(MoveToTrash, validChatId, userId)
-				deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
-				
-				deleteDefinitelySecondTry <- chatsRep.deleteChat(validChatId, userId)
-				
-				optionUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === userId).result.headOption)
-			} yield inside(optionUserChat) {
-				case Some(userChat) =>
-					assert(
-						moveChatToTrash.value === MoveToTrash &&
-							deleteDefinitely &&
-							!deleteDefinitelySecondTry &&
-							userChat.inbox === 0 &&
-							userChat.sent === 0 &&
-							userChat.draft === 0 &&
-							userChat.trash === 0)
-			}
-		}
-		
-		"return false if the user does not have that chat" in {
-			val notAllowedUserId = "261c9094-6261-4704-bfd0-02821c235eff"
-			chatsRep.deleteChat(validChatId, notAllowedUserId)
-				.map(deleteDefinitelyTry => assert(!deleteDefinitelyTry))
-		}
-		
-		"still allow the user's chat overseers to see the chat" in {
-			for {
-				overseerUserIds <- db.run(chatsRep.getUserChatOverseersAction(userId, validChatId))
-				overseerUserId = overseerUserIds.headOption
-				overseerUserChatBefore <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId.value).result.headOption)
-				
-				moveChatToTrash <- chatsRep.patchChat(MoveToTrash, validChatId, userId)
-				deleteDefinitely <- chatsRep.deleteChat(validChatId, userId)
-				
-				overseerUserChatAfter <- db.run(UserChatsTable.all.filter(uc => uc.chatId === validChatId && uc.userId === overseerUserId.value).result.headOption)
-			} yield assert(
-				moveChatToTrash.value === MoveToTrash &&
-					deleteDefinitely &&
-					overseerUserChatBefore.value.inbox === overseerUserChatAfter.value.inbox &&
-					overseerUserChatBefore.value.sent === overseerUserChatAfter.value.sent &&
-					overseerUserChatBefore.value.draft === overseerUserChatAfter.value.draft &&
-					overseerUserChatBefore.value.trash === overseerUserChatAfter.value.trash)
-		}
-	}
-	
-	"SlickChatsRepository#deleteDraft" should {
-		val chatsRep = new SlickChatsRepository(db)
-		val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //beatriz@mail.com
-		val validChatId = "825ee397-f36e-4023-951e-89d6e43a8e7d"
-		val validDraftEmailId = "fe4ff891-144a-4f61-af35-6d4a5ec76314"
-		
-		"not delete the draft if the user is not the owner/sender of the email" in {
-			val notAllowedUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d"
-			for {
-				deleteDraft <- chatsRep.deleteDraft(validChatId, validDraftEmailId, notAllowedUserId)
-				
-				emailRow <- db.run(EmailsTable.all.filter(_.emailId === validDraftEmailId).result.headOption)
-				emailAddressesRows <- db.run(EmailAddressesTable.all.filter(_.emailId === validDraftEmailId).result.headOption)
-			} yield assert(!deleteDraft && emailRow.nonEmpty && emailAddressesRows.nonEmpty)
-		}
-		
-		"not delete the email if it is not a draft (i.e. it was already sent)" in {
-			val validSentEmailId = "42508cff-a4cf-47e4-9b7d-db91e010b87a"
-			val senderUserId = "adcd6348-658a-4866-93c5-7e6d32271d8d"
-   
-			for {
-				numberOfDraftsBefore <- db.run(UserChatsTable.all
-					.filter(userChatRow => userChatRow.userId === senderUserId && userChatRow.chatId === validChatId).map(_.draft)
-					.result.headOption)
-				
-				deleteDraft <- chatsRep.deleteDraft(validChatId, validSentEmailId, senderUserId)
-				getEmail <- chatsRep.getEmail(validChatId, validSentEmailId, senderUserId)
-				
-				emailRow <- db.run(EmailsTable.all.filter(_.emailId === validSentEmailId).result.headOption)
-				emailAddressesRows <- db.run(EmailAddressesTable.all.filter(_.emailId === validSentEmailId).result.headOption)
-				numberOfDraftsAfter <- db.run(UserChatsTable.all
-					.filter(userChatRow => userChatRow.userId === senderUserId && userChatRow.chatId === validChatId).map(_.draft)
-					.result.headOption)
-				
-			} yield assert(!deleteDraft && getEmail.nonEmpty &&
-				emailRow.nonEmpty && emailAddressesRows.nonEmpty &&
-				numberOfDraftsAfter.value === numberOfDraftsBefore.value)
-		}
-		
-		"delete a draft (email addresses, attachments and email rows) if the user requesting it is the draft's owner" in {
-			for {
-				numberOfDraftsBefore <- db.run(UserChatsTable.all
-					.filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === validChatId).map(_.draft)
-					.result.headOption)
-				
-				deleteDraft <- chatsRep.deleteDraft(validChatId, validDraftEmailId, userId)
-				getEmail <- chatsRep.getEmail(validChatId, validDraftEmailId, userId)
-				
-				emailRow <- db.run(EmailsTable.all.filter(_.emailId === validDraftEmailId).result.headOption)
-				emailAddressesRows <- db.run(EmailAddressesTable.all.filter(_.emailId === validDraftEmailId).result.headOption)
-				attachmentsRows <- db.run(AttachmentsTable.all.filter(_.emailId === validDraftEmailId).result.headOption)
-				numberOfDraftsAfter <- db.run(UserChatsTable.all
-					.filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === validChatId).map(_.draft)
-					.result.headOption)
-				
-			} yield assert(deleteDraft && getEmail.isEmpty &&
-				emailRow.isEmpty && emailAddressesRows.isEmpty && attachmentsRows.isEmpty &&
-				numberOfDraftsAfter.value === numberOfDraftsBefore.value - 1)
-		}
-		
-		"not allow a draft to be patched after it was deleted" in {
-			val exampleUpsertEmailDTO = UpsertEmailDTO(None, None, None, None, None,
-				Some("This is me trying to patch a deleted draft"), None, None)
-			for {
-				tryGetEmailBefore <- chatsRep.getEmail(validChatId, validDraftEmailId, userId)
-				tryPatch <- chatsRep.patchEmail(exampleUpsertEmailDTO, validChatId, validDraftEmailId, userId)
-				tryGetEmailAfter <- chatsRep.getEmail(validChatId, validDraftEmailId, userId)
-			} yield assert(tryPatch.isEmpty && tryGetEmailBefore === tryGetEmailAfter && tryGetEmailAfter === None)
-		}
-	}
-	
-	
-	
+
+  "SlickChatsRepository#deleteChat" should {
+
+    "definitely delete a chat from trash" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow.copy(inbox = 0, trash = 1)))
+
+        deleteDefinitely <- chatsRep.deleteChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
+
+        optUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === basicTestDB.chatRow.chatId
+          && uc.userId === basicTestDB.userRow.userId).result.headOption)
+        userChat = optUserChat.value
+      } yield assert(
+        deleteDefinitely &&
+          userChat.inbox === 0 &&
+          userChat.sent === 0 &&
+          userChat.draft === 0 &&
+          userChat.trash === 0)
+
+    }
+
+    "not definitely delete a chat if it is not in trash" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow))
+
+        chatBeforeDeleteTry <- db.run(UserChatsTable.all.filter(uc => uc.chatId === basicTestDB.chatRow.chatId
+          && uc.userId === basicTestDB.userRow.userId).result.headOption)
+        deleteTry <- chatsRep.deleteChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
+        chatAfterDeleteTry <- db.run(UserChatsTable.all.filter(uc => uc.chatId === basicTestDB.chatRow.chatId
+          && uc.userId === basicTestDB.userRow.userId).result.headOption)
+      } yield assert(
+        !deleteTry &&
+          chatBeforeDeleteTry.value.inbox === chatAfterDeleteTry.value.inbox &&
+          chatBeforeDeleteTry.value.sent === chatAfterDeleteTry.value.sent &&
+          chatBeforeDeleteTry.value.draft === chatAfterDeleteTry.value.draft &&
+          chatBeforeDeleteTry.value.trash === chatAfterDeleteTry.value.trash)
+    }
+
+    "return false if the user already definitely deleted the chat" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow.copy(inbox = 0)))
+
+        deleteDefinitely <- chatsRep.deleteChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
+        optUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === basicTestDB.chatRow.chatId
+          && uc.userId === basicTestDB.userRow.userId).result.headOption)
+        userChat = optUserChat.value
+      } yield assert(
+        !deleteDefinitely &&
+          userChat.inbox === 0 &&
+          userChat.sent === 0 &&
+          userChat.draft === 0 &&
+          userChat.trash === 0)
+    }
+
+    "return false if the user does not have that chat" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val otherAddressRow = genAddressRow.sample.value
+      val otherUserRow = genUserRow(otherAddressRow.addressId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, otherAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow, otherUserRow),
+          List(basicTestDB.userChatRow))
+
+        deleteDefinitelyTry <- chatsRep.deleteChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
+      } yield assert(!deleteDefinitelyTry)
+
+    }
+
+    "still allow the user's chat overseers to see the chat" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseeAddressRow = genAddressRow.sample.value
+      val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseeAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow, overseeUserRow),
+          List(
+            basicTestDB.userChatRow,
+            genUserChatRow(overseeUserRow.userId, basicTestDB.chatRow.chatId).sample.value
+              .copy(inbox = 0, trash = 1)),
+          oversightRows = List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
+            overseeUserRow.userId).sample.value))
+
+        deleteDefinitely <- chatsRep.deleteChat(basicTestDB.chatRow.chatId, overseeUserRow.userId)
+
+        overseerUserChatAfter <- db.run(UserChatsTable.all.filter(uc => uc.chatId === basicTestDB.chatRow.chatId &&
+          uc.userId === basicTestDB.userRow.userId.value).result.headOption)
+      } yield assert(
+        deleteDefinitely &&
+          basicTestDB.userChatRow.inbox === overseerUserChatAfter.value.inbox &&
+          basicTestDB.userChatRow.sent === overseerUserChatAfter.value.sent &&
+          basicTestDB.userChatRow.draft === overseerUserChatAfter.value.draft &&
+          basicTestDB.userChatRow.trash === overseerUserChatAfter.value.trash)
+    }
+  }
+
+  "SlickChatsRepository#getEmail" should {
+
+    "return a chat with one email for an allowed user" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val otherEmailRow = genEmailRow(basicTestDB.chatRow.chatId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow, otherEmailRow),
+          List(
+            basicTestDB.emailAddressRow,
+            genEmailAddressRow(otherEmailRow.emailId, basicTestDB.chatRow.chatId,
+              basicTestDB.addressRow.addressId, "from").sample.value))
+
+        optChat <- chatsRep.getEmail(basicTestDB.chatRow.chatId, basicTestDB.emailRow.emailId,
+          basicTestDB.userRow.userId)
+      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        Set(basicTestDB.addressRow.address), Set(),
+        Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.addressRow.address, Set(), Set(), Set(),
+          basicTestDB.emailRow.body, basicTestDB.emailRow.date, basicTestDB.emailRow.sent, Set()))))
+
+    }
+
+    "return None if the email is a draft of another user" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val senderAddressRow = genAddressRow.sample.value
+      val senderUserRow = genUserRow(senderAddressRow.addressId).sample.value
+      val notSentEmail = genEmailRow(basicTestDB.chatRow.chatId).sample.value.copy(sent = 0)
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, senderAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow, senderUserRow),
+          List(basicTestDB.userChatRow, genUserChatRow(senderUserRow.userId, basicTestDB.chatRow.chatId)
+            .sample.value.copy(draft = 1)),
+          List(basicTestDB.emailRow.copy(sent = 1), notSentEmail),
+          List(
+            basicTestDB.emailAddressRow.copy(participantType = "to"),
+            genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
+              senderAddressRow.addressId, "from").sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              .sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.addressRow.addressId,
+              "to").sample.value))
+
+        optChat <- chatsRep.getEmail(basicTestDB.chatRow.chatId, notSentEmail.emailId, basicTestDB.userRow.userId)
+      } yield optChat mustBe None
+
+    }
+
+    "return None for user that is not allow to see the requested email" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+
+        createdChat <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+
+        optChat <- chatsRep.getEmail(createdChat.chatId.value, createdChat.email.emailId.value,
+          genUUID.sample.value)
+      } yield optChat mustBe None
+    }
+
+    "return None if the requested email exists but is not a part of the specified chat" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+
+        firstChat <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+        secondChat <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+
+        optChat <- chatsRep.getEmail(firstChat.chatId.value, secondChat.email.emailId.value,
+          basicTestDB.userRow.userId)
+      } yield optChat mustBe None
+    }
+  }
+
+  "SlickChatsRepository#deleteDraft" should {
+
+    "not delete the draft if the user is not the owner/sender of the email" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val otherAddressRow = genAddressRow.sample.value
+      val otherUserRow = genUserRow(otherAddressRow.addressId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, otherAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow, otherUserRow),
+          List(
+            basicTestDB.userChatRow.copy(draft = 1),
+            genUserChatRow(otherUserRow.userId, basicTestDB.chatRow.chatId).sample.value.copy(draft = 1)))
+
+        createdDraft <- chatsRep.postEmail(genUpsertEmailDTOption.sample.value, basicTestDB.chatRow.chatId,
+          basicTestDB.userRow.userId)
+
+        deleteDraft <- chatsRep.deleteDraft(basicTestDB.chatRow.chatId, createdDraft.value.email.emailId.value,
+          otherUserRow.userId)
+
+        emailRow <- db.run(EmailsTable.all
+          .filter(_.emailId === createdDraft.value.email.emailId.value).result.headOption)
+        emailAddressesRows <- db.run(EmailAddressesTable.all
+          .filter(_.emailId === createdDraft.value.email.emailId.value).result.headOption)
+      } yield assert(!deleteDraft && emailRow.nonEmpty && emailAddressesRows.nonEmpty)
+    }
+
+    "not delete the email if it is not a draft (i.e. it was already sent)" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val origCreateChatDTO = genCreateChatDTOption.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+        createdChatDTO <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
+          .copy(to = Some(Set(genEmailAddress.sample.value)))), basicTestDB.userRow.userId)
+        _ <- chatsRep.patchEmail(
+          UpsertEmailDTO(None, None, None, None, None, None, None, Some(true)),
+          createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, basicTestDB.userRow.userId)
+        _ <- chatsRep.postEmail(genUpsertEmailDTOption.sample.value, createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+        _ <- chatsRep.postEmail(genUpsertEmailDTOption.sample.value, createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+
+        numberOfDraftsBefore <- db.run(UserChatsTable.all
+          .filter(userChatRow => userChatRow.userId === basicTestDB.userRow.userId &&
+            userChatRow.chatId === createdChatDTO.chatId.value).map(_.draft)
+          .result.headOption)
+
+        deleteDraft <- chatsRep.deleteDraft(createdChatDTO.chatId.value, createdChatDTO.email.emailId.value,
+          basicTestDB.userRow.userId)
+        getEmail <- chatsRep.getEmail(createdChatDTO.chatId.value, createdChatDTO.email.emailId.value,
+          basicTestDB.userRow.userId)
+
+        emailRow <- db.run(EmailsTable.all.filter(_.emailId === createdChatDTO.email.emailId.value)
+          .result.headOption)
+        emailAddressesRows <- db.run(EmailAddressesTable.all.filter(_.emailId === createdChatDTO.email.emailId.value)
+          .result.headOption)
+        numberOfDraftsAfter <- db.run(UserChatsTable.all
+          .filter(userChatRow => userChatRow.userId === basicTestDB.userRow.userId
+            && userChatRow.chatId === createdChatDTO.chatId.value).map(_.draft)
+          .result.headOption)
+
+      } yield assert(!deleteDraft && getEmail.nonEmpty &&
+        emailRow.nonEmpty && emailAddressesRows.nonEmpty &&
+        numberOfDraftsAfter.value === numberOfDraftsBefore.value)
+    }
+
+    "delete a draft (email addresses, attachments and email rows) if the user requesting it is the draft's owner" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow.copy(draft = 1)),
+          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(basicTestDB.emailAddressRow))
+
+        _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId))
+
+        numberOfDraftsBefore <- db.run(UserChatsTable.all
+          .filter(userChatRow => userChatRow.userId === basicTestDB.userRow.userId &&
+            userChatRow.chatId === basicTestDB.chatRow.chatId).map(_.draft)
+          .result.headOption)
+
+        deleteDraft <- chatsRep.deleteDraft(basicTestDB.chatRow.chatId, basicTestDB.emailRow.emailId,
+          basicTestDB.userRow.userId)
+        getEmail <- chatsRep.getEmail(basicTestDB.chatRow.chatId, basicTestDB.emailRow.emailId,
+          basicTestDB.userRow.userId)
+
+        emailRow <- db.run(EmailsTable.all.filter(_.emailId === basicTestDB.emailRow.emailId).result.headOption)
+        emailAddressesRows <- db.run(EmailAddressesTable.all
+          .filter(_.emailId === basicTestDB.emailRow.emailId).result.headOption)
+        attachmentsRows <- db.run(AttachmentsTable.all
+          .filter(_.emailId === basicTestDB.emailRow.emailId).result.headOption)
+        numberOfDraftsAfter <- db.run(UserChatsTable.all
+          .filter(userChatRow => userChatRow.userId === basicTestDB.userRow.userId &&
+            userChatRow.chatId === basicTestDB.chatRow.chatId).map(_.draft).result.headOption)
+
+      } yield assert(deleteDraft && getEmail.isEmpty &&
+        emailRow.isEmpty && emailAddressesRows.isEmpty && attachmentsRows.isEmpty &&
+        numberOfDraftsAfter.value === numberOfDraftsBefore.value - 1)
+    }
+
+    "not allow a draft to be patched after it was deleted" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+        createdDraft <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+        deleteDraft <- chatsRep.deleteDraft(createdDraft.chatId.value, createdDraft.email.emailId.value,
+          basicTestDB.userRow.userId)
+
+        tryGetEmailBefore <- chatsRep.getEmail(createdDraft.chatId.value, createdDraft.email.emailId.value,
+          basicTestDB.userRow.userId)
+        tryPatch <- chatsRep.patchEmail(genUpsertEmailDTOption.sample.value, createdDraft.chatId.value,
+          createdDraft.email.emailId.value, basicTestDB.userRow.userId)
+        tryGetEmailAfter <- chatsRep.getEmail(createdDraft.chatId.value, createdDraft.email.emailId.value,
+          basicTestDB.userRow.userId)
+      } yield assert(tryPatch.isEmpty && tryGetEmailBefore === tryGetEmailAfter && tryGetEmailAfter === None)
+    }
+  }
+
 }
 
 case class BasicTestDB(addressRow: AddressRow, userRow: UserRow, chatRow: ChatRow, emailRow: EmailRow,
