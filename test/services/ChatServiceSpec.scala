@@ -1,6 +1,6 @@
 package services
 
-import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
+import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.types.Mailbox.Inbox
 import org.mockito.scalatest.AsyncIdiomaticMockito
@@ -112,6 +112,16 @@ class ChatServiceSpec extends AsyncWordSpec with OptionValues with AsyncIdiomati
       val moveChatToTrashService = chatServiceImpl
         .patchChat(Restore, "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
       moveChatToTrashService.map(_ mustBe Some(Restore))
+    }
+    "return some ChangeSubject(subject) DTO if the ChatsRepository returns some ChangeSubject(subject) DTO" in {
+      val mockChatsRep = mock[ChatsRepository]
+      mockChatsRep.patchChat(ChangeSubject("New Subject"), *, *)
+        .returns(Future.successful(Some(ChangeSubject("New Subject"))))
+
+      val chatServiceImpl = new ChatService(mockChatsRep)
+      val moveChatToTrashService = chatServiceImpl
+        .patchChat(ChangeSubject("New Subject"), "303c2b72-304e-4bac-84d7-385acb64a616", "148a3b1b-8326-466d-8c27-1bd09b8378f3")
+      moveChatToTrashService.map(_ mustBe Some(ChangeSubject("New Subject")))
     }
     "return None if the ChatsRepository returns None" in {
       val mockChatsRep = mock[ChatsRepository]

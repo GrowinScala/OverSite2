@@ -1,6 +1,6 @@
 package controllers
 
-import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
+import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.types.Mailbox._
 import org.scalatestplus.play._
@@ -338,6 +338,26 @@ class ChatControllerSpec extends PlaySpec with Results with IdiomaticMockito {
       val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
 
       val patchChatJsonRequest = Json.parse("""{"command": "restore"}""")
+
+      val request = FakeRequest(PATCH, "/chats/825ee397-f36e-4023-951e-89d6e43a8e7d")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(patchChatJsonRequest)
+
+      val result: Future[Result] = controller.patchChat("825ee397-f36e-4023-951e-89d6e43a8e7d").apply(request)
+
+      status(result) mustBe OK
+      contentAsJson(result) mustBe patchChatJsonRequest
+    }
+
+    "return Ok and the request body if the response from the service is Some(ChangeSubject(subject))" in {
+
+      val mockChatService = mock[ChatService]
+      mockChatService.patchChat(*, *, *)
+        .returns(Future.successful(Some(ChangeSubject("New Subject"))))
+
+      val controller = new ChatController(cc, mockChatService, new FakeAuthenticatedUserAction)
+
+      val patchChatJsonRequest = Json.parse("""{"command": "changeSubject", "patch": "New Subject"}""")
 
       val request = FakeRequest(PATCH, "/chats/825ee397-f36e-4023-951e-89d6e43a8e7d")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")

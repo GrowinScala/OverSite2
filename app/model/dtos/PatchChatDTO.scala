@@ -25,7 +25,7 @@ object PatchChatDTO {
       (json \ "command").validate[String].flatMap {
         case MoveToTrash.command => JsSuccess(MoveToTrash)
         case Restore.command => JsSuccess(Restore)
-        case ChangeSubject() => (json \ "subject").validate[String].map(subject => ChangeSubject(subject))
+        case ChangeSubject() => (json \ "patch").validate[String].map(subject => ChangeSubject(subject))
         case wrongCommand => JsError(s"The command $wrongCommand is not available")
       }
 
