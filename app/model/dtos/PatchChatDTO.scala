@@ -2,13 +2,22 @@ package model.dtos
 
 import play.api.libs.json._
 
-sealed abstract class PatchChatDTO(val command: String) extends Serializable
+abstract class PatchChatDTO(val command: String, val patch: Option[String] = None) extends Serializable
 
 object PatchChatDTO {
-
   case object MoveToTrash extends PatchChatDTO("moveToTrash")
 
   case object Restore extends PatchChatDTO("restore")
+
+  case class ChangeSubject(subject: String) extends PatchChatDTO("changeSubject", Some(subject))
+
+  object ChangeSubject {
+    def unapply(str: String): Boolean = ChangeSubject("").command == str
+
+    def unapply(patchChatDTO: PatchChatDTO): Option[String] =
+      if (patchChatDTO eq null) None
+      else Some(patchChatDTO.patch.getOrElse(""))
+  }
 
   implicit object patchChatDTOReads extends Format[PatchChatDTO] {
 
@@ -16,11 +25,18 @@ object PatchChatDTO {
       (json \ "command").validate[String].flatMap {
         case MoveToTrash.command => JsSuccess(MoveToTrash)
         case Restore.command => JsSuccess(Restore)
-        case command => JsError("The command " + command + " is not available")
+        case ChangeSubject() => (json \ "subject").validate[String].map(subject => ChangeSubject(subject))
+        case wrongCommand => JsError(s"The command $wrongCommand is not available")
       }
 
-    override def writes(patchChatDTO: PatchChatDTO): JsValue = JsObject(Seq(
-      "command" -> JsString(patchChatDTO.command)))
-
+    override def writes(patchChatDTO: PatchChatDTO): JsValue =
+      if (patchChatDTO.patch.isDefined) {
+        JsObject(Seq(
+          "command" -> JsString(patchChatDTO.command),
+          "patch" -> JsString(patchChatDTO.patch.getOrElse(""))))
+      } else {
+        JsObject(Seq(
+          "command" -> JsString(patchChatDTO.command)))
+      }
   }
 }

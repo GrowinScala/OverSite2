@@ -77,12 +77,10 @@ class ChatController @Inject() (cc: ControllerComponents, chatService: ChatServi
 
       jsonValue.validate[PatchChatDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        patchChatDTO =>
-          //trash and restore cannot both be true
-          chatService.patchChat(patchChatDTO, chatId, authenticatedRequest.userId).map {
-            case Some(result) => Ok(Json.toJson(result))
-            case None => NotFound(chatNotFound)
-          })
+        patchChatDTO => chatService.patchChat(patchChatDTO, chatId, authenticatedRequest.userId).map {
+          case Some(result) => Ok(Json.toJson(result))
+          case None => NotFound(chatNotFound)
+        })
     }
   }
 
