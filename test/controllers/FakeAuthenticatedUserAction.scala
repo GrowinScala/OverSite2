@@ -1,18 +1,13 @@
 package controllers
 
-import akka.actor.ActorSystem
-import akka.stream.{ ActorMaterializer, Materializer }
-import play.api.mvc
-import play.api.mvc.{ AnyContent, BodyParser, Request, Result }
+import javax.inject.Inject
+import play.api.mvc._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-class FakeAuthenticatedUserAction extends AuthenticatedUserAction {
+class FakeAuthenticatedUserAction @Inject() (defaultParser: BodyParsers.Default, implicit val executionContext: ExecutionContext) extends AuthenticatedUserAction {
 
-  val executionContext: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
-  implicit val system: ActorSystem = ActorSystem()
-  implicit val mat: Materializer = ActorMaterializer()
-  override def parser: BodyParser[AnyContent] = new mvc.BodyParsers.Default()
+  override def parser: BodyParser[AnyContent] = defaultParser
 
   override def invokeBlock[A](
     request: Request[A],

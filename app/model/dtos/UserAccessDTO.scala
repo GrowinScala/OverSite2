@@ -19,8 +19,6 @@ object UserAccessDTO {
     (JsPath \ "last_name").readNullable[String] and
     (JsPath \ "token").readNullable[String])(UserAccessDTO.apply _)
 
-  val test = UserAccessDTO("test", "test", None, None, None)
-
   def tupled = (UserAccessDTO.apply _).tupled
 
 }
