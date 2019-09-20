@@ -7,10 +7,9 @@ import repositories.dtos.{ Chat, ChatPreview, Email }
 import repositories.ChatsRepository
 import PostOverseerDTO._
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ ExecutionContext, Future }
 
-class ChatService @Inject() (chatsRep: ChatsRepository) {
+class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsRepository) {
 
   def getChats(mailbox: Mailbox, user: String): Future[Seq[ChatPreviewDTO]] = {
     chatsRep.getChatsPreview(mailbox, user).map(toSeqChatPreviewDTO)
@@ -24,9 +23,9 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
     chatsRep.postChat(createChatDTO, userId)
   }
 
-  //Receives a CreateEmailDTO, returns a CreateChatDTO with the email plus chatId and subject
-  def postEmail(createEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
-    chatsRep.postEmail(createEmailDTO, chatId, userId)
+  //Receives a UpsertEmailDTO, returns a CreateChatDTO with the email plus chatId and subject
+  def postEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
+    chatsRep.postEmail(upsertEmailDTO, chatId, userId)
   }
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[EmailDTO]] = {
@@ -56,7 +55,7 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
 
   //region Auxiliary conversion methods
 
-  private def toEmailDTO(optionEmail: Option[Email]): Option[EmailDTO] = {
+  private[services] def toEmailDTO(optionEmail: Option[Email]): Option[EmailDTO] = {
     optionEmail.map {
       email =>
         EmailDTO(
@@ -72,7 +71,7 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
     }
   }
 
-  private def toChatDTO(optionChat: Option[Chat]): Option[ChatDTO] = {
+  private[services] def toChatDTO(optionChat: Option[Chat]): Option[ChatDTO] = {
     optionChat.map {
       chat =>
         ChatDTO(
@@ -93,7 +92,7 @@ class ChatService @Inject() (chatsRep: ChatsRepository) {
               email.body,
               email.date,
               email.sent != 0,
-              email.attachments)).sortBy(_.date))
+              email.attachments)))
     }
 
   }

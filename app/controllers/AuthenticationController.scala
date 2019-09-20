@@ -6,17 +6,14 @@ import play.api.libs.json.{ JsError, JsValue, Json }
 import play.api.mvc._
 import services.AuthenticationService
 import utils.Jsons._
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import Results._
-import akka.actor.ActorSystem
-import akka.stream.{ ActorMaterializer, Materializer }
-import play.api.mvc
 
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class AuthenticationController @Inject() (cc: ControllerComponents, authenticationService: AuthenticationService)
+class AuthenticationController @Inject() (implicit
+  val executionContext: ExecutionContext,
+  cc: ControllerComponents, authenticationService: AuthenticationService)
   extends AbstractController(cc) {
 
   def signUpUser: Action[JsValue] =
@@ -26,10 +23,9 @@ class AuthenticationController @Inject() (cc: ControllerComponents, authenticati
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
         userAccessDTO =>
           authenticationService.signUpUser(userAccessDTO).map {
-            case (userAccessDto, error) => error match {
-              case Some(message) => BadRequest(message)
-              case None => Ok(Json.toJson(userAccessDto))
-            }
+            case (_, Some(error)) => BadRequest(error)
+            case ((userAccessDto, None)) => Ok(Json.toJson(userAccessDto))
+
           })
     }
 
@@ -40,10 +36,8 @@ class AuthenticationController @Inject() (cc: ControllerComponents, authenticati
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
         userAccessDTO =>
           authenticationService.signInUser(userAccessDTO).map {
-            case (userAccessDto, error) => error match {
-              case Some(message) => BadRequest(message)
-              case None => Ok(Json.toJson(userAccessDto))
-            }
+            case (_, Some(error)) => BadRequest(error)
+            case ((userAccessDto, None)) => Ok(Json.toJson(userAccessDto))
           })
     }
 }
@@ -55,13 +49,13 @@ case class AuthenticatedUser[A](userId: String, request: Request[A]) extends Wra
       super.newWrapper(newRequest))
 }
 
-class ImplAuthenticatedUserAction @Inject() (authenticationService: AuthenticationService)
+class ImplAuthenticatedUserAction @Inject() (implicit
+  val executionContext: ExecutionContext,
+  defaultParser: BodyParsers.Default,
+  authenticationService: AuthenticationService)
   extends AuthenticatedUserAction {
 
-  val executionContext: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
-  implicit val system: ActorSystem = ActorSystem()
-  implicit val mat: Materializer = ActorMaterializer()
-  override def parser: BodyParser[AnyContent] = new mvc.BodyParsers.Default()
+  override def parser: BodyParser[AnyContent] = defaultParser
 
   override def invokeBlock[A](
     request: Request[A],

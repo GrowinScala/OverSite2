@@ -6,7 +6,10 @@ import javax.inject.Inject
 import model.dtos.UserAccessDTO
 import repositories.AuthenticationRepository
 import repositories.slick.mappings._
+import slick.dbio.Effect
+import slick.jdbc.MySQLProfile
 import slick.jdbc.MySQLProfile.api._
+import slick.sql.{ FixedSqlAction, SqlAction }
 import utils.Generators._
 
 import scala.concurrent.{ Await, ExecutionContext, Future }
@@ -20,7 +23,7 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
    * @param token The token
    * @return A DBIOAction that inserts a new token or updates it in case it already exists
    */
-  def upsertTokenAction(tokenId: String, token: String) = {
+  def upsertTokenAction(tokenId: String, token: String): DBIO[Int] = {
     val valid_time_24h = 24 * 60 * 60 * 1000
     val current_time = System.currentTimeMillis
     val start_date = new Timestamp(current_time)
@@ -33,21 +36,20 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
    * @param userAccessDTO Contains the User's information, namely their Address, Password and Name
    * @return A DBIOAction that inserts a User into the Database and returns an authentication token
    */
-  def signUpUserAction(userAccessDTO: UserAccessDTO) =
+  def signUpUserAction(userAccessDTO: UserAccessDTO): DBIO[String] =
     for {
       optionalAddress <- AddressesTable.all.filter(_.address === userAccessDTO.address).result.headOption
-      addressUUID = genUUID
-      row = optionalAddress.getOrElse(AddressRow(addressUUID, userAccessDTO.address))
+      row = optionalAddress.getOrElse(AddressRow(addressId = newUUID, userAccessDTO.address))
       _ <- AddressesTable.all.insertOrUpdate(row)
 
-      userUUID = genUUID
+      userUUID = newUUID
       _ <- UsersTable.all += UserRow(userUUID, row.addressId, userAccessDTO.first_name.getOrElse(""),
         userAccessDTO.last_name.getOrElse(""))
 
-      token = genUUID
-      tokenId = genUUID
+      token = newUUID
+      tokenId = newUUID
       _ <- upsertTokenAction(tokenId, token)
-      passwordUUID = genUUID
+      passwordUUID = newUUID
       _ <- PasswordsTable.all += PasswordRow(passwordUUID, userUUID, userAccessDTO.password, tokenId)
     } yield token
 
@@ -64,7 +66,7 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
    * @param address The address in question
    * @return A DBIOAction that checks if a given address corresponds to a User
    */
-  def checkUserAction(address: String) =
+  def checkUserAction(address: String): DBIO[Boolean] =
     AddressesTable.all.filter(_.address === address)
       .join(UsersTable.all).on(_.addressId === _.addressId).exists.result
 
@@ -81,7 +83,7 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
    * @param address The address in question
    * @return A DBIOAction that tries to find the password that corresponds to a given address
    */
-  def getPasswordAction(address: String) =
+  def getPasswordAction(address: String): DBIO[Option[String]] =
     (for {
       addressId <- AddressesTable.all.filter(_.address === address).map(_.addressId)
       userId <- UsersTable.all.filter(_.addressId === addressId).map(_.userId)
@@ -101,7 +103,7 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
    * @param address The address in question
    * @return A DBIOAction that updates the token of a given address
    */
-  def updateTokenAction(address: String) =
+  def updateTokenAction(address: String): DBIO[String] =
     for {
       tokenId <- (for {
         addressId <- AddressesTable.all.filter(_.address === address).map(_.addressId)
@@ -110,7 +112,7 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
       } yield tokenId).result.head
       // Assumes that the previous verification for the password/user/address will give a result here
 
-      newToken = genUUID
+      newToken = newUUID
       _ <- upsertTokenAction(tokenId, newToken)
 
     } yield newToken
