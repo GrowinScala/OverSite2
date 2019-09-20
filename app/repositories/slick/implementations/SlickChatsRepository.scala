@@ -4,7 +4,7 @@ import java.util.UUID
 
 import javax.inject.Inject
 import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
-import model.dtos.{ CreateChatDTO, PatchChatDTO, UpsertEmailDTO }
+import model.dtos._
 import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
@@ -161,7 +161,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         the overseers of the chat
    *         and the emails of the chat (that the user can see)
    */
-  private[implementations] def getChatAction(chatId: String, userId: String) = {
+  private[implementations] def getChatAction(chatId: String, userId: String): DBIO[Option[Chat]] = {
 
     for {
       chatData <- getChatDataAction(chatId, userId)
@@ -307,7 +307,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
           .map(chat => chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
           .filter(_.emails.nonEmpty))
   }
-
+	
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {
     db.run(getEmailAction(chatId, emailId, userId))
   }
@@ -342,6 +342,63 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean] = {
     db.run(deleteDraftAction(chatId, emailId, userId))
+  }
+	
+	private def createNewOverseerAction(overseerId: String, chatId: String, userId: String):
+	DBIO[PostOverseer] = {
+		for {
+			optOverseerUserChatId <- UserChatsTable.all.filter(_.userId === overseerId).map(_.userChatId).result.headOption
+			_ <- optOverseerUserChatId match {
+				case Some(overseerUserChatId) => UserChatsTable.all.filter(_.userChatId === overseerUserChatId)
+					.map(_.inbox).update(1)
+					case None => DBIO.successful(None)
+			}
+		} yield optOverseerUserChatId
+		
+		DBIO.successful(PostOverseer("ss", None))
+	}
+	
+	private def postOverseerAction(postOverseer: PostOverseer, chatId: String, userId: String):
+	DBIO[PostOverseer] = {
+		for{
+			optOverseerId <- getUserIdsByAddressQuery(Set(postOverseer.address)).result.headOption
+			optOversightId <- optOverseerId match {
+				case Some(overseerId) => OversightsTable.all.filter(
+					oversightrow => oversightrow.chatId === chatId &&
+						oversightrow.overseerId === overseerId &&
+						oversightrow.overseeId === userId).map(_.oversightId).result.headOption
+					case None => DBIO.successful(None)
+			}
+			
+			postedOverseer <- (optOverseerId, optOversightId) match {
+					case (_, Some(oversightId)) => DBIO.successful(PostOverseer(postOverseer.address, Some(oversightId)))
+					case (None, _) => DBIO.successful(PostOverseer(postOverseer.address, None))
+					case (Some(overseerId), None) => createNewOverseerAction(overseerId, chatId, userId)
+			}
+		}yield postedOverseer
+		
+	}
+	
+	private def postOverseersAction(postOverseers: Set[PostOverseer], chatId: String, userId: String):
+  DBIO[Option[Set[PostOverseer]]] = {
+    for {
+      chatAccess <- getChatDataAction(chatId, userId)
+      userParticipation <- getUserParticipationsOnChatAction(chatId, userId).map(_.nonEmpty)
+
+      x <- chatAccess match {
+        case Some(_) if userParticipation => DBIO.sequence(postOverseers.map(postOverseerAction(_, chatId, userId))
+	        .toSeq)
+        case _ => DBIO.successful(Set(PostOverseer("aa", None)))
+      }
+    } yield chatAccess
+
+		DBIO.successful(Some(Set(PostOverseer("aa", None))))
+  }
+	
+
+  def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String):
+  Future[Option[Set[PostOverseer]]] = {
+    db.run(postOverseersAction(postOverseers, chatId, userId))
   }
 
 /*** Auxiliary methods ***/
@@ -420,6 +477,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield restoreUserChat
   }
 
+  /**
+   * Creates a DBIOAction to get all the participations of a user within a given chat
+   * @param chatId ID of the chat in question
+   * @param userId ID of the user in question
+   * @return A DBIOAction that when run returns a sequence of tuples each containing a participantType of the user,
+   *         along with the sent status of the email
+   *         Seq((participantType, sent))
+   */
   private def getUserParticipationsOnChatAction(chatId: String, userId: String): DBIO[Seq[(String, Int)]] = {
     EmailAddressesTable.all
       .join(EmailsTable.all)
@@ -937,7 +1002,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chatId ID of the requested chat
    * @return A DBIOAction that returns a Sequence of Overseer(userAddress, overseersAddresses) DTOs
    */
-  private def getOverseersData(chatId: String) = {
+  private def getOverseersData(chatId: String): DBIO[Set[Overseers]] = {
     val chatOverseersQuery = for {
       (overseerId, overseeId) <- OversightsTable.all.filter(_.chatId === chatId)
         .map(row => (row.overseerId, row.overseeId))
