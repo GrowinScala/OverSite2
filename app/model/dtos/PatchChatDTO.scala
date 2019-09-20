@@ -14,9 +14,7 @@ object PatchChatDTO {
   object ChangeSubject {
     def unapply(str: String): Boolean = ChangeSubject("").command == str
 
-    def unapply(patchChatDTO: PatchChatDTO): Option[String] =
-      if (patchChatDTO eq null) None
-      else Some(patchChatDTO.patch.getOrElse(""))
+    def unapply(patchChatDTO: PatchChatDTO): Option[String] = Some(patchChatDTO.patch.getOrElse(""))
   }
 
   implicit object patchChatDTOReads extends Format[PatchChatDTO] {
@@ -25,7 +23,7 @@ object PatchChatDTO {
       (json \ "command").validate[String].flatMap {
         case MoveToTrash.command => JsSuccess(MoveToTrash)
         case Restore.command => JsSuccess(Restore)
-        case ChangeSubject() => (json \ "patch").validate[String].map(subject => ChangeSubject(subject))
+        case ChangeSubject() => (json \ "subject").validate[String].map(subject => ChangeSubject(subject))
         case wrongCommand => JsError(s"The command $wrongCommand is not available")
       }
 
