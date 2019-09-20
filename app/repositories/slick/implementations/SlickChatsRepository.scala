@@ -162,7 +162,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         and the emails of the chat (that the user can see)
    */
   private[implementations] def getChatAction(chatId: String, userId: String) = {
-    
+
     for {
       chatData <- getChatDataAction(chatId, userId)
       (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
@@ -444,7 +444,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       (sender, receiver) = participations.partition { case (participantType, _) => participantType == "from" }
 
       chatOversees <- getOverseesUserChat(chatId, userId)
-      
+
       //Count of the emails where the user is a receiver if and only if the email was already sent
       numberInbox = receiver.count { case (_, sent) => sent == 1 }
       inbox = if (chatOversees.nonEmpty || numberInbox > 0) 1 else 0

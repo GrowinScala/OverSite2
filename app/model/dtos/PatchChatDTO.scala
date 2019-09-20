@@ -33,7 +33,7 @@ object PatchChatDTO {
       if (patchChatDTO.patch.isDefined) {
         JsObject(Seq(
           "command" -> JsString(patchChatDTO.command),
-          "patch" -> JsString(patchChatDTO.patch.getOrElse(""))))
+          "subject" -> JsString(patchChatDTO.patch.getOrElse(""))))
       } else {
         JsObject(Seq(
           "command" -> JsString(patchChatDTO.command)))

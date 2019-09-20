@@ -1,6 +1,6 @@
 package services
 
-import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
+import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.types.Mailbox.Inbox
 import org.mockito.scalatest.AsyncIdiomaticMockito
@@ -9,7 +9,6 @@ import repositories.ChatsRepository
 import repositories.dtos._
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
-
 import scala.concurrent.Future
 import utils.TestGenerators._
 
@@ -97,8 +96,8 @@ class ChatServiceSpec extends AsyncWordSpec
       mockChatsRep.patchChat(MoveToTrash, *, *)
         .returns(Future.successful(Some(MoveToTrash)))
 
-      val moveChatToTrashService = chatService.
-        patchChat(MoveToTrash, genUUID.sample.value, genUUID.sample.value)
+      val moveChatToTrashService = chatService
+        .patchChat(MoveToTrash, genUUID.sample.value, genUUID.sample.value)
       moveChatToTrashService.map(_ mustBe Some(MoveToTrash))
     }
     "return some Restore DTO if the ChatsRepository returns some Restore DTO" in {
@@ -106,17 +105,27 @@ class ChatServiceSpec extends AsyncWordSpec
       mockChatsRep.patchChat(Restore, *, *)
         .returns(Future.successful(Some(Restore)))
 
-      val moveChatToTrashService = chatService.
-        patchChat(Restore, genUUID.sample.value, genUUID.sample.value)
+      val moveChatToTrashService = chatService
+        .patchChat(Restore, genUUID.sample.value, genUUID.sample.value)
       moveChatToTrashService.map(_ mustBe Some(Restore))
+    }
+    "return some ChangeSubject DTO if the ChatsRepository returns some ChangeSubject DTO" in {
+      val newSubject = "New Subject"
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.patchChat(ChangeSubject(newSubject), *, *)
+        .returns(Future.successful(Some(ChangeSubject(newSubject))))
+
+      val moveChatToTrashService = chatService
+        .patchChat(ChangeSubject(newSubject), genUUID.sample.value, genUUID.sample.value)
+      moveChatToTrashService.map(_ mustBe Some(ChangeSubject(newSubject)))
     }
     "return None if the ChatsRepository returns None" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchChat(*, *, *)
         .returns(Future.successful(None))
 
-      val moveChatToTrashService = chatService.
-        patchChat(MoveToTrash, genUUID.sample.value, genUUID.sample.value)
+      val moveChatToTrashService = chatService
+        .patchChat(MoveToTrash, genUUID.sample.value, genUUID.sample.value)
       moveChatToTrashService.map(_ mustBe None)
     }
   }
