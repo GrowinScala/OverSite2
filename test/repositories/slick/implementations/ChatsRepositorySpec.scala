@@ -1,7 +1,6 @@
 package repositories.slick.implementations
 
-import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
-import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
+import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos.{ CreateChatDTO, PatchChatDTO, UpsertEmailDTO }
 import model.types.Mailbox.{ Drafts, Inbox, Sent }
 import org.scalatest._
@@ -1530,6 +1529,50 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           .result.headOption)
       } yield assert(result === None && optUserChat === None)
 
+    }
+
+    "only change the chat's subject if the chat only has one email, it is a draft and the user is its owner" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val origCreateChatDTO = genCreateChatDTOption.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+        createdChatDTO <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
+          .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
+
+        newSubject = genString.sample.value
+        result <- chatsRep.patchChat(ChangeSubject(newSubject), createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+        getPatchedChat <- chatsRep.getChat(createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+
+      } yield assert(
+        result === Some(ChangeSubject(newSubject)) &&
+          getPatchedChat.value.subject === newSubject)
+    }
+
+    "NOT change the chat's subject if the chat has more than one sent emails and return None" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val origCreateChatDTO = genCreateChatDTOption.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+
+        createdChatDTO <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
+          .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
+
+        sendEmail <- chatsRep.patchEmail(
+          UpsertEmailDTO(None, None, None, None, None, None, None, Some(true)),
+          createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, basicTestDB.userRow.userId)
+
+        oldSubject = createdChatDTO.subject.value
+        result <- chatsRep.patchChat(ChangeSubject(genString.sample.value), createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+        getChat <- chatsRep.getChat(createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+
+      } yield assert(result === None &&
+        getChat.value.subject === oldSubject)
     }
   }
 

@@ -1,6 +1,6 @@
 package controllers
 
-import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
+import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.types.Mailbox._
 import org.scalatestplus.play._
@@ -250,6 +250,26 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         .returns(Future.successful(Some(Restore)))
 
       val patchChatJsonRequest = Json.parse("""{"command": "restore"}""")
+
+      val chatId = genUUID.sample.value
+
+      val request = FakeRequest(PATCH, s"/chats/$chatId")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(patchChatJsonRequest)
+
+      val result: Future[Result] = chatController.patchChat(chatId).apply(request)
+
+      status(result) mustBe OK
+      contentAsJson(result) mustBe patchChatJsonRequest
+    }
+
+    "return Ok and the request body if the response from the service is Some(ChangeSubject(New Subject))" in {
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.patchChat(*, *, *)
+        .returns(Future.successful(Some(ChangeSubject("New Subject"))))
+
+      val patchChatJsonRequest = Json.parse("""{"command": "changeSubject", "subject": "New Subject"}""")
 
       val chatId = genUUID.sample.value
 
