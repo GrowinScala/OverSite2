@@ -11,7 +11,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsRepository) {
 
   def getChats(mailbox: Mailbox, user: String): Future[Seq[ChatPreviewDTO]] = {
-    chatsRep.getChatsPreview(mailbox, user).map(toSeqChatPreviewDTO)
+    chatsRep.getChatsPreview(mailbox, user).map(ChatPreviewDTO.toSeqChatPreviewDTO)
   }
 
   def getChat(chatId: String, userId: String): Future[Option[ChatDTO]] = {
@@ -46,19 +46,4 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[ChatDTO]] = {
     chatsRep.getEmail(chatId, emailId, userId).map(ChatDTO.toChatDTO)
   }
-
-  //region Auxiliary conversion methods
-
-  private def toSeqChatPreviewDTO(chatPreviews: Seq[ChatPreview]): Seq[ChatPreviewDTO] = {
-    chatPreviews.map(chatPreview =>
-      ChatPreviewDTO(
-        chatPreview.chatId,
-        chatPreview.subject,
-        chatPreview.lastAddress,
-        chatPreview.lastEmailDate,
-        chatPreview.contentPreview))
-  }
-
-  //endregion
-
 }
