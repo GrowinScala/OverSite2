@@ -2,14 +2,15 @@ package services
 
 import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
 import model.dtos._
+import model.dtos.PostOverseerDTO._
 import model.types.Mailbox.Inbox
 import org.mockito.scalatest.AsyncIdiomaticMockito
+import org.scalacheck.Gen
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
 import repositories.dtos._
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
-
 import scala.concurrent.Future
 import utils.TestGenerators._
 
@@ -190,6 +191,23 @@ class ChatServiceSpec extends AsyncWordSpec
       val deleteDraftService = chatService.deleteDraft(
         genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
       deleteDraftService.map(_ mustBe false)
+    }
+  }
+
+  "ChatService#postOverseers" should {
+    "turn the received optional Set of PostOverseer to one of PostOverseerDTO" in {
+
+      val expectedResponse = genSetPostOverseerDTO.sample
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.postOverseers(*, *, *)
+        .returns(Future.successful(expectedResponse.map(_.map(toPostOverseer))))
+
+      val serviceResponse = chatService.postOverseers(
+        genSetPostOverseerDTO.sample.value,
+        genUUID.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe Some(expectedResponse))
     }
   }
 

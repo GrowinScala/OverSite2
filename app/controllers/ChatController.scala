@@ -109,11 +109,11 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
       jsonValue.validate[Set[PostOverseerDTO]].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        postOverseersDTO =>  chatService.postOverseers(postOverseersDTO, chatId, authenticatedRequest.userId)
+        postOverseersDTO => chatService.postOverseers(postOverseersDTO, chatId, authenticatedRequest.userId)
           .map {
-            case Some(result) =>  Ok(Json.toJson(result))
+            case Some(result) => Ok(Json.toJson(result))
             case None => NotFound(chatNotFound)
-       })
+          })
     }
   }
 

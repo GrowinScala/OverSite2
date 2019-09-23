@@ -322,7 +322,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
           .map(chat => chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
           .filter(_.emails.nonEmpty))
   }
-	
+
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {
     db.run(getEmailAction(chatId, emailId, userId))
   }
@@ -358,61 +358,55 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean] = {
     db.run(deleteDraftAction(chatId, emailId, userId))
   }
-	
-	private def createNewOverseerAction(overseerId: String, chatId: String, userId: String):
-	DBIO[PostOverseer] = {
-		for {
-			optOverseerUserChatId <- UserChatsTable.all.filter(_.userId === overseerId).map(_.userChatId).result.headOption
-			_ <- optOverseerUserChatId match {
-				case Some(overseerUserChatId) => UserChatsTable.all.filter(_.userChatId === overseerUserChatId)
-					.map(_.inbox).update(1)
-					case None => DBIO.successful(None)
-			}
-		} yield optOverseerUserChatId
-		
-		DBIO.successful(PostOverseer("ss", None))
-	}
-	
-	private def postOverseerAction(postOverseer: PostOverseer, chatId: String, userId: String):
-	DBIO[PostOverseer] = {
-		for{
-			optOverseerId <- getUserIdsByAddressQuery(Set(postOverseer.address)).result.headOption
-			optOversightId <- optOverseerId match {
-				case Some(overseerId) => OversightsTable.all.filter(
-					oversightrow => oversightrow.chatId === chatId &&
-						oversightrow.overseerId === overseerId &&
-						oversightrow.overseeId === userId).map(_.oversightId).result.headOption
-					case None => DBIO.successful(None)
-			}
-			
-			postedOverseer <- (optOverseerId, optOversightId) match {
-					case (_, Some(oversightId)) => DBIO.successful(PostOverseer(postOverseer.address, Some(oversightId)))
-					case (None, _) => DBIO.successful(PostOverseer(postOverseer.address, None))
-					case (Some(overseerId), None) => createNewOverseerAction(overseerId, chatId, userId)
-			}
-		}yield postedOverseer
-		
-	}
-	
-	private def postOverseersAction(postOverseers: Set[PostOverseer], chatId: String, userId: String):
-  DBIO[Option[Set[PostOverseer]]] = {
+
+  private def createNewOverseerAction(overseerId: String, overseerAddress: String, chatId: String, userId: String): DBIO[PostOverseer] =
+    for {
+      optOverseerUserChatId <- UserChatsTable.all.filter(_.userId === overseerId).map(_.userChatId).result.headOption
+      _ <- optOverseerUserChatId match {
+        case Some(overseerUserChatId) => UserChatsTable.all.filter(_.userChatId === overseerUserChatId)
+          .map(_.inbox).update(1)
+        case None => UserChatsTable.all += UserChatRow(newUUID, overseerId, chatId, 1, 0, 0, 0)
+      }
+
+      oversightId = newUUID
+
+      _ <- OversightsTable.all += OversightRow(oversightId, chatId, overseerId, userId)
+
+    } yield PostOverseer(overseerAddress, Some(oversightId))
+
+  private def postOverseerAction(postOverseer: PostOverseer, chatId: String, userId: String): DBIO[PostOverseer] = {
+    for {
+      optOverseerId <- getUserIdsByAddressQuery(Set(postOverseer.address)).result.headOption
+      optOversightId <- optOverseerId match {
+        case Some(overseerId) => OversightsTable.all.filter(
+          oversightrow => oversightrow.chatId === chatId &&
+            oversightrow.overseerId === overseerId &&
+            oversightrow.overseeId === userId).map(_.oversightId).result.headOption
+        case None => DBIO.successful(None)
+      }
+
+      postedOverseer <- (optOverseerId, optOversightId) match {
+        case (_, Some(oversightId)) => DBIO.successful(PostOverseer(postOverseer.address, Some(oversightId)))
+        case (None, _) => DBIO.successful(PostOverseer(postOverseer.address, None))
+        case (Some(overseerId), None) => createNewOverseerAction(overseerId, postOverseer.address, chatId, userId)
+      }
+    } yield postedOverseer
+
+  }
+
+  private def postOverseersAction(postOverseers: Set[PostOverseer], chatId: String, userId: String): DBIO[Option[Set[PostOverseer]]] =
     for {
       chatAccess <- getChatDataAction(chatId, userId)
       userParticipation <- getUserParticipationsOnChatAction(chatId, userId).map(_.nonEmpty)
 
-      x <- chatAccess match {
+      optSeqPostOverseer <- chatAccess match {
         case Some(_) if userParticipation => DBIO.sequence(postOverseers.map(postOverseerAction(_, chatId, userId))
-	        .toSeq)
-        case _ => DBIO.successful(Set(PostOverseer("aa", None)))
+          .toSeq).map(Some(_))
+        case _ => DBIO.successful(None)
       }
-    } yield chatAccess
+    } yield optSeqPostOverseer.map(_.toSet)
 
-		DBIO.successful(Some(Set(PostOverseer("aa", None))))
-  }
-	
-
-  def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String):
-  Future[Option[Set[PostOverseer]]] = {
+  def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String): Future[Option[Set[PostOverseer]]] = {
     db.run(postOverseersAction(postOverseers, chatId, userId))
   }
 
@@ -474,7 +468,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       (sender, receiver) = participations.partition { case (participantType, _) => participantType == "from" }
 
       chatOversees <- getOverseesUserChat(chatId, userId)
-      
+
       //Count of the emails where the user is a receiver if and only if the email was already sent
       numberInbox = receiver.count { case (_, sent) => sent == 1 }
       inbox = if (chatOversees.nonEmpty || numberInbox > 0) 1 else 0
