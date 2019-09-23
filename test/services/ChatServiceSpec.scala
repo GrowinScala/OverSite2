@@ -217,7 +217,7 @@ class ChatServiceSpec extends AsyncWordSpec
         genSetPostOverseerDTO.sample.value,
         genUUID.sample.value, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe Some(expectedResponse))
+      serviceResponse.map(_ mustBe expectedResponse)
     }
   }
 

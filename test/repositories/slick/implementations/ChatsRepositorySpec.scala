@@ -1,5 +1,6 @@
 package repositories.slick.implementations
 
+import model.dtos.PatchChatDTO._
 import model.dtos._
 import model.types.Mailbox._
 import org.scalatest._
@@ -95,7 +96,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       email.bcc.getOrElse(Set.empty[String])
   }
 
-  /*"SlickChatsRepository#getChatsPreview" should {
+  "SlickChatsRepository#getChatsPreview" should {
     "detect a draft made by the viewer " in {
       val basicTestDB = genBasicTestDB.sample.value
 
@@ -1905,7 +1906,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
       } yield assert(tryPatch.isEmpty && tryGetEmailBefore === tryGetEmailAfter && tryGetEmailAfter === None)
     }
-  }*/
+  }
 
   "SlickChatsRepository#postOverseers" should {
 

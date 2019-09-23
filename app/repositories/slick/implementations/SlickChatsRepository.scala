@@ -509,19 +509,18 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield restoreUserChat
   }
-	
-	private def moveToTrashAction(chatId: String, userId: String): DBIO[Option[Int]] = {
-		for {
-			ifUserChatExists <- UserChatsTable.all.filter(userChat => userChat.chatId === chatId && userChat.userId === userId)
-				.result.headOption
-			
-			optionNumberOfRowsUpdated <- DBIO.sequenceOption(
-				ifUserChatExists.map(_ => UserChatsTable.moveChatToTrash(chatId, userId)))
-			
-		} yield optionNumberOfRowsUpdated
-	}
 
-	
+  private def moveToTrashAction(chatId: String, userId: String): DBIO[Option[Int]] = {
+    for {
+      ifUserChatExists <- UserChatsTable.all.filter(userChat => userChat.chatId === chatId && userChat.userId === userId)
+        .result.headOption
+
+      optionNumberOfRowsUpdated <- DBIO.sequenceOption(
+        ifUserChatExists.map(_ => UserChatsTable.moveChatToTrash(chatId, userId)))
+
+    } yield optionNumberOfRowsUpdated
+  }
+
   /**
    * Creates a DBIOAction to get all the participations of a user within a given chat
    * @param chatId ID of the chat in question
