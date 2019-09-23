@@ -12,8 +12,7 @@ object Jsons {
     JsObject(Seq("token" -> JsString(token)))
 
   val repeatedUser: Error = Json.parse("""{ "Error": "User already exists"}  """)
-  val missingAddress: Error = Json.parse("""{ "Error": "User address not found"}  """)
-  val wrongPassword: Error = Json.parse("""{ "Error": "User password is incorrect"}  """)
+  val failedSignIn: Error = Json.parse("""{ "Error": "Failed to Sign-In with the given address and password"}  """)
   val tokenNotFound: Error = Json.parse("""{ "Error": "Authentication Token not found in request headers"}  """)
   val tokenNotValid: Error = Json.parse("""{ "Error": "Invalid Authentication Token"}  """)
   val tokenExpired: Error = Json.parse("""{ "Error": "Authentication Token has expired, please sign-in again"}  """)

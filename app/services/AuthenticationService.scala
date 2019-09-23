@@ -24,11 +24,11 @@ class AuthenticationService @Inject() (implicit val ec: ExecutionContext, authen
 
   def signInUser(userAccessDTO: UserAccessDTO): Future[Either[Error, JsToken]] = {
     authenticationRep.getPassword(userAccessDTO.address).flatMap {
-      case None => Future.successful(Left(missingAddress))
+      case None => Future.successful(Left(failedSignIn))
       case Some(password) => if (userAccessDTO.password.isBcrypted(password)) {
         authenticationRep.updateToken(userAccessDTO.address).map(token =>
           Right(jsToken(token)))
-      } else Future.successful(Left(wrongPassword))
+      } else Future.successful(Left(failedSignIn))
     }
   }
 

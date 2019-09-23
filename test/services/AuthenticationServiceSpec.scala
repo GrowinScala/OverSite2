@@ -51,17 +51,17 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
   "AuthenticationService#signInUser" should {
 
-    "point out missing address" in {
+    "notice missing address" in {
       val (authenticationService, mockAuthenticationRep) = getServiceAndRepMock
       val userAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
 
       mockAuthenticationRep.getPassword(*)
         .returns(Future.successful(None))
 
-      authenticationService.signInUser(userAccessDTO).map(_ mustBe Left(missingAddress))
+      authenticationService.signInUser(userAccessDTO).map(_ mustBe Left(failedSignIn))
     }
 
-    "point out wrong password" in {
+    "notice wrong password" in {
       val (authenticationService, mockAuthenticationRep) = getServiceAndRepMock
       val userAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
       val password = genString.sample.value
@@ -69,7 +69,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       mockAuthenticationRep.getPassword(*)
         .returns(Future.successful(Some(password.bcrypt)))
 
-      authenticationService.signInUser(userAccessDTO).map(_ mustBe Left(wrongPassword))
+      authenticationService.signInUser(userAccessDTO).map(_ mustBe Left(failedSignIn))
     }
 
     "return token" in {
