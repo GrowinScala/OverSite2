@@ -28,7 +28,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[EmailDTO]] = {
-    chatsRep.patchEmail(upsertEmailDTO, chatId, emailId, userId).map(toEmailDTO)
+    chatsRep.patchEmail(upsertEmailDTO, chatId, emailId, userId).map(EmailDTO.toEmailDTO)
   }
 
   def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] = {
@@ -48,22 +48,6 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   //region Auxiliary conversion methods
-
-  private[services] def toEmailDTO(optionEmail: Option[Email]): Option[EmailDTO] = {
-    optionEmail.map {
-      email =>
-        EmailDTO(
-          email.emailId,
-          email.from,
-          email.to,
-          email.bcc,
-          email.cc,
-          email.body,
-          email.date,
-          email.sent != 0,
-          email.attachments)
-    }
-  }
 
   private def toSeqChatPreviewDTO(chatPreviews: Seq[ChatPreview]): Seq[ChatPreviewDTO] = {
     chatPreviews.map(chatPreview =>
