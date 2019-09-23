@@ -52,7 +52,7 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
 
       val (authenticationController, mockAuthenticationService, _) = getControllerServiceMockAndAuthAction
       mockAuthenticationService.signUpUser(*)
-        .returns(Future.successful(userAccessDTO, Some(jsonMessage)))
+        .returns(Future.successful(Left(jsonMessage)))
 
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.toJson(
         userAccessDTO))
@@ -61,22 +61,21 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
       contentAsJson(result) mustBe jsonMessage
     }
 
-    "return userAccessDto" in {
+    "return token" in {
       val token = genUUID.sample.value
       val userAccessDTO = genUserAccessDTO.sample.value
       val userAccessJson = Json.toJson(userAccessDTO)
-      val userAccessWithToken = userAccessDTO.copy(token = Some(token))
-      val userAccessJsonWithToken = Json.toJson(userAccessWithToken)
+      val jsonToken = jsToken(genUUID.sample.value)
 
       val (authenticationController, mockAuthenticationService, _) = getControllerServiceMockAndAuthAction
       mockAuthenticationService.signUpUser(*)
-        .returns(Future.successful(userAccessWithToken, None))
+        .returns(Future.successful(Right(jsonToken)))
 
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.toJson(
         userAccessJson))
       val result = authenticationController.signUpUser.apply(request)
       status(result) mustBe OK
-      contentAsJson(result) mustBe userAccessJsonWithToken
+      contentAsJson(result) mustBe jsonToken
     }
   }
   //endregion
@@ -99,7 +98,7 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
 
       val (authenticationController, mockAuthenticationService, _) = getControllerServiceMockAndAuthAction
       mockAuthenticationService.signInUser(*)
-        .returns(Future.successful(userAccessDTO, Some(jsonMessage)))
+        .returns(Future.successful(Left(jsonMessage)))
 
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.toJson(userAccessDTO))
       val result = authenticationController.signInUser.apply(request)
@@ -107,22 +106,23 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
       contentAsJson(result) mustBe jsonMessage
     }
 
-    "return userAccessDto" in {
+    "return token" in {
       val token = genUUID.sample.value
       val userAccessDTO = genUserAccessDTO.sample.value
       val userAccessJson = Json.toJson(userAccessDTO)
-      val userAccessWithToken = userAccessDTO.copy(token = Some(token))
-      val userAccessJsonWithToken = Json.toJson(userAccessWithToken)
+      val jsonToken = jsToken(genUUID.sample.value)
 
       val (authenticationController, mockAuthenticationService, _) = getControllerServiceMockAndAuthAction
       mockAuthenticationService.signInUser(*)
-        .returns(Future.successful(userAccessWithToken, None))
+        .returns(Future.successful(Right(jsonToken)))
 
-      val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(userAccessJson)
+      val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.toJson(
+        userAccessJson))
       val result = authenticationController.signInUser.apply(request)
       status(result) mustBe OK
-      contentAsJson(result) mustBe userAccessJsonWithToken
+      contentAsJson(result) mustBe jsonToken
     }
+
   }
   //endregion
 

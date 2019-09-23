@@ -23,8 +23,8 @@ class AuthenticationController @Inject() (implicit
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
         userAccessDTO =>
           authenticationService.signUpUser(userAccessDTO).map {
-            case (_, Some(error)) => BadRequest(error)
-            case ((userAccessDto, None)) => Ok(Json.toJson(userAccessDto))
+            case Left(error) => BadRequest(error)
+            case Right(jsToken) => Ok(jsToken)
 
           })
     }
@@ -36,8 +36,8 @@ class AuthenticationController @Inject() (implicit
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
         userAccessDTO =>
           authenticationService.signInUser(userAccessDTO).map {
-            case (_, Some(error)) => BadRequest(error)
-            case ((userAccessDto, None)) => Ok(Json.toJson(userAccessDto))
+            case Left(error) => BadRequest(error)
+            case Right(jsToken) => Ok(jsToken)
           })
     }
 }

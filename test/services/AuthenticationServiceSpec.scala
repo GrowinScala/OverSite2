@@ -31,8 +31,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       mockAuthenticationRep.checkUser(*)
         .returns(Future.successful(true))
 
-      authenticationService.signUpUser(userAccessDTO).map(
-        _._2 mustBe Some(repeatedUser))
+      authenticationService.signUpUser(userAccessDTO).map(_ mustBe Left(repeatedUser))
     }
 
     "return token" in {
@@ -46,7 +45,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
         .returns(Future.successful(token))
 
       authenticationService.signUpUser(userAccessDTO).map(
-        _ mustBe (userAccessDTO.copy(token = Some(token)), None))
+        _ mustBe Right(jsToken(token)))
     }
   }
 
@@ -59,8 +58,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       mockAuthenticationRep.getPassword(*)
         .returns(Future.successful(None))
 
-      authenticationService.signInUser(userAccessDTO).map(
-        _._2 mustBe Some(missingAddress))
+      authenticationService.signInUser(userAccessDTO).map(_ mustBe Left(missingAddress))
     }
 
     "point out wrong password" in {
@@ -71,8 +69,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       mockAuthenticationRep.getPassword(*)
         .returns(Future.successful(Some(password.bcrypt)))
 
-      authenticationService.signInUser(userAccessDTO).map(
-        _._2 mustBe Some(wrongPassword))
+      authenticationService.signInUser(userAccessDTO).map(_ mustBe Left(wrongPassword))
     }
 
     "return token" in {
@@ -89,7 +86,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
         .returns(Future.successful(token))
 
       authenticationService.signInUser(userAccessDTO).map(
-        _ mustBe (userAccessDTO.copy(token = Some(token)), None))
+        _ mustBe Right(jsToken(token)))
     }
 
   }
