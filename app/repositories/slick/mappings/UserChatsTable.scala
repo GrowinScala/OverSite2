@@ -26,7 +26,7 @@ class UserChatsTable(tag: Tag) extends Table[UserChatRow](tag, "user_chats") {
 object UserChatsTable {
   val all = TableQuery[UserChatsTable]
 
-  def updateDraftField(userId: String, chatId: String, draft: Int): MySQLProfile.ProfileAction[Int, NoStream, Effect.Write] = {
+  def updateDraftField(userId: String, chatId: String, draft: Int): DBIO[Int] = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
     } yield uc.draft).update(draft)
@@ -40,14 +40,20 @@ object UserChatsTable {
     sqlu"UPDATE user_chats SET draft = draft - 1 WHERE user_id = $userId AND chat_id = $chatId AND draft > 0"
   }
 
-  def userEmailWasSent(userId: String, chatId: String) = {
+  def userEmailWasSent(userId: String, chatId: String): DBIO[Int] = {
     sqlu"UPDATE user_chats SET draft = draft - 1, sent = 1 WHERE user_id = $userId AND chat_id = $chatId AND draft > 0"
   }
 
-  def moveChatToTrash(userId: String, chatId: String): MySQLProfile.ProfileAction[Int, NoStream, Effect.Write] = {
+  def moveChatToTrash(chatId: String, userId: String): DBIO[Int] = {
     (for {
       uc <- all.filter(uc => uc.userId === userId && uc.chatId === chatId)
     } yield (uc.inbox, uc.sent, uc.draft, uc.trash)).update(0, 0, 0, 1)
+  }
+
+  def restoreChat(userId: String, chatId: String, inbox: Int, sent: Int, drafts: Int): DBIO[Int] = {
+    all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId)
+      .map(userChatRow => (userChatRow.inbox, userChatRow.sent, userChatRow.draft, userChatRow.trash))
+      .update(inbox, sent, drafts, 0)
   }
 
 }

@@ -8,10 +8,9 @@ import play.api.libs.json.JsValue
 import utils.Generators.currentTimestamp
 import utils.Jsons._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ ExecutionContext, Future }
 
-class AuthenticationService @Inject() (authenticationRep: AuthenticationRepository) {
+class AuthenticationService @Inject() (implicit val ec: ExecutionContext, authenticationRep: AuthenticationRepository) {
 
   def signUpUser(userAccessDTO: UserAccessDTO): Future[(UserAccessDTO, Option[JsValue])] =
     authenticationRep.checkUser(userAccessDTO.address).flatMap(
@@ -20,8 +19,8 @@ class AuthenticationService @Inject() (authenticationRep: AuthenticationReposito
           Future.successful(userAccessDTO, Some(repeatedUser))
         else {
           val encryptedPassword = userAccessDTO.password.bcrypt
-          val token = authenticationRep.signUpUser(userAccessDTO.copy(password = encryptedPassword))
-          token.map(token => (userAccessDTO.copy(token = Some(token)), None))
+          authenticationRep.signUpUser(userAccessDTO.copy(password = encryptedPassword))
+            .map(token => (userAccessDTO.copy(token = Some(token)), None))
         })
 
   def signInUser(userAccessDTO: UserAccessDTO): Future[(UserAccessDTO, Option[JsValue])] = {
