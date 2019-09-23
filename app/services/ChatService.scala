@@ -3,7 +3,6 @@ package services
 import javax.inject.Inject
 import model.dtos._
 import model.types.Mailbox
-import repositories.dtos.{ Chat, ChatPreview, Email }
 import repositories.ChatsRepository
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -22,7 +21,6 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.postChat(createChatDTO, userId)
   }
 
-  //Receives a UpsertEmailDTO, returns a CreateChatDTO with the email plus chatId and subject
   def postEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
     chatsRep.postEmail(upsertEmailDTO, chatId, userId)
   }

@@ -8,8 +8,6 @@ case class EmailDTO(emailId: String, from: String, to: Set[String], bcc: Set[Str
   attachments: Set[String])
 
 object EmailDTO {
-  //implicit val emailFormat: OFormat[EmailDTO] = Json.format[EmailDTO]
-  //implicit val emailReads: Reads[EmailDTO] = Json.reads[EmailDTO]
   implicit val emailWrites: OWrites[EmailDTO] = Json.writes[EmailDTO]
 
   def tupled = (EmailDTO.apply _).tupled
