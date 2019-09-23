@@ -1,7 +1,7 @@
 package repositories.slick.implementations
 
 import javax.inject.Inject
-import model.dtos.PatchChatDTO.{ MoveToTrash, Restore }
+import model.dtos.PatchChatDTO._
 import model.dtos._
 import model.types.Mailbox
 import model.types.Mailbox._
@@ -298,19 +298,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]] =
     db.run(patchEmailAction(upsertEmailDTO, chatId, emailId, userId).transactionally)
 
-  private[implementations] def patchChatAction(patchChatDTO: PatchChatDTO, chatId: String, userId: String): DBIO[Option[PatchChatDTO]] = {
+  private[implementations] def patchChatAction(patchChatDTO: PatchChatDTO, chatId: String, userId: String): DBIO[Option[PatchChatDTO]] =
     for {
-      optionIfChatInTrash <- verifyIfChatAlreadyInTrash(chatId, userId)
-
-      restoreOrDelete <- DBIO.sequenceOption(optionIfChatInTrash.map(chatIsInTrash =>
-        patchChatDTO match {
-          case MoveToTrash => UserChatsTable.moveChatToTrash(userId, chatId)
-          case Restore if chatIsInTrash => restoreChatAction(chatId, userId)
-          case _ => DBIO.successful(patchChatDTO)
-        }))
-
-    } yield restoreOrDelete.map(_ => patchChatDTO)
-  }
+      optionPatch <- patchChatDTO match {
+        case MoveToTrash => moveToTrashAction(chatId, userId)
+        case Restore => tryRestoreChatAction(chatId, userId)
+        case ChangeSubject(subject) => changeChatSubjectAction(chatId, userId, subject)
+      }
+    } yield optionPatch.map(_ => patchChatDTO)
 
   def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] =
     db.run(patchChatAction(patchChatDTO, chatId, userId))
@@ -461,6 +456,38 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .map(optionUserChat => optionUserChat.map(_ == 1))
   }
 
+  private def changeChatSubjectAction(chatId: String, userId: String, newSubject: String): DBIO[Option[Int]] = {
+    for {
+      userAddressId <- UsersTable.getUserAddressId(userId).result.headOption
+
+      emailId <- UserChatsTable.all
+        .join(EmailsTable.all)
+        .on {
+          case (userChat, email) =>
+            userChat.chatId === email.chatId && email.chatId === chatId && userChat.userId === userId &&
+              userChat.draft > 0 && email.sent === 0
+        }
+        .map(_._2.emailId).result
+
+      optionAddressId <- EmailAddressesTable.all
+        .filter(emailAddress => emailAddress.emailId === emailId.headOption.getOrElse("email not found") &&
+          emailAddress.participantType === "from" && emailAddress.addressId === userAddressId.getOrElse("user not found") && emailId.size == 1)
+        .map(_.addressId)
+        .result.headOption
+
+      subjectChanged <- DBIO.sequenceOption(optionAddressId.map(_ => ChatsTable.changeSubject(chatId, newSubject)))
+    } yield subjectChanged
+  }
+
+  private def tryRestoreChatAction(chatId: String, userId: String): DBIO[Option[Int]] = {
+    for {
+      optionIfChatInTrash <- verifyIfChatAlreadyInTrash(chatId, userId)
+
+      optionNumberOfUpdatedRows <- DBIO.sequenceOption(optionIfChatInTrash.map(chatIsInTrash =>
+        if (chatIsInTrash) restoreChatAction(chatId, userId) else DBIO.successful(0)))
+    } yield optionNumberOfUpdatedRows
+  }
+
   private def restoreChatAction(chatId: String, userId: String): DBIO[Int] = {
     for {
       participations <- getUserParticipationsOnChatAction(chatId, userId)
@@ -482,7 +509,19 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield restoreUserChat
   }
+	
+	private def moveToTrashAction(chatId: String, userId: String): DBIO[Option[Int]] = {
+		for {
+			ifUserChatExists <- UserChatsTable.all.filter(userChat => userChat.chatId === chatId && userChat.userId === userId)
+				.result.headOption
+			
+			optionNumberOfRowsUpdated <- DBIO.sequenceOption(
+				ifUserChatExists.map(_ => UserChatsTable.moveChatToTrash(chatId, userId)))
+			
+		} yield optionNumberOfRowsUpdated
+	}
 
+	
   /**
    * Creates a DBIOAction to get all the participations of a user within a given chat
    * @param chatId ID of the chat in question
