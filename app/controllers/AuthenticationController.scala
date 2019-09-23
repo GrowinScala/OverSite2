@@ -60,7 +60,7 @@ class ImplAuthenticatedUserAction @Inject() (implicit
   override def invokeBlock[A](
     request: Request[A],
     block: AuthenticatedUser[A] => Future[Result]): Future[Result] =
-    request.headers.get("token") match {
+    request.headers.get("Authorization") match {
       case None => Future.successful(BadRequest(tokenNotFound))
       case Some(token) => authenticationService.validateToken(token).flatMap {
         case Left(message) => Future.successful(BadRequest(message))

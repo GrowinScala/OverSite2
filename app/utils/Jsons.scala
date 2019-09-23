@@ -9,7 +9,7 @@ object Jsons {
   type Error = JsValue
 
   def jsToken(token: String): JsToken =
-    JsObject(Seq("token" -> JsString(token)))
+    JsObject(Seq("Authorization" -> JsString(token)))
 
   val repeatedUser: Error = Json.parse("""{ "Error": "User already exists"}  """)
   val failedSignIn: Error = Json.parse("""{ "Error": "Failed to Sign-In with the given address and password"}  """)
