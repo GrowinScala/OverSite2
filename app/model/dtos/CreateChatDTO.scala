@@ -21,16 +21,14 @@ object CreateChatDTO {
     CreateChat(
       chatId = createChatDTO.chatId,
       subject = createChatDTO.subject,
-      email = UpsertEmailDTO.toUpsertEmail(createChatDTO.email)
-    )
+      email = UpsertEmailDTO.toUpsertEmail(createChatDTO.email))
   }
 
   def toCreateChatDTO(createChat: CreateChat): CreateChatDTO = {
     CreateChatDTO(
       chatId = createChat.chatId,
       subject = createChat.subject,
-      email = UpsertEmailDTO.toUpsertEmailDTO(createChat.email)
-    )
+      email = UpsertEmailDTO.toUpsertEmailDTO(createChat.email))
   }
 
 }

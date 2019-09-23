@@ -1,8 +1,8 @@
 package repositories
 
-import model.dtos.{ CreateChatDTO, EmailDTO, PatchChatDTO, UpsertEmailDTO }
+import model.dtos.PatchChatDTO
 import model.types.Mailbox
-import repositories.dtos.{ Chat, ChatPreview, Email }
+import repositories.dtos._
 
 import scala.concurrent.Future
 
@@ -12,11 +12,11 @@ trait ChatsRepository {
 
   def getChat(chatId: String, userId: String): Future[Option[Chat]]
 
-  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO]
+  def postChat(createChat: CreateChat, userId: String): Future[CreateChat]
 
-  def postEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]]
+  def postEmail(upsertEmail: UpsertEmail, chatId: String, userId: String): Future[Option[CreateChat]]
 
-  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]]
+  def patchEmail(upsertEmailDTO: UpsertEmail, chatId: String, emailId: String, userId: String): Future[Option[Email]]
 
   def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]]
 

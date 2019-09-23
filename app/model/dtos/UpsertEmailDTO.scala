@@ -32,8 +32,7 @@ object UpsertEmailDTO {
       cc = upsertEmailDTO.cc,
       body = upsertEmailDTO.body,
       date = upsertEmailDTO.date,
-      sent = upsertEmailDTO.sent
-    )
+      sent = upsertEmailDTO.sent)
   }
 
   def toUpsertEmailDTO(upsertEmail: UpsertEmail): UpsertEmailDTO = {
@@ -45,8 +44,7 @@ object UpsertEmailDTO {
       cc = upsertEmail.cc,
       body = upsertEmail.body,
       date = upsertEmail.date,
-      sent = upsertEmail.sent
-    )
+      sent = upsertEmail.sent)
   }
 
 }
