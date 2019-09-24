@@ -1854,6 +1854,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     "delete a draft (email addresses, attachments and email rows) if the user requesting it is the draft's owner" in {
       val basicTestDB = genBasicTestDB.sample.value
+      val chatId = basicTestDB.userChatRow.chatId
 
       for {
         _ <- fillDB(
@@ -1861,7 +1862,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.chatRow),
           List(basicTestDB.userRow),
           List(basicTestDB.userChatRow.copy(draft = 1)),
-          List(basicTestDB.emailRow.copy(sent = 0)),
+          List(
+            genEmailRow(chatId).sample.value.copy(sent = 1),
+            basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
         _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId))
@@ -1889,6 +1892,41 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         emailRow.isEmpty && emailAddressesRows.isEmpty && attachmentsRows.isEmpty &&
         numberOfDraftsAfter.value === numberOfDraftsBefore.value - 1)
     }
+
+    "delete a draft (email addresses, attachmentsand email rows) if the user requesting it is the draft's owner " +
+      "and also delete the chat and userChat rows if the chat was empty after deletion of the draft (only had one draft)" in {
+        val basicTestDB = genBasicTestDB.sample.value
+
+        for {
+          _ <- fillDB(
+            List(basicTestDB.addressRow),
+            List(basicTestDB.chatRow),
+            List(basicTestDB.userRow),
+            List(basicTestDB.userChatRow.copy(draft = 1)),
+            List(basicTestDB.emailRow.copy(sent = 0)),
+            List(basicTestDB.emailAddressRow))
+
+          _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId))
+
+          deleteDraft <- chatsRep.deleteDraft(basicTestDB.chatRow.chatId, basicTestDB.emailRow.emailId,
+            basicTestDB.userRow.userId)
+          getEmail <- chatsRep.getEmail(basicTestDB.chatRow.chatId, basicTestDB.emailRow.emailId,
+            basicTestDB.userRow.userId)
+
+          emailRow <- db.run(EmailsTable.all.filter(_.emailId === basicTestDB.emailRow.emailId).result.headOption)
+          emailAddressesRows <- db.run(EmailAddressesTable.all
+            .filter(_.emailId === basicTestDB.emailRow.emailId).result.headOption)
+          attachmentsRows <- db.run(AttachmentsTable.all
+            .filter(_.emailId === basicTestDB.emailRow.emailId).result.headOption)
+          userChatRow <- db.run(UserChatsTable.all
+            .filter(_.chatId === basicTestDB.chatRow.chatId).result.headOption)
+          chatRow <- db.run(ChatsTable.all
+            .filter(_.chatId === basicTestDB.chatRow.chatId).result.headOption)
+
+        } yield assert(deleteDraft && getEmail.isEmpty &&
+          emailRow.isEmpty && emailAddressesRows.isEmpty && attachmentsRows.isEmpty &&
+          userChatRow.isEmpty && chatRow.isEmpty)
+      }
 
     "not allow a draft to be patched after it was deleted" in {
       val basicTestDB = genBasicTestDB.sample.value

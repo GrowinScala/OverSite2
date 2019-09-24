@@ -119,25 +119,6 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
 
   "SlickAuthenticationRepository#updateToken" should {
 
-    "update Token OLD" in {
-
-      for {
-        _ <- db.run(DBIO.seq(
-          AddressesTable.all += AddressRow("addressId", "address"),
-          UsersTable.all += UserRow("userId", "addressId", "", ""),
-          TokensTable.all += TokenRow("tokenId", "token", currentTimestamp, currentTimestamp),
-          PasswordsTable.all += PasswordRow("passwordId", "userId", "password", "tokenId")))
-
-        token <- authenticationRep.updateToken("address")
-
-        assertion <- db.run(TokensTable.all.filter(_.tokenId === "tokenId").map(_.token).result.headOption).map {
-          case Some(foundToken) => foundToken mustBe token
-          case None => fail("Failed to find tokenId")
-        }
-      } yield assertion
-
-    }
-
     "update Token" in {
       val userAccessDTO: UserAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
 
