@@ -308,7 +308,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield optionPatch.map(_ => patchChatDTO)
 
   def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] =
-    db.run(patchChatAction(patchChatDTO, chatId, userId))
+    db.run(patchChatAction(patchChatDTO, chatId, userId).transactionally)
 
   private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String) = {
     getChatAction(chatId, userId)
@@ -319,7 +319,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {
-    db.run(getEmailAction(chatId, emailId, userId))
+    db.run(getEmailAction(chatId, emailId, userId).transactionally)
   }
 
   private[implementations] def deleteChatAction(chatId: String, userId: String): DBIO[Boolean] = {
@@ -339,7 +339,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   def deleteChat(chatId: String, userId: String): Future[Boolean] =
-    db.run(deleteChatAction(chatId, userId))
+    db.run(deleteChatAction(chatId, userId).transactionally)
 
   private[implementations] def deleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
@@ -351,7 +351,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean] = {
-    db.run(deleteDraftAction(chatId, emailId, userId))
+    db.run(deleteDraftAction(chatId, emailId, userId).transactionally)
   }
 
   private def createNewOverseerAction(overseerId: String, overseerAddress: String, chatId: String, userId: String): DBIO[PostOverseer] =
@@ -391,21 +391,20 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private def postOverseersAction(postOverseers: Set[PostOverseer], chatId: String, userId: String): DBIO[Option[Set[PostOverseer]]] =
     for {
-      chatAccess <- getChatDataAction(chatId, userId)
-      userParticipation <- getUserParticipationsOnChatAction(chatId, userId).map(_.nonEmpty)
+      chatAccessAndParticipation <- checkIfUserHasAccessAndParticipates(chatId, userId)
 
-      optSeqPostOverseer <- chatAccess match {
-        case Some(_) if userParticipation => DBIO.sequence(postOverseers.map(postOverseerAction(_, chatId, userId))
-          .toSeq).map(Some(_))
-        case _ => DBIO.successful(None)
-      }
+      optSeqPostOverseer <- if (chatAccessAndParticipation)
+        DBIO.sequence(postOverseers.map(postOverseerAction(_, chatId, userId)).toSeq)
+          .map(Some(_))
+      else DBIO.successful(None)
+
     } yield optSeqPostOverseer.map(_.toSet)
 
   def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String): Future[Option[Set[PostOverseer]]] = {
-    db.run(postOverseersAction(postOverseers, chatId, userId))
+    db.run(postOverseersAction(postOverseers, chatId, userId).transactionally)
   }
 
-/*** Auxiliary methods ***/
+  //region Auxiliary Methods
 
   private def getDraftsUserChat(userId: String, chatId: String) =
     UserChatsTable.all
@@ -904,6 +903,19 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .result
   }
 
+  private def checkIfUserHasAccessAndParticipates(chatId: String, userId: String): DBIO[Boolean] =
+    (for {
+      (userId, addressId) <- UsersTable.all.filter(_.userId === userId)
+        .map(userRow => (userRow.userId, userRow.addressId))
+      _ <- AddressesTable.all.filter(_.addressId === addressId)
+      chatId <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId &&
+        userChatRow.userId === userId &&
+        (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft >= 1 || userChatRow.trash === 1))
+        .map(_.chatId)
+      __ <- ChatsTable.all.filter(_.chatId === chatId)
+      participantType <- EmailAddressesTable.all.filter(_.addressId === addressId).map(_.participantType)
+    } yield participantType).exists.result
+
   //region getChat auxiliary methods
 
   /**
@@ -1081,6 +1093,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         .map(Overseers.tupled)
         .toSet)
   }
+  //endregion
   //endregion
 
 }
