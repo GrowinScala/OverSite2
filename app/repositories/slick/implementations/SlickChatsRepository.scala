@@ -369,6 +369,21 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private def getEmailAttachmentsQuery(emailId: String) =
     AttachmentsTable.all.filter(_.emailId === emailId)
 
+  private def deleteChatAndUserChatRows(chatId: String): DBIO[Unit] = {
+    DBIO.seq(
+      ChatsTable.all.filter(_.chatId === chatId).delete,
+      UserChatsTable.all.filter(_.chatId === chatId).delete)
+  }
+
+  private def deleteChatIfHasNoEmails(chatId: String, userId: String): DBIO[Unit] = {
+    for {
+      chatEmails <- EmailsTable.all.filter(_.chatId === chatId).result
+
+      _ <- if (chatEmails.isEmpty) deleteChatAndUserChatRows(chatId)
+      else DBIO.successful(Unit)
+    } yield ()
+  }
+
   private def deleteDraftRowsAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
       deleteEmailAddresses <- getEmailAddressesQuery(chatId, emailId).delete
@@ -378,6 +393,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       deleteEmail <- getDraftEmailQuery(chatId, emailId).delete
 
       updateUserChat <- UserChatsTable.decrementDrafts(userId, chatId)
+
+      _ <- deleteChatIfHasNoEmails(chatId, userId)
 
       numberOfDeletedRows = deleteEmailAddresses + deleteAttachments + deleteEmail
     } yield numberOfDeletedRows > 0
@@ -418,7 +435,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       optionAddressId <- EmailAddressesTable.all
         .filter(emailAddress => emailAddress.emailId === emailId.headOption.getOrElse("email not found") &&
-          emailAddress.participantType === "from" && emailAddress.addressId === userAddressId.getOrElse("user not found") && emailId.size == 1)
+          emailAddress.participantType === "from" &&
+          emailAddress.addressId === userAddressId.getOrElse("user not found") && emailId.size == 1)
         .map(_.addressId)
         .result.headOption
 
@@ -581,7 +599,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       updateReceiversChats <- DBIO.sequence(
         receiversUserIds.map(receiverId =>
           UserChatsTable.all.insertOrUpdate(
-            receiversWithChat.getOrElse(receiverId, UserChatRow(newUUID, receiverId, chatId, 1, 0, 0, 0)).copy(inbox = 1))))
+            receiversWithChat.getOrElse(receiverId, UserChatRow(newUUID, receiverId, chatId, 1, 0, 0, 0))
+              .copy(inbox = 1))))
     } yield updateReceiversChats
   }
 

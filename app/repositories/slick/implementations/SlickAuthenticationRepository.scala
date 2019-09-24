@@ -36,11 +36,16 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
   def signUpUserAction(userAccess: UserAccess): DBIO[String] =
     for {
       optionalAddress <- AddressesTable.all.filter(_.address === userAccess.address).result.headOption
-      row = optionalAddress.getOrElse(AddressRow(addressId = newUUID, userAccess.address))
-      _ <- AddressesTable.all.insertOrUpdate(row)
+      addressId <- optionalAddress match {
+        case Some(addressRow) => DBIO.successful(addressRow.addressId)
+        case None =>
+          val addressId = newUUID
+          AddressesTable.all.+=(AddressRow(addressId, userAccess.address))
+            .map(_ => addressId)
+      }
 
       userUUID = newUUID
-      _ <- UsersTable.all += UserRow(userUUID, row.addressId, userAccess.first_name.getOrElse(""),
+      _ <- UsersTable.all += UserRow(userUUID, addressId, userAccess.first_name.getOrElse(""),
         userAccess.last_name.getOrElse(""))
 
       token = newUUID

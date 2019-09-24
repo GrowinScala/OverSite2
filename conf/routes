@@ -22,6 +22,8 @@ DELETE  /chats/:id                          controllers.ChatController.deleteCha
 
 DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
+DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
+
 
 # Authentication
 
