@@ -1,6 +1,7 @@
 package model.dtos
 
 import play.api.libs.json._
+import repositories.dtos.PatchChat
 
 abstract class PatchChatDTO(val command: String, val patch: Option[String] = None) extends Serializable
 
@@ -17,7 +18,7 @@ object PatchChatDTO {
     def unapply(patchChatDTO: PatchChatDTO): Option[String] = Some(patchChatDTO.patch.getOrElse(""))
   }
 
-  implicit object patchChatDTOReads extends Format[PatchChatDTO] {
+  implicit object patchChatDTOFormat extends Format[PatchChatDTO] {
 
     override def reads(json: JsValue): JsResult[PatchChatDTO] =
       (json \ "command").validate[String].flatMap {
@@ -36,5 +37,21 @@ object PatchChatDTO {
         JsObject(Seq(
           "command" -> JsString(patchChatDTO.command)))
       }
+  }
+
+  def toPatchChat(patchChatDTO: PatchChatDTO): PatchChat = {
+    patchChatDTO match {
+      case PatchChatDTO.MoveToTrash => PatchChat.MoveToTrash
+      case PatchChatDTO.Restore => PatchChat.Restore
+      case PatchChatDTO.ChangeSubject(subject) => PatchChat.ChangeSubject(subject)
+    }
+  }
+
+  def toPatchChatDTO(patchChat: PatchChat): PatchChatDTO = {
+    patchChat match {
+      case PatchChat.MoveToTrash => PatchChatDTO.MoveToTrash
+      case PatchChat.Restore => PatchChatDTO.Restore
+      case PatchChat.ChangeSubject(subject) => PatchChatDTO.ChangeSubject(subject)
+    }
   }
 }
