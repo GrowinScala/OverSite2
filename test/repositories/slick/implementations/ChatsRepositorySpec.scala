@@ -1,7 +1,6 @@
 package repositories.slick.implementations
 
-import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
-import model.dtos.{ CreateChatDTO, PatchChatDTO, UpsertEmailDTO }
+import repositories.dtos.PatchChat.{ ChangeSubject, MoveToTrash, Restore }
 import model.types.Mailbox.{ Drafts, Inbox, Sent }
 import org.scalatest._
 import play.api.inject.Injector
@@ -1264,7 +1263,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow),
+          addressRows = List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postChat <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
         getPostedEmail = CreateChat.fromCreateChatToChat(postChat).emails.headOption.value
@@ -1289,7 +1288,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         for {
           _ <- fillDB(
-            List(basicTestDB.addressRow, toAddressRow, ccAddressRow, bccAddressRow),
+            addressRows = List(basicTestDB.addressRow, toAddressRow, ccAddressRow, bccAddressRow),
             userRows = List(basicTestDB.userRow, toUserRow, ccUserRow, bccUserRow))
           postChat <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
           getPostedChat = CreateChat.fromCreateChatToChat(postChat)
@@ -1352,7 +1351,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow),
+          addressRows = List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postChat <- chatsRep.postChat(
           origCreateChatDTO
@@ -1374,7 +1373,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow, otherAddressRow),
+          addressRows = List(basicTestDB.addressRow, otherAddressRow),
           userRows = List(basicTestDB.userRow, otherUserRow))
         postChat <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email.copy(to =
           Some(Set(otherAddressRow.address)))), basicTestDB.userRow.userId)
@@ -1393,7 +1392,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow),
+          addressRows = List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postChat <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
           .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
@@ -1415,7 +1414,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow),
+          addressRows = List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postChat <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
         createdChatId = postChat.chatId.value
@@ -1460,7 +1459,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow),
+          addressRows = List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         createdChatDTO <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
           .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
@@ -1536,7 +1535,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow),
+          addressRows = List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         createdChatDTO <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
           .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
@@ -1556,7 +1555,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow),
+          addressRows = List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
 
         createdChatDTO <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email

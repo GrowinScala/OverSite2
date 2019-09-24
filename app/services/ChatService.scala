@@ -30,7 +30,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] = {
-    chatsRep.patchChat(patchChatDTO, chatId, userId)
+    chatsRep.patchChat(PatchChatDTO.toPatchChat(patchChatDTO), chatId, userId).map(_.map(PatchChatDTO.toPatchChatDTO))
   }
 
   def deleteChat(chatId: String, userId: String): Future[Boolean] = {
