@@ -2001,7 +2001,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
 
-        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
         optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
           basicTestDB.userRow.userId)
@@ -2026,7 +2026,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           oversightRows = List(oversightRow))
 
-        _ <- chatsRep.postEmail(genUpsertEmailDTOption.sample.value, basicTestDB.chatRow.chatId,
+        _ <- chatsRep.postEmail(genUpsertEmailOption.sample.value, basicTestDB.chatRow.chatId,
           basicTestDB.userRow.userId)
 
         optSetOverseer <- chatsRep.postOverseers(setPostOverseer, basicTestDB.chatRow.chatId,
@@ -2041,7 +2041,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val overseerAddressRow = genAddressRow.sample.value
       val overseerUserRow = genUserRow(overseerAddressRow.addressId).sample.value
       val setPostOverseer = Set(PostOverseer(overseerAddressRow.address, None))
-      val initCreateChatDTO = genCreateChatDTOption.sample.value
+      val initCreateChatDTO = genCreateChatOption.sample.value
 
       for {
         _ <- fillDB(
@@ -2054,7 +2054,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           overseerUserRow.userId)
 
         _ <- chatsRep.patchEmail(
-          UpsertEmailDTO(None, None, None, None, None, None, None, Some(true)),
+          UpsertEmail(None, None, None, None, None, None, None, Some(true)),
           createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, overseerUserRow.userId)
 
         optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
@@ -2085,7 +2085,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow, overseerAddressRow),
           userRows = List(basicTestDB.userRow, overseerUserRow))
 
-        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
         optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
           basicTestDB.userRow.userId)
@@ -2119,7 +2119,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow, overseerOneAddressRow, overseerTwoAddressRow),
           userRows = List(basicTestDB.userRow, overseerOneUserRow, overseerTwoUserRow))
 
-        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
         optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
           basicTestDB.userRow.userId)
