@@ -20,7 +20,9 @@ PATCH   /chats/:id                          controllers.ChatController.patchChat
 
 DELETE  /chats/:id                          controllers.ChatController.deleteChat(id : String)
 
-DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
+DELETE  /chats/:chatId/emails/:emailId      controllers.ChatController.deleteDraft(chatId : String, emailId : String)
+
+POST    /chats/:id/overseers                controllers.ChatController.postOverseers(id : String)
 
 DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 

@@ -443,4 +443,59 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     }
   }
 
+  "ChatController#postOverseers" should {
+    "return Json with the PostOverseerDTO given by the service" in {
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      val setPostOverseerDTO = genSetPostOverseerDTO.sample.value
+
+      mockChatService.postOverseers(*, *, *)
+        .returns(Future.successful(Some(setPostOverseerDTO)))
+
+      val request = FakeRequest()
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(Json.toJson(setPostOverseerDTO))
+
+      val result: Future[Result] = chatController.postOverseers(genUUID.sample.value).apply(request)
+
+      val json = contentAsJson(result)
+
+      status(result) mustBe OK
+      json mustBe Json.toJson(setPostOverseerDTO)
+    }
+
+    "return 400 Bad Request if the email address is not a valid address" in {
+      val (chatController, _) = getControllerAndServiceMock
+
+      val setPostOverseerDTOWithInvalidAddresses = Json.toJson(genSetPostOverseerDTO.sample.value
+        .map(_.copy(address = genString.sample.value)))
+
+      val request = FakeRequest()
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(setPostOverseerDTOWithInvalidAddresses)
+
+      val result: Future[Result] = chatController.postOverseers(genUUID.sample.value).apply(request)
+
+      status(result) mustBe BAD_REQUEST
+    }
+
+    "return Notfound if the service returned None" in {
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+
+      mockChatService.postOverseers(*, *, *)
+        .returns(Future.successful(None))
+
+      val request = FakeRequest()
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(Json.toJson(genSetPostOverseerDTO.sample.value))
+
+      val result: Future[Result] = chatController.postOverseers(genUUID.sample.value).apply(request)
+
+      status(result) mustBe NOT_FOUND
+      contentAsJson(result) mustBe chatNotFound
+    }
+
+  }
+
 }

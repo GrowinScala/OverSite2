@@ -4,6 +4,7 @@ import javax.inject.Inject
 import model.dtos._
 import model.types.Mailbox
 import repositories.ChatsRepository
+import PostOverseerDTO._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -43,5 +44,10 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
 
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[ChatDTO]] = {
     chatsRep.getEmail(chatId, emailId, userId).map(_.map(ChatDTO.toChatDTO))
+  }
+
+  def postOverseers(postOverseersDTO: Set[PostOverseerDTO], chatId: String, userId: String): Future[Option[Set[PostOverseerDTO]]] = {
+    chatsRep.postOverseers(postOverseersDTO.map(toPostOverseer), chatId, userId)
+      .map(_.map(_.map(toPostOverseerDTO)))
   }
 }
