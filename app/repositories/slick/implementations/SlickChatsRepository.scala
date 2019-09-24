@@ -420,7 +420,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       optionAddressId <- EmailAddressesTable.all
         .filter(emailAddress => emailAddress.emailId === emailId.headOption.getOrElse("email not found") &&
-          emailAddress.participantType === "from" && emailAddress.addressId === userAddressId.getOrElse("user not found") && emailId.size == 1)
+          emailAddress.participantType === "from" &&
+          emailAddress.addressId === userAddressId.getOrElse("user not found") && emailId.size == 1)
         .map(_.addressId)
         .result.headOption
 
@@ -583,7 +584,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       updateReceiversChats <- DBIO.sequence(
         receiversUserIds.map(receiverId =>
           UserChatsTable.all.insertOrUpdate(
-            receiversWithChat.getOrElse(receiverId, UserChatRow(newUUID, receiverId, chatId, 1, 0, 0, 0)).copy(inbox = 1))))
+            receiversWithChat.getOrElse(receiverId, UserChatRow(newUUID, receiverId, chatId, 1, 0, 0, 0))
+              .copy(inbox = 1))))
     } yield updateReceiversChats
   }
 

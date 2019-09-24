@@ -31,8 +31,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       mockAuthenticationRep.checkUser(*)
         .returns(Future.successful(true))
 
-      authenticationService.signUpUser(userAccessDTO).map(
-        _._2 mustBe Some(repeatedUser))
+      authenticationService.signUpUser(userAccessDTO).map(_ mustBe Left(repeatedUser))
     }
 
     "return token" in {
@@ -46,24 +45,23 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
         .returns(Future.successful(token))
 
       authenticationService.signUpUser(userAccessDTO).map(
-        _ mustBe (userAccessDTO.copy(token = Some(token)), None))
+        _ mustBe Right(jsToken(token)))
     }
   }
 
   "AuthenticationService#signInUser" should {
 
-    "point out missing address" in {
+    "notice missing address" in {
       val (authenticationService, mockAuthenticationRep) = getServiceAndRepMock
       val userAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
 
       mockAuthenticationRep.getPassword(*)
         .returns(Future.successful(None))
 
-      authenticationService.signInUser(userAccessDTO).map(
-        _._2 mustBe Some(missingAddress))
+      authenticationService.signInUser(userAccessDTO).map(_ mustBe Left(failedSignIn))
     }
 
-    "point out wrong password" in {
+    "notice wrong password" in {
       val (authenticationService, mockAuthenticationRep) = getServiceAndRepMock
       val userAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
       val password = genString.sample.value
@@ -71,8 +69,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       mockAuthenticationRep.getPassword(*)
         .returns(Future.successful(Some(password.bcrypt)))
 
-      authenticationService.signInUser(userAccessDTO).map(
-        _._2 mustBe Some(wrongPassword))
+      authenticationService.signInUser(userAccessDTO).map(_ mustBe Left(failedSignIn))
     }
 
     "return token" in {
@@ -89,7 +86,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
         .returns(Future.successful(token))
 
       authenticationService.signInUser(userAccessDTO).map(
-        _ mustBe (userAccessDTO.copy(token = Some(token)), None))
+        _ mustBe Right(jsToken(token)))
     }
 
   }
