@@ -217,4 +217,21 @@ object TestGenerators {
 
     })
 
+  val genPostOverseerDTO: Gen[PostOverseerDTO] =
+    for {
+      address <- genEmailAddress
+      optOversightId <- Gen.option(genUUID)
+    } yield PostOverseerDTO(address, optOversightId)
+
+  val genSetPostOverseerDTO: Gen[Set[PostOverseerDTO]] =
+    genList(1, 4, genPostOverseerDTO).map(_.toSet)
+
+  val genPostOverseer: Gen[PostOverseer] =
+    for {
+      address <- genEmailAddress
+      optOversightId <- Gen.option(genUUID)
+    } yield PostOverseer(address, optOversightId)
+
+  val genSetPostOverseer: Gen[Set[PostOverseer]] =
+    genList(1, 4, genPostOverseer).map(_.toSet)
 }
