@@ -40,30 +40,26 @@ object ChatDTO {
           else 0,
           emailDTO.attachments)).sortBy(_.date))
 
-  def toChatDTO(optionChat: Option[Chat]): Option[ChatDTO] = {
-    optionChat.map {
-      chat =>
-        ChatDTO(
-          chat.chatId,
-          chat.subject,
-          chat.addresses,
-          chat.overseers.map(overseer =>
-            OverseersDTO(
-              overseer.user,
-              overseer.overseers)),
-          chat.emails.map(email =>
-            EmailDTO(
-              email.emailId,
-              email.from,
-              email.to,
-              email.bcc,
-              email.cc,
-              email.body,
-              email.date,
-              email.sent != 0,
-              email.attachments)))
-    }
-
+  def toChatDTO(chat: Chat): ChatDTO = {
+    ChatDTO(
+      chat.chatId,
+      chat.subject,
+      chat.addresses,
+      chat.overseers.map(overseer =>
+        OverseersDTO(
+          overseer.user,
+          overseer.overseers)),
+      chat.emails.map(email =>
+        EmailDTO(
+          email.emailId,
+          email.from,
+          email.to,
+          email.bcc,
+          email.cc,
+          email.body,
+          email.date,
+          email.sent != 0,
+          email.attachments)))
   }
 
   def tupled = (ChatDTO.apply _).tupled

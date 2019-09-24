@@ -14,19 +14,19 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def getChat(chatId: String, userId: String): Future[Option[ChatDTO]] = {
-    chatsRep.getChat(chatId, userId).map(ChatDTO.toChatDTO)
+    chatsRep.getChat(chatId, userId).map(_.map(ChatDTO.toChatDTO))
   }
 
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
-    chatsRep.postChat(createChatDTO, userId)
+    chatsRep.postChat(CreateChatDTO.toCreateChat(createChatDTO), userId).map(CreateChatDTO.toCreateChatDTO)
   }
 
   def postEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
-    chatsRep.postEmail(upsertEmailDTO, chatId, userId)
+    chatsRep.postEmail(UpsertEmailDTO.toUpsertEmail(upsertEmailDTO), chatId, userId).map(_.map(CreateChatDTO.toCreateChatDTO))
   }
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[EmailDTO]] = {
-    chatsRep.patchEmail(upsertEmailDTO, chatId, emailId, userId).map(EmailDTO.toEmailDTO)
+    chatsRep.patchEmail(UpsertEmailDTO.toUpsertEmail(upsertEmailDTO), chatId, emailId, userId).map(EmailDTO.toEmailDTO)
   }
 
   def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] = {
@@ -42,6 +42,6 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[ChatDTO]] = {
-    chatsRep.getEmail(chatId, emailId, userId).map(ChatDTO.toChatDTO)
+    chatsRep.getEmail(chatId, emailId, userId).map(_.map(ChatDTO.toChatDTO))
   }
 }

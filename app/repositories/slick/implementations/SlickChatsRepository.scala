@@ -13,8 +13,7 @@ import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
 import utils.Generators._
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future }
 
 class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
   extends ChatsRepository {

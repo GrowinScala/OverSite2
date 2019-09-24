@@ -114,6 +114,18 @@ object TestGenerators {
 
     })
 
+  val genUpsertEmailOption: Gen[UpsertEmail] =
+    for {
+      emailId <- Gen.option(genUUID)
+      from <- genEmailAddress
+      to <- Gen.option(genList(1, 4, genEmailAddress).map(_.toSet))
+      bcc <- Gen.option(genList(0, 1, genEmailAddress).map(_.toSet))
+      cc <- Gen.option(genList(0, 1, genEmailAddress).map(_.toSet))
+      body <- Gen.option(genString)
+      date <- Gen.option(genString)
+      sent <- Gen.option(genBoolean)
+    } yield UpsertEmail(emailId, Some(from), to, bcc, cc, body, date, sent)
+
   val genUpsertEmailDTOption: Gen[UpsertEmailDTO] =
     for {
       emailId <- Gen.option(genUUID)
@@ -125,6 +137,13 @@ object TestGenerators {
       date <- Gen.option(genString)
       sent <- Gen.option(genBoolean)
     } yield UpsertEmailDTO(emailId, Some(from), to, bcc, cc, body, date, sent)
+
+  val genCreateChatOption: Gen[CreateChat] =
+    for {
+      chatId <- Gen.option(genUUID)
+      subject <- Gen.option(genString)
+      email <- genUpsertEmailOption
+    } yield CreateChat(chatId, subject, email)
 
   val genCreateChatDTOption: Gen[CreateChatDTO] =
     for {

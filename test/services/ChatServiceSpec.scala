@@ -58,18 +58,21 @@ class ChatServiceSpec extends AsyncWordSpec
         chatId = None,
         email = randomCreateChatDTO.email.copy(emailId = None))
 
-      val expectedResponse = newCreateChatDTO.copy(
-        chatId = Some(genUUID.sample.value),
-        email = newCreateChatDTO.email.copy(emailId = Some(genUUID.sample.value)))
+      val expectedRepoResponse = CreateChatDTO.toCreateChat(newCreateChatDTO)
+        .copy(
+          chatId = Some(genUUID.sample.value),
+          email = UpsertEmailDTO.toUpsertEmail(newCreateChatDTO.email).copy(emailId = Some(genUUID.sample.value)))
+
+      val expectedServiceResponse = CreateChatDTO.toCreateChatDTO(expectedRepoResponse)
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.postChat(*, *)
         .returns(
-          Future.successful(expectedResponse))
+          Future.successful(expectedRepoResponse))
 
       val serviceResponse = chatService.postChat(newCreateChatDTO, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe expectedResponse)
+      serviceResponse.map(_ mustBe expectedServiceResponse)
     }
   }
 
@@ -77,8 +80,9 @@ class ChatServiceSpec extends AsyncWordSpec
     "return a CreateChatDTO that contains the input emailDTO plus the chatId and a new emailID" in {
       val upsertEmailDTO = genUpsertEmailDTOption.sample.value.copy(emailId = None)
 
-      val expectedResponse = genCreateChatDTOption.sample.value.copy(
-        email = upsertEmailDTO.copy(emailId = Some(genUUID.sample.value)))
+      val expectedResponse = CreateChatDTO.toCreateChat(
+        genCreateChatDTOption.sample.value.copy(
+          email = upsertEmailDTO.copy(emailId = Some(genUUID.sample.value))))
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.postEmail(*, *, *)
@@ -86,7 +90,7 @@ class ChatServiceSpec extends AsyncWordSpec
 
       val serviceResponse = chatService.postEmail(upsertEmailDTO, genUUID.sample.value, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe Some(expectedResponse))
+      serviceResponse.map(_ mustBe Some(CreateChatDTO.toCreateChatDTO(expectedResponse)))
     }
   }
 
@@ -142,7 +146,7 @@ class ChatServiceSpec extends AsyncWordSpec
         genUpsertEmailDTOption.sample.value,
         genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe chatService.toEmailDTO(Some(returnedEmail)))
+      serviceResponse.map(_ mustBe EmailDTO.toEmailDTO(Some(returnedEmail)))
     }
   }
 
@@ -155,7 +159,7 @@ class ChatServiceSpec extends AsyncWordSpec
       mockChatsRep.getEmail(*, *, *)
         .returns(Future.successful(Some(repositoryChatResponse)))
 
-      val expectedServiceResponse = chatService.toChatDTO(Some(repositoryChatResponse))
+      val expectedServiceResponse = Some(ChatDTO.toChatDTO(repositoryChatResponse))
 
       chatService.getEmail(genUUID.sample.value, genUUID.sample.value, genUUID.sample.value).map(
         serviceResponse => serviceResponse.value mustBe expectedServiceResponse.value)
