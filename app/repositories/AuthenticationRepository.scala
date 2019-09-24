@@ -1,14 +1,12 @@
 package repositories
 
 import java.sql.Timestamp
-
-import model.dtos.UserAccessDTO
-
+import repositories.dtos.UserAccess
 import scala.concurrent.Future
 
 trait AuthenticationRepository {
 
-  def signUpUser(userAccessDTO: UserAccessDTO): Future[String]
+  def signUpUser(userAccess: UserAccess): Future[String]
 
   def checkUser(address: String): Future[Boolean]
 

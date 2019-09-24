@@ -47,6 +47,15 @@ object TestGenerators {
       token <- Gen.option(genUUID)
     } yield UserAccessDTO(address, password, Some(first_name), Some(last_name), token)
 
+  val genUserAccess: Gen[UserAccess] =
+    for {
+      address <- genEmailAddress
+      password <- genString
+      first_name <- genString
+      last_name <- genString
+      token <- Gen.option(genUUID)
+    } yield UserAccess(address, password, Some(first_name), Some(last_name), token)
+
   val genBadSignJSON: Gen[JsValue] =
     for {
       badAddress <- genString

@@ -1,10 +1,9 @@
 package repositories.slick.implementations
 
-import javax.inject.Inject
-import model.dtos.UserAccessDTO
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
+import repositories.dtos.UserAccess
 import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
 import utils.DataValidators
@@ -12,7 +11,7 @@ import utils.Generators._
 import utils.TestGenerators._
 
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor, Future }
+import scala.concurrent.{ Await, ExecutionContext }
 
 class SlickAuthenticationRepositorySpec extends AsyncWordSpec
   with OptionValues with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach {
@@ -81,11 +80,11 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
   "SlickAuthenticationRepository#signUpUser" should {
 
     "signUp user" in {
-      val userAccessDTO: UserAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
-      Await.result(authenticationRep.signUpUser(userAccessDTO), Duration.Inf)
+      val userAccess: UserAccess = genUserAccess.sample.value.copy(token = None)
+      Await.result(authenticationRep.signUpUser(userAccess), Duration.Inf)
 
       val testQuery = db.run((for {
-        addressRow <- AddressesTable.all.filter(_.address === userAccessDTO.address)
+        addressRow <- AddressesTable.all.filter(_.address === userAccess.address)
         userRow <- UsersTable.all.filter(_.addressId === addressRow.addressId)
         passwordRow <- PasswordsTable.all.filter(_.userId === userRow.userId)
         tokenRow <- TokensTable.all.filter(_.tokenId === passwordRow.tokenId)
@@ -93,9 +92,9 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
         .result.headOption)
 
       testQuery.map {
-        case Some(tuple) => assert(tuple._1 === userAccessDTO.address &&
-          tuple._2 === userAccessDTO.password && tuple._3 === userAccessDTO.first_name.value &&
-          tuple._4 === userAccessDTO.last_name.value && DataValidators.isValidUUID(tuple._5))
+        case Some(tuple) => assert(tuple._1 === userAccess.address &&
+          tuple._2 === userAccess.password && tuple._3 === userAccess.first_name.value &&
+          tuple._4 === userAccess.last_name.value && DataValidators.isValidUUID(tuple._5))
 
         case None => fail("Test Query failed to find user info")
       }
@@ -105,10 +104,10 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
   "SlickAuthenticationRepository#getPassword" should {
 
     "get existing password " in {
-      val userAccessDTO: UserAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
-      Await.result(authenticationRep.signUpUser(userAccessDTO), Duration.Inf)
+      val userAccess: UserAccess = genUserAccess.sample.value.copy(token = None)
+      Await.result(authenticationRep.signUpUser(userAccess), Duration.Inf)
 
-      authenticationRep.getPassword(userAccessDTO.address).map(_ mustBe Some(userAccessDTO.password))
+      authenticationRep.getPassword(userAccess.address).map(_ mustBe Some(userAccess.password))
     }
 
     "not find missing password" in {
@@ -139,15 +138,15 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
     }
 
     "update Token" in {
-      val userAccessDTO: UserAccessDTO = genUserAccessDTO.sample.value.copy(token = None)
+      val userAccess: UserAccess = genUserAccess.sample.value.copy(token = None)
 
       for {
-        _ <- authenticationRep.signUpUser(userAccessDTO)
+        _ <- authenticationRep.signUpUser(userAccess)
 
-        tokenId <- db.run(PasswordsTable.all.filter(_.password === userAccessDTO.password)
+        tokenId <- db.run(PasswordsTable.all.filter(_.password === userAccess.password)
           .map(_.tokenId).result.headOption)
 
-        token <- authenticationRep.updateToken(userAccessDTO.address)
+        token <- authenticationRep.updateToken(userAccess.address)
 
         assertion <- db.run(TokensTable.all.filter(_.tokenId === tokenId.value)
           .map(_.token).result.headOption).map {

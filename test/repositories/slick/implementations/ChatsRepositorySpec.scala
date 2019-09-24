@@ -1565,7 +1565,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           UpsertEmail(None, None, None, None, None, None, None, Some(true)),
           createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, basicTestDB.userRow.userId)
 
-        oldSubject = createdChatDTO.subject.value
+        oldSubject = createdChatDTO.subject.getOrElse("")
         result <- chatsRep.patchChat(ChangeSubject(genString.sample.value), createdChatDTO.chatId.value, basicTestDB.userRow.userId)
         getChat <- chatsRep.getChat(createdChatDTO.chatId.value, basicTestDB.userRow.userId)
 

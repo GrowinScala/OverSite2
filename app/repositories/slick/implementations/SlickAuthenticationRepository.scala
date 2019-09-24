@@ -3,16 +3,13 @@ package repositories.slick.implementations
 import java.sql.Timestamp
 
 import javax.inject.Inject
-import model.dtos.UserAccessDTO
 import repositories.AuthenticationRepository
+import repositories.dtos.UserAccess
 import repositories.slick.mappings._
-import slick.dbio.Effect
-import slick.jdbc.MySQLProfile
 import slick.jdbc.MySQLProfile.api._
-import slick.sql.{ FixedSqlAction, SqlAction }
 import utils.Generators._
 
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future }
 
 class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
   extends AuthenticationRepository {
@@ -33,33 +30,33 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
 
   /**
    * Creates a DBIOAction that inserts a User into the Database and returns an authentication token
-   * @param userAccessDTO Contains the User's information, namely their Address, Password and Name
+   * @param userAccess Contains the User's information, namely their Address, Password and Name
    * @return A DBIOAction that inserts a User into the Database and returns an authentication token
    */
-  def signUpUserAction(userAccessDTO: UserAccessDTO): DBIO[String] =
+  def signUpUserAction(userAccess: UserAccess): DBIO[String] =
     for {
-      optionalAddress <- AddressesTable.all.filter(_.address === userAccessDTO.address).result.headOption
-      row = optionalAddress.getOrElse(AddressRow(addressId = newUUID, userAccessDTO.address))
+      optionalAddress <- AddressesTable.all.filter(_.address === userAccess.address).result.headOption
+      row = optionalAddress.getOrElse(AddressRow(addressId = newUUID, userAccess.address))
       _ <- AddressesTable.all.insertOrUpdate(row)
 
       userUUID = newUUID
-      _ <- UsersTable.all += UserRow(userUUID, row.addressId, userAccessDTO.first_name.getOrElse(""),
-        userAccessDTO.last_name.getOrElse(""))
+      _ <- UsersTable.all += UserRow(userUUID, row.addressId, userAccess.first_name.getOrElse(""),
+        userAccess.last_name.getOrElse(""))
 
       token = newUUID
       tokenId = newUUID
       _ <- upsertTokenAction(tokenId, token)
       passwordUUID = newUUID
-      _ <- PasswordsTable.all += PasswordRow(passwordUUID, userUUID, userAccessDTO.password, tokenId)
+      _ <- PasswordsTable.all += PasswordRow(passwordUUID, userUUID, userAccess.password, tokenId)
     } yield token
 
   /**
    * Inserts a User into the Database and returns an authentication token
-   * @param userAccessDTO Contains the User's information, namely their Address, Password and Name
+   * @param userAccess Contains the User's information, namely their Address, Password and Name
    * @return An authentication token that identifies the User
    */
-  def signUpUser(userAccessDTO: UserAccessDTO): Future[String] =
-    db.run(signUpUserAction(userAccessDTO).transactionally)
+  def signUpUser(userAccess: UserAccess): Future[String] =
+    db.run(signUpUserAction(userAccess).transactionally)
 
   /**
    * Creates a DBIOAction that checks if a given address corresponds to a User
