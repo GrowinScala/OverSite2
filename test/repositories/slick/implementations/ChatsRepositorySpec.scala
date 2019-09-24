@@ -1553,7 +1553,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     "NOT change the chat's subject if the chat has more than one sent emails and return None" in {
       val basicTestDB = genBasicTestDB.sample.value
-      val origCreateChatDTO = genCreateChatDTOption.sample.value
+      val origCreateChatDTO = genCreateChatDTOption.sample.value.copy(subject = Some(genString.sample.value))
 
       for {
         _ <- fillDB(

@@ -86,7 +86,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         case (chatId, emailId, body, date, sent, addressId, participantType) =>
           (addressId === userAddressId || addressId.in(getUserChatOverseesQuery(userId, chatId))) &&
             (sent === 1 || (participantType === "from" && addressId === userAddressId))
-      }.map(filteredRow => (filteredRow._1, filteredRow._2, filteredRow._3, filteredRow._4, filteredRow._5))
+      }.map {
+        case (chatId, emailId, body, date, sent, addressId, participantType) =>
+          (chatId, emailId, body, date, sent)
+      }
 
     } yield (chatId, emailId, body, date, sent)).distinct
   //endregion
@@ -105,7 +108,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val groupedQuery = visibleEmailsQuery
       .map { case (chatId, emailId, body, date, sent) => (chatId, date) }
       .groupBy(_._1)
-      .map { case (chatId, date) => (chatId, date.map(_._2).max) }
+      .map {
+        case (chatId, chatDateQuery) =>
+          (chatId, chatDateQuery.map { case (chat, date) => date }.max)
+      }
       .join(visibleEmailsQuery)
       .on {
         case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
@@ -213,7 +219,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       // This assumes that the authentication guarantees that the user exists and has a correct address
       fromAddress <- UsersTable.all.join(AddressesTable.all)
         .on { case (user, address) => user.addressId === address.addressId && user.userId === userId }
-        .map(_._2.address).result.head
+        .map { case (usersTable, addressesTable) => addressesTable.address }.result.head
 
       _ <- insertEmailAndAddresses(emailDTO, chatId, emailId, fromAddress, date)
 
@@ -431,7 +437,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
             userChat.chatId === email.chatId && email.chatId === chatId && userChat.userId === userId &&
               userChat.draft > 0 && email.sent === 0
         }
-        .map(_._2.emailId).result
+        .map { case (userChatssTable, emailsTable) => emailsTable.emailId }.result
 
       optionAddressId <- EmailAddressesTable.all
         .filter(emailAddress => emailAddress.emailId === emailId.headOption.getOrElse("email not found") &&
@@ -539,7 +545,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       groupedEmailAddresses = emailAddresses
         .groupBy { case (thisEmailId, participantType, _) => (thisEmailId, participantType) }
-        .mapValues(_.map(_._3))
+        .mapValues(_.map { case (email_id, participantType, address) => address })
 
     } yield buildEmailDto(email, groupedEmailAddresses, Map(emailId -> attachmentIds))
   }
@@ -612,7 +618,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private def getUserIdsByAddressQuery(addresses: Set[String]): Query[Rep[String], String, scala.Seq] =
     AddressesTable.all.join(UsersTable.all)
       .on((address, user) => address.address.inSet(addresses) && address.addressId === user.addressId)
-      .map(_._2.userId)
+      .map { case (addressesTable, usersTable) => usersTable.userId }
 
   /**
    * Method that, given an emailId, gets all the addresses involved in that email
@@ -629,7 +635,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
             (emailAddressRow.participantType, addressRow.addressId, addressRow.address)
         }
         .result
-    } yield addresses.groupBy(_._1) //groupBy participantType
+    } yield addresses.groupBy { case (participantType, addressId, address) => participantType }
   }
 
   /**
@@ -646,14 +652,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         case (userChatRow, emailRow) => userChatRow.chatId === emailRow.chatId &&
           userChatRow.chatId === chatId && userChatRow.userId === userId &&
           userChatRow.draft > 0 && emailRow.emailId === emailId && emailRow.sent === 0 //must be a draft from this user
-      }.map(_._2)
+      }.map { case (userChatsTable, emailsTable) => emailsTable }
       .join(EmailAddressesTable.all).on {
         case (emailRow, emailAddressRow) => emailRow.emailId === emailAddressRow.emailId &&
           emailAddressRow.participantType === "from"
-      }.map(_._2)
+      }.map { case (emailsTable, emailsAddressesTable) => emailsAddressesTable }
       .join(AddressesTable.all).on {
         case (emailAddressRow, addressRow) => emailAddressRow.addressId === addressRow.addressId
-      }.map(_._2)
+      }.map { case (emailsAddressesTable, addressesTable) => addressesTable }
       .join(UsersTable.all).on {
         case (addressRow, userRow) => userRow.userId === userId &&
           addressRow.addressId === userRow.addressId
@@ -683,7 +689,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       //Addresses to delete: addresses that are in the database but are not in the patch
       deleteAddresses <- optionNewAddresses.map(newAddresses =>
-        existingAddresses.filterNot { case (_, address) => newAddresses.contains(address) }.map(_._1))
+        existingAddresses.filterNot { case (_, address) => newAddresses.contains(address) }
+          .map { case (addressId, _) => addressId })
         .map(addressesToDelete =>
           EmailAddressesTable.all.filter(emailAddressRow =>
             emailAddressRow.emailId === emailId && emailAddressRow.addressId.inSet(addressesToDelete) &&
@@ -701,7 +708,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield optionNewAddresses match {
       case Some(addedNewAddresses) => addedNewAddresses
-      case None => existingAddresses.map(_._2).toSet
+      case None => existingAddresses.map { case (_, address) => address }.toSet
     }
   }
 
@@ -952,22 +959,23 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val emailsQuery = getEmailsQuery(chatId, userId)
 
     // Query to get all the addresses involved in the emails of this chat
-    // (emailId, participationType, address)
-    val emailAddressesQuery = getEmailAddressesQuery(userId, emailsQuery.map(_._1))
+    // emailId, participationType, address)(
+    val emailAddressesQuery = getEmailAddressesQuery(userId, emailsQuery.map { case (emailId, _, _, _) => emailId })
 
     for {
       emails <- emailsQuery.result
       emailAddressesResult <- emailAddressesQuery.result
 
       groupedEmailAddresses = emailAddressesResult
-        .groupBy(emailAddress => (emailAddress._1, emailAddress._2))
+        .groupBy { case (emailId, participationType, address) => (emailId, participationType) }
         //group by email ID and receiver type (from, to, bcc, cc)
-        .mapValues(_.map(_._3)) // Map: (emailId, receiverType) -> addresses
+        .mapValues(_.map { case (emailId, participationType, address) => address })
+      // Map: (emailId, receiverType) -> addresses
 
       // All addresses that sent and received emails in this chat
-      chatAddressesResult = emailAddressesResult.map(_._3).distinct
+      chatAddressesResult = emailAddressesResult.map { case (_, _, address) => address }.distinct
 
-      attachments <- getEmailsAttachments(emailsQuery.map(_._1))
+      attachments <- getEmailsAttachments(emailsQuery.map { case (emailId, _, _, _) => emailId })
 
     } yield (chatAddressesResult.toSet, buildEmailDto(emails, groupedEmailAddresses, attachments))
   }
@@ -982,8 +990,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .filter(_.emailId in emailsIds)
       .map(attachment => (attachment.emailId, attachment.attachmentId)).result
       .map(_
-        .groupBy(_._1)
-        .mapValues(_.map(_._2)))
+        .groupBy { case (emailId, attachmentId) => emailId }
+        .mapValues(_.map { case (emailId, attachmentId) => attachmentId }))
 
   /**
    * Method that links and merges the emails with its addresses and attachments
@@ -1034,8 +1042,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     chatOverseersQuery.result
       .map(_
-        .groupBy(_._1) // group by user
-        .mapValues(_.map(_._2).toSet)
+        .groupBy { case (overseeAddress, overseerAddress) => overseeAddress }
+        .mapValues(_.map { case (overseeAddress, overseerAddress) => overseerAddress }.toSet)
         .toSeq
         .map(Overseers.tupled)
         .toSet)
