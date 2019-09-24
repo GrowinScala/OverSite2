@@ -371,6 +371,21 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private def getEmailAttachmentsQuery(emailId: String) =
     AttachmentsTable.all.filter(_.emailId === emailId)
 
+  private def deleteChatAndUserChatRows(chatId: String): DBIO[Unit] = {
+    DBIO.seq(
+      ChatsTable.all.filter(_.chatId === chatId).delete,
+      UserChatsTable.all.filter(_.chatId === chatId).delete)
+  }
+
+  private def deleteChatIfHasNoEmails(chatId: String, userId: String): DBIO[Unit] = {
+    for {
+      chatEmails <- EmailsTable.all.filter(_.chatId === chatId).result
+
+      _ <- if (chatEmails.isEmpty) deleteChatAndUserChatRows(chatId)
+      else DBIO.successful(Unit)
+    } yield ()
+  }
+
   private def deleteDraftRowsAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
       deleteEmailAddresses <- getEmailAddressesQuery(chatId, emailId).delete
@@ -380,6 +395,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       deleteEmail <- getDraftEmailQuery(chatId, emailId).delete
 
       updateUserChat <- UserChatsTable.decrementDrafts(userId, chatId)
+
+      _ <- deleteChatIfHasNoEmails(chatId, userId)
 
       numberOfDeletedRows = deleteEmailAddresses + deleteAttachments + deleteEmail
     } yield numberOfDeletedRows > 0
