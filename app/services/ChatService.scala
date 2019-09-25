@@ -74,8 +74,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
           chat.addresses,
           chat.overseers.map(overseer =>
             OverseersDTO(
-              overseer.user,
-              overseer.overseers)),
+              overseer.overseeAddress,
+              overseer.overseersAddresses)),
           chat.emails.map(email =>
             EmailDTO(
               email.emailId,

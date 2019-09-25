@@ -25,8 +25,8 @@ object ChatDTO {
       chatDTO.addresses,
       chatDTO.overseers.map(overseerDTO =>
         Overseers(
-          overseerDTO.user,
-          overseerDTO.overseers)),
+          overseerDTO.overseeAddress,
+          overseerDTO.overseersAddresses)),
       chatDTO.emails.map(emailDTO =>
         Email(
           emailDTO.emailId,
