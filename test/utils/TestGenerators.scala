@@ -89,17 +89,17 @@ object TestGenerators {
 
   val genOverseersDTO: Gen[OverseersDTO] =
     for {
-      user <- genEmailAddress
-      overseers <- genList(1, 2, genEmailAddress).map(_.toSet)
+      overseeAddress <- genEmailAddress
+      overseersAddresses <- genList(1, 2, genEmailAddress).map(_.toSet)
 
-    } yield OverseersDTO(user, overseers)
+    } yield OverseersDTO(overseeAddress, overseersAddresses)
 
   val genOverseers: Gen[Overseers] =
     for {
-      user <- genEmailAddress
-      overseers <- genList(1, 2, genEmailAddress).map(_.toSet)
+      overseeAddress <- genEmailAddress
+      overseersAddresses <- genList(1, 2, genEmailAddress).map(_.toSet)
 
-    } yield Overseers(user, overseers)
+    } yield Overseers(overseeAddress, overseersAddresses)
 
   val genChatDTO: Gen[ChatDTO] =
     genList(1, 4, genEmailDTO).flatMap(emails => {
@@ -133,12 +133,6 @@ object TestGenerators {
       email <- genUpsertEmailDTOption
     } yield CreateChatDTO(chatId, subject, email)
 
-  val genSimpleParticipantType: Gen[Option[ParticipantType]] =
-    Gen.oneOf(Some(From), Some(To), Some(Cc), Some(Bcc), None)
-
-  val genParticipantType: Gen[Option[ParticipantType]] =
-    Gen.oneOf(Some(From), Some(To), Some(Cc), Some(Bcc), Some(Overseer), None)
-
   val genAddressRow: Gen[AddressRow] =
     for {
       addressId <- genUUID
@@ -166,7 +160,7 @@ object TestGenerators {
       sent <- genBinary
     } yield EmailRow(emailId, chatId, body, date, sent)
 
-  def genEmailAddressRow(emailId: String, chatId: String, addressId: String, participantType: String): Gen[EmailAddressRow] =
+  def genEmailAddressRow(emailId: String, chatId: String, addressId: String, participantType: ParticipantType): Gen[EmailAddressRow] =
     for {
       emailAddressId <- genUUID
     } yield EmailAddressRow(emailAddressId, emailId, chatId, addressId, participantType)
@@ -187,7 +181,7 @@ object TestGenerators {
       userRow <- genUserRow(addressRow.addressId)
       chatRow <- genChatRow
       emailRow <- genEmailRow(chatRow.chatId)
-      emailAddressRow <- genEmailAddressRow(emailRow.emailId, chatRow.chatId, addressRow.addressId, "from")
+      emailAddressRow <- genEmailAddressRow(emailRow.emailId, chatRow.chatId, addressRow.addressId, From)
       userChatRow <- genUserChatRow(userRow.userId, chatRow.chatId)
     } yield BasicTestDB(addressRow, userRow, chatRow, emailRow, emailAddressRow, userChatRow)
 

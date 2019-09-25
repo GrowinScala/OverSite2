@@ -12,15 +12,19 @@ object ParticipantType {
 
   case object Bcc extends ParticipantType("bcc")
 
-  case object Overseer extends ParticipantType("overseer")
+  case class MissingParticipation(s: String) extends ParticipantType(s)
 
-  def apply(s: String): Option[ParticipantType] = s.toLowerCase match {
-    case From.value => Some(From)
-    case To.value => Some(To)
-    case Cc.value => Some(Cc)
-    case Bcc.value => Some(Bcc)
-    case Overseer.value => Some(Overseer)
-    case _ => None
+  val from: ParticipantType = From
+  val to: ParticipantType = To
+  val cc: ParticipantType = Cc
+  val bcc: ParticipantType = Bcc
+
+  def apply(s: String): ParticipantType = s.toLowerCase match {
+    case From.value => From
+    case To.value => To
+    case Cc.value => Cc
+    case Bcc.value => Bcc
+    case _ => MissingParticipation(s)
 
   }
 
