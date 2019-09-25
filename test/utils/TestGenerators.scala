@@ -67,7 +67,7 @@ object TestGenerators {
       chatId <- genUUID
       subject <- genString
       lastAddress <- genEmailAddress
-      lastEmailDate <- genString
+      lastEmailDate = getCurrentDate
       contentPreview <- genString
     } yield ChatPreviewDTO(chatId, subject, lastAddress, lastEmailDate, contentPreview)
 
@@ -82,7 +82,7 @@ object TestGenerators {
       bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
       cc <- genList(0, 1, genEmailAddress).map(_.toSet)
       body <- genString
-      date <- genString
+      date = getCurrentDate
       sent <- Gen.oneOf(true, false)
       attachments <- genList(0, 1, genString).map(_.toSet)
     } yield EmailDTO(emailId, from, to, bcc, cc, body, date, sent, attachments)
@@ -193,7 +193,7 @@ object TestGenerators {
       bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
       cc <- genList(0, 1, genEmailAddress).map(_.toSet)
       body <- genString
-      date <- genString
+      date = getCurrentDate
       sent <- genBinary
       attachments <- genList(0, 1, genString).map(_.toSet)
     } yield Email(emailId, from, to, bcc, cc, body, date, sent, attachments)
