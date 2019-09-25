@@ -1,8 +1,8 @@
 package repositories
 
-import model.dtos.{ CreateChatDTO, EmailDTO, PatchChatDTO, UpsertEmailDTO }
+import model.dtos._
 import model.types.Mailbox
-import repositories.dtos.{ Chat, ChatPreview, Email }
+import repositories.dtos._
 
 import scala.concurrent.Future
 
@@ -25,4 +25,6 @@ trait ChatsRepository {
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]]
 
   def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean]
+
+  def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String): Future[Option[Set[PostOverseer]]]
 }

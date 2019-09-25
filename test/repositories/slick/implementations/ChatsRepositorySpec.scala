@@ -1,19 +1,17 @@
 package repositories.slick.implementations
 
-import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
-import model.dtos.{ CreateChatDTO, PatchChatDTO, UpsertEmailDTO }
-import model.types.Mailbox.{ Drafts, Inbox, Sent }
+import model.dtos.PatchChatDTO._
+import model.dtos._
+import model.types.Mailbox._
 import org.scalatest._
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
-import repositories.dtos.ChatPreview
-import repositories.dtos.{ Chat, Email, Overseers }
-import repositories.slick.mappings.{ EmailRow, _ }
+import repositories.dtos._
+import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
-import utils.Generators._
 
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor }
+import scala.concurrent._
 import model.types.Mailbox._
 import model.types.ParticipantType._
 import repositories.dtos._
@@ -1961,6 +1959,205 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
       } yield assert(tryPatch.isEmpty && tryGetEmailBefore === tryGetEmailAfter && tryGetEmailAfter === None)
     }
+  }
+
+  "SlickChatsRepository#postOverseers" should {
+
+    "return None if the chat does not exist" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow))
+
+        optSetOverseer <- chatsRep.postOverseers(genSetPostOverseer.sample.value, genUUID.sample.value,
+          basicTestDB.userRow.userId)
+      } yield optSetOverseer mustBe None
+
+    }
+
+    "return None if the chat exists but the User does not have access to it" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow))
+
+        optSetOverseer <- chatsRep.postOverseers(genSetPostOverseer.sample.value, basicTestDB.chatRow.chatId,
+          basicTestDB.userRow.userId)
+      } yield optSetOverseer mustBe None
+
+    }
+
+    "return None if the User has access to the chat but isn't a participant" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow))
+
+        optSetOverseer <- chatsRep.postOverseers(genSetPostOverseer.sample.value, basicTestDB.chatRow.chatId,
+          basicTestDB.userRow.userId)
+      } yield optSetOverseer mustBe None
+
+    }
+
+    "not return an oversightId if the overseer is not a user" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val setPostOverseer = Set(genPostOverseer.sample.value)
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+
+      } yield optSetOverseer.value mustBe setPostOverseer.map(_.copy(oversightId = None))
+
+    }
+
+    "return the oversightId if it already exists" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressRow = genAddressRow.sample.value
+      val overseerUserRow = genUserRow(overseerAddressRow.addressId).sample.value
+      val setPostOverseer = Set(PostOverseer(overseerAddressRow.address, None))
+      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, overseerUserRow.userId,
+        basicTestDB.userRow.userId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow, overseerUserRow),
+          List(basicTestDB.userChatRow),
+          oversightRows = List(oversightRow))
+
+        _ <- chatsRep.postEmail(genUpsertEmailDTOption.sample.value, basicTestDB.chatRow.chatId,
+          basicTestDB.userRow.userId)
+
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, basicTestDB.chatRow.chatId,
+          basicTestDB.userRow.userId)
+
+      } yield optSetOverseer.value mustBe setPostOverseer.map(_.copy(oversightId = Some(oversightRow.oversightId)))
+
+    }
+
+    "set the overseer's inbox to 1 if they already have access to the chat" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressRow = genAddressRow.sample.value
+      val overseerUserRow = genUserRow(overseerAddressRow.addressId).sample.value
+      val setPostOverseer = Set(PostOverseer(overseerAddressRow.address, None))
+      val initCreateChatDTO = genCreateChatDTOption.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerAddressRow),
+          userRows = List(basicTestDB.userRow, overseerUserRow))
+
+        createdChatDTO <- chatsRep.postChat(
+          initCreateChatDTO
+            .copy(email = initCreateChatDTO.email.copy(to = Some(Set(basicTestDB.addressRow.address)))),
+          overseerUserRow.userId)
+
+        _ <- chatsRep.patchEmail(
+          UpsertEmailDTO(None, None, None, None, None, None, None, Some(true)),
+          createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, overseerUserRow.userId)
+
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+
+        optOversightId <- db.run(OversightsTable.all.filter(_.overseerId === overseerUserRow.userId)
+          .map(_.oversightId).result.headOption)
+
+        optOverseerUserChat <- db.run(UserChatsTable.all.filter(_.userId === overseerUserRow.userId).result.headOption)
+
+      } yield assert(
+        optSetOverseer.value === setPostOverseer.map(_.copy(oversightId = Some(optOversightId.value))) &&
+          optOverseerUserChat.value.inbox === 1 &&
+          optOverseerUserChat.value.sent === 1 &&
+          optOverseerUserChat.value.draft === 0 &&
+          optOverseerUserChat.value.trash === 0)
+
+    }
+
+    "return a new oversightId and create a user-chat for the overseer with inbox = 1" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressRow = genAddressRow.sample.value
+      val overseerUserRow = genUserRow(overseerAddressRow.addressId).sample.value
+      val setPostOverseer = Set(PostOverseer(overseerAddressRow.address, None))
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerAddressRow),
+          userRows = List(basicTestDB.userRow, overseerUserRow))
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+
+        optOversightId <- db.run(OversightsTable.all.filter(_.overseerId === overseerUserRow.userId)
+          .map(_.oversightId).result.headOption)
+
+        optOverseerUserChat <- db.run(UserChatsTable.all.filter(_.userId === overseerUserRow.userId).result.headOption)
+
+      } yield assert(
+        optSetOverseer.value === setPostOverseer.map(_.copy(oversightId = Some(optOversightId.value))) &&
+          optOverseerUserChat.value.inbox === 1 &&
+          optOverseerUserChat.value.sent === 0 &&
+          optOverseerUserChat.value.draft === 0 &&
+          optOverseerUserChat.value.trash === 0)
+
+    }
+
+    "create new oversights and user-chats for more than one overseer" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerOneAddressRow = genAddressRow.sample.value
+      val overseerOneUserRow = genUserRow(overseerOneAddressRow.addressId).sample.value
+      val overseerTwoAddressRow = genAddressRow.sample.value
+      val overseerTwoUserRow = genUserRow(overseerTwoAddressRow.addressId).sample.value
+      val setPostOverseer = Set(
+        PostOverseer(overseerOneAddressRow.address, None),
+        PostOverseer(overseerTwoAddressRow.address, None))
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerOneAddressRow, overseerTwoAddressRow),
+          userRows = List(basicTestDB.userRow, overseerOneUserRow, overseerTwoUserRow))
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+
+        overseersIds <- db.run(OversightsTable.all.filter(_.overseeId === basicTestDB.userRow.userId)
+          .map(_.overseerId).result)
+
+        optOverseerOneUserChat <- db.run(UserChatsTable.all.filter(_.userId === overseerOneUserRow.userId)
+          .result.headOption)
+
+        optOverseerTwoUserChat <- db.run(UserChatsTable.all.filter(_.userId === overseerTwoUserRow.userId)
+          .result.headOption)
+
+      } yield assert(
+        overseersIds.contains(overseerOneUserRow.userId) &&
+          overseersIds.contains(overseerTwoUserRow.userId) &&
+          optOverseerOneUserChat.value.inbox === 1 &&
+          optOverseerTwoUserChat.value.inbox === 1)
+
+    }
+
   }
 
 }
