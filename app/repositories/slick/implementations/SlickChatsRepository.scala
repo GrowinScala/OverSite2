@@ -202,8 +202,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param userId The Id of the User who is inserting the chat
    * @return A DBIO that returns a copy of the original createChatDTO but with the Ids of the created chat and email
    *         as well as the emails date.
+   *         If the userId does not have a corresponding address the DBIO does nothing and returns None.
    */
-  private[implementations] def postChatAction(createChatDTO: CreateChatDTO, userId: String): DBIO[CreateChatDTO] = {
+  private[implementations] def postChatAction(createChatDTO: CreateChatDTO, userId: String): DBIO[Option[CreateChatDTO]] = {
     val emailDTO = createChatDTO.email
     val date = DateUtils.getCurrentDate
 
@@ -213,22 +214,25 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val emailId = newUUID
 
     val inserts = for {
-      _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
-      _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
-
-      // This assumes that the authentication guarantees that the user exists and has a correct address
-      fromAddress <- UsersTable.all.join(AddressesTable.all)
+      optFromAddress <- UsersTable.all.join(AddressesTable.all)
         .on { case (user, address) => user.addressId === address.addressId && user.userId === userId }
-        .map { case (usersTable, addressesTable) => addressesTable.address }.result.head
+        .map { case (usersTable, addressesTable) => addressesTable.address }.result.headOption
 
-      _ <- insertEmailAndAddresses(emailDTO, chatId, emailId, fromAddress, date)
+      _ <- optFromAddress match {
+        case Some(fromAddress) => for {
+          _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
+          _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
+          _ <- insertEmailAndAddresses(emailDTO, chatId, emailId, fromAddress, date)
+        } yield ()
+        case None => DBIO.successful(())
+      }
 
-    } yield fromAddress
+    } yield optFromAddress
 
-    inserts.map(fromAddress =>
+    inserts.map(_.map(fromAddress =>
       createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(
         emailId = Some(emailId),
-        from = Some(fromAddress), date = Some(date))))
+        from = Some(fromAddress), date = Some(date)))))
   }
 
   /**
@@ -238,7 +242,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @return A Future that contains a copy of the original createChatDTO but with the Ids
    *         of the created chat and email as well as the emails date.
    */
-  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] =
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] =
     db.run(postChatAction(createChatDTO, userId).transactionally)
 
   private[implementations] def postEmailAction(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): DBIO[Option[CreateChatDTO]] = {
@@ -1009,7 +1013,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       case (emailId, body, date, sent) =>
         Email(
           emailId,
-          addresses.getOrElse((emailId, "from"), Seq()).head,
+          addresses.getOrElse((emailId, "from"), Seq()).headOption.getOrElse(""),
           addresses.getOrElse((emailId, "to"), Seq()).toSet,
           addresses.getOrElse((emailId, "bcc"), Seq()).toSet,
           addresses.getOrElse((emailId, "cc"), Seq()).toSet,

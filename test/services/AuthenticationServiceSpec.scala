@@ -72,6 +72,23 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       authenticationService.signInUser(userAccessDTO).map(_ mustBe Left(failedSignIn))
     }
 
+    "notice internal error" in {
+      val (authenticationService, mockAuthenticationRep) = getServiceAndRepMock
+      val password = genString.sample.value
+      val userAccessDTO = genUserAccessDTO.sample.value.copy(
+        password = password,
+        token = None)
+      val token = genUUID.sample.value
+
+      mockAuthenticationRep.getPassword(*)
+        .returns(Future.successful(Some(password.bcrypt)))
+      mockAuthenticationRep.updateToken(*)
+        .returns(Future.successful(None))
+
+      authenticationService.signInUser(userAccessDTO).map(
+        _ mustBe Left(internalError))
+    }
+
     "return token" in {
       val (authenticationService, mockAuthenticationRep) = getServiceAndRepMock
       val password = genString.sample.value
@@ -83,7 +100,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       mockAuthenticationRep.getPassword(*)
         .returns(Future.successful(Some(password.bcrypt)))
       mockAuthenticationRep.updateToken(*)
-        .returns(Future.successful(token))
+        .returns(Future.successful(Some(token)))
 
       authenticationService.signInUser(userAccessDTO).map(
         _ mustBe Right(jsToken(token)))
@@ -93,7 +110,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
 
   "AuthenticationService#validateToken" should {
 
-    "point out invalid Token" in {
+    "notice invalid Token" in {
       val (authenticationService, mockAuthenticationRep) = getServiceAndRepMock
       val token = genUUID.sample.value
 
@@ -104,7 +121,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
         _ mustBe Left(tokenNotValid))
     }
 
-    "point out expired Token" in {
+    "notice expired Token" in {
       val (authenticationService, mockAuthenticationRep) = getServiceAndRepMock
       val token = genUUID.sample.value
 
@@ -112,7 +129,21 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
         .returns(Future.successful(Some(new Timestamp(1))))
 
       authenticationService.validateToken(token).map(
-        _ mustBe Left(tokenExpired))
+        _ mustBe Left(tokenNotValid))
+    }
+
+    "notice internal eroor" in {
+      val (authenticationService, mockAuthenticationRep) = getServiceAndRepMock
+      val userId = genUUID.sample.value
+      val token = genUUID.sample.value
+
+      mockAuthenticationRep.getTokenExpirationDate(*)
+        .returns(Future.successful(Some(new Timestamp(year2525))))
+      mockAuthenticationRep.getUser(*)
+        .returns(Future.successful(None))
+
+      authenticationService.validateToken(token).map(
+        _ mustBe Left(internalError))
     }
 
     "return userId" in {
@@ -123,7 +154,7 @@ class AuthenticationServiceSpec extends AsyncWordSpec with Results with AsyncIdi
       mockAuthenticationRep.getTokenExpirationDate(*)
         .returns(Future.successful(Some(new Timestamp(year2525))))
       mockAuthenticationRep.getUser(*)
-        .returns(Future.successful(userId))
+        .returns(Future.successful(Some(userId)))
 
       authenticationService.validateToken(token).map(
         _ mustBe Right(userId))

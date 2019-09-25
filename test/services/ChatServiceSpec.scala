@@ -30,7 +30,7 @@ class ChatServiceSpec extends AsyncWordSpec
       mockChatsRep.getChatsPreview(*, *)
         .returns(Future.successful(chatsPreview))
 
-      val chatsPreviewDTO = chatService.getChats(Inbox, chatsPreview.head.chatId)
+      val chatsPreviewDTO = chatService.getChats(Inbox, chatsPreview.headOption.value.chatId)
       chatsPreviewDTO.map(_ mustBe testChatsPreviewDTO)
     }
   }
@@ -65,12 +65,13 @@ class ChatServiceSpec extends AsyncWordSpec
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.postChat(*, *)
         .returns(
-          Future.successful(expectedResponse))
+          Future.successful(Some(expectedResponse)))
 
       val serviceResponse = chatService.postChat(newCreateChatDTO, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe expectedResponse)
+      serviceResponse.map(_ mustBe Some(expectedResponse))
     }
+
   }
 
   "ChatService#postEmail" should {

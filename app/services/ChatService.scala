@@ -18,7 +18,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getChat(chatId, userId).map(toChatDTO)
   }
 
-  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
     chatsRep.postChat(createChatDTO, userId)
   }
 

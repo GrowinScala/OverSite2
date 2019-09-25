@@ -14,10 +14,10 @@ trait AuthenticationRepository {
 
   def getPassword(address: String): Future[Option[String]]
 
-  def updateToken(address: String): Future[String]
+  def updateToken(address: String): Future[Option[String]]
 
   def getTokenExpirationDate(token: String): Future[Option[Timestamp]]
 
-  def getUser(token: String): Future[String]
+  def getUser(token: String): Future[Option[String]]
 
 }

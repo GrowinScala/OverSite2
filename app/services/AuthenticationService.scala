@@ -26,8 +26,10 @@ class AuthenticationService @Inject() (implicit val ec: ExecutionContext, authen
     authenticationRep.getPassword(userAccessDTO.address).flatMap {
       case None => Future.successful(Left(failedSignIn))
       case Some(password) => if (userAccessDTO.password.isBcrypted(password)) {
-        authenticationRep.updateToken(userAccessDTO.address).map(token =>
-          Right(jsToken(token)))
+        authenticationRep.updateToken(userAccessDTO.address).map {
+          case Some(token) => Right(jsToken(token))
+          case None => Left(internalError)
+        }
       } else Future.successful(Left(failedSignIn))
     }
   }
@@ -36,8 +38,11 @@ class AuthenticationService @Inject() (implicit val ec: ExecutionContext, authen
     authenticationRep.getTokenExpirationDate(token).flatMap {
       case None => Future.successful(Left(tokenNotValid))
       case Some(endDate) => if (endDate.before(currentTimestamp))
-        Future.successful(Left(tokenExpired))
-      else authenticationRep.getUser(token).map(Right(_))
+        Future.successful(Left(tokenNotValid))
+      else authenticationRep.getUser(token).map {
+        case Some(userId) => Right(userId)
+        case None => Left(internalError)
+      }
     }
   }
 
