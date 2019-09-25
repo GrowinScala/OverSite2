@@ -77,8 +77,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   //endregion
 
   def fillDB(addressRows: List[AddressRow] = Nil, chatRows: List[ChatRow] = Nil, userRows: List[UserRow] = Nil,
-    userChatRows: List[UserChatRow] = Nil, emailRows: List[EmailRow] = Nil, emailAddressRows: List[EmailAddressRow] = Nil,
-    oversightRows: List[OversightRow] = Nil): Future[Unit] =
+    userChatRows: List[UserChatRow] = Nil, emailRows: List[EmailRow] = Nil,
+    emailAddressRows: List[EmailAddressRow] = Nil, oversightRows: List[OversightRow] = Nil): Future[Unit] =
     db.run(DBIO.seq(
       AddressesTable.all ++= addressRows,
       ChatsTable.all ++= chatRows,
@@ -1555,7 +1555,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
 
         newSubject = genString.sample.value
-        result <- chatsRep.patchChat(ChangeSubject(newSubject), createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
+        result <- chatsRep.patchChat(ChangeSubject(newSubject), createdChatDTO.value.chatId.value,
+          basicTestDB.userRow.userId)
         getPatchedChat <- chatsRep.getChat(createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
 
       } yield assert(
@@ -1580,7 +1581,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           createdChatDTO.value.chatId.value, createdChatDTO.value.email.emailId.value, basicTestDB.userRow.userId)
 
         oldSubject = createdChatDTO.value.subject.getOrElse("")
-        result <- chatsRep.patchChat(ChangeSubject(genString.sample.value), createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
+        result <- chatsRep.patchChat(ChangeSubject(genString.sample.value), createdChatDTO.value.chatId.value,
+          basicTestDB.userRow.userId)
         getChat <- chatsRep.getChat(createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
 
       } yield assert(result === None &&
@@ -1852,7 +1854,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         emailRow <- db.run(EmailsTable.all.filter(_.emailId === createdChatDTO.value.email.emailId.value)
           .result.headOption)
-        emailAddressesRows <- db.run(EmailAddressesTable.all.filter(_.emailId === createdChatDTO.value.email.emailId.value)
+        emailAddressesRows <- db.run(EmailAddressesTable.all.
+          filter(_.emailId === createdChatDTO.value.email.emailId.value)
           .result.headOption)
         numberOfDraftsAfter <- db.run(UserChatsTable.all
           .filter(userChatRow => userChatRow.userId === basicTestDB.userRow.userId

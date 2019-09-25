@@ -694,7 +694,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private def getEmailAddressByGroupedByParticipantType(emailId: String): DBIO[Map[ParticipantType, Seq[(ParticipantType, String, String)]]] = {
     for {
       addresses <- EmailAddressesTable.all.join(AddressesTable.all)
-        .on((emailAddressRow, addressRow) => emailAddressRow.emailId === emailId && emailAddressRow.addressId === addressRow.addressId)
+        .on((emailAddressRow, addressRow) => emailAddressRow.emailId === emailId &&
+          emailAddressRow.addressId === addressRow.addressId)
         .map {
           case (emailAddressRow, addressRow) =>
             (emailAddressRow.participantType, addressRow.addressId, addressRow.address)
@@ -886,7 +887,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     participantType: ParticipantType): DBIO[Int] =
     for {
       addressId <- address
-      numberOfInsertedRows <- EmailAddressesTable.all += EmailAddressRow(newUUID, emailId, chatId, addressId, participantType)
+      numberOfInsertedRows <- EmailAddressesTable.all += EmailAddressRow(newUUID, emailId, chatId, addressId,
+        participantType)
     } yield numberOfInsertedRows
 
   /**
@@ -900,7 +902,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     Chat(
       chatId = chat.chatId.getOrElse(""),
       subject = chat.subject.getOrElse(""),
-      addresses = email.from.toSet ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++ email.cc.getOrElse(Set()),
+      addresses = email.from.toSet ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++
+        email.cc.getOrElse(Set()),
       overseers = Set(),
       emails = Seq(
         Email(
