@@ -2020,7 +2020,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
 
-        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
       } yield optSetOverseer.value mustBe setPostOverseer.map(_.copy(oversightId = None))
@@ -2072,9 +2072,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         _ <- chatsRep.patchEmail(
           UpsertEmailDTO(None, None, None, None, None, None, None, Some(true)),
-          createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, overseerUserRow.userId)
+          createdChatDTO.value.chatId.value, createdChatDTO.value.email.emailId.value, overseerUserRow.userId)
 
-        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
         optOversightId <- db.run(OversightsTable.all.filter(_.overseerId === overseerUserRow.userId)
@@ -2104,7 +2104,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
 
-        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
         optOversightId <- db.run(OversightsTable.all.filter(_.overseerId === overseerUserRow.userId)
@@ -2138,7 +2138,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
 
-        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
         overseersIds <- db.run(OversightsTable.all.filter(_.overseeId === basicTestDB.userRow.userId)

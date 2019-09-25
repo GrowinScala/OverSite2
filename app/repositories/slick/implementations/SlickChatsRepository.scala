@@ -548,15 +548,15 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield optionNumberOfRowsUpdated
   }
-	
-	/**
-		* Creates a DBIOAction to get all the participations of a user within a given chat
-		* @param chatId ID of the chat in question
-		* @param userId ID of the user in question
-		* @return A DBIOAction that when run returns a sequence of tuples each containing a participantType of the user,
-		*         along with the sent status of the email
-		*         Seq((participantType, sent))
-		*/
+
+  /**
+   * Creates a DBIOAction to get all the participations of a user within a given chat
+   * @param chatId ID of the chat in question
+   * @param userId ID of the user in question
+   * @return A DBIOAction that when run returns a sequence of tuples each containing a participantType of the user,
+   *         along with the sent status of the email
+   *         Seq((participantType, sent))
+   */
   private def getUserParticipationsOnChatAction(chatId: String, userId: String): DBIO[Seq[(ParticipantType, Int)]] = {
     EmailAddressesTable.all
       .join(EmailsTable.all)
