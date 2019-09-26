@@ -430,7 +430,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield postedOverseer
 
   }
-	
+
   private def deleteOverseerAction(chatId: String, oversightId: String, userId: String): DBIO[Boolean] = {
     for {
       optChatData <- getChatDataAction(chatId, userId)

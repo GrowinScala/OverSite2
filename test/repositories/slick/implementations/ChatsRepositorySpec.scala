@@ -2245,7 +2245,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow, overseerAddressRow),
           userRows = List(basicTestDB.userRow, overseerUserRow))
 
-        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
         postedOverseers <- chatsRep.postOverseers(
           Set(PostOverseer(overseerAddressRow.address, None)),
@@ -2295,7 +2295,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow, overseerAddressRow),
           userRows = List(basicTestDB.userRow, overseerUserRow))
 
-        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
         postedOverseers <- chatsRep.postOverseers(
           Set(PostOverseer(overseerAddressRow.address, None)),
