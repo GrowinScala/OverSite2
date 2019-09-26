@@ -121,4 +121,13 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
     }
   }
 
+  def getOverseers(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+
+      chatService.getOverseers(chatId, authenticatedRequest.userId).map {
+        case Some(postOverseersDTO) => Ok(Json.toJson(postOverseersDTO))
+        case None => NotFound
+      }
+  }
+
 }
