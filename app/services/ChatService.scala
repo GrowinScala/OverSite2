@@ -54,5 +54,4 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getOverseers(chatId, userId)
       .map(_.map(_.map(toPostOverseerDTO)))
 
-  
 }
