@@ -12,13 +12,13 @@ trait ChatsRepository {
 
   def getChat(chatId: String, userId: String): Future[Option[Chat]]
 
-  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO]
+  def postChat(createChat: CreateChat, userId: String): Future[CreateChat]
 
-  def postEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]]
+  def postEmail(upsertEmail: UpsertEmail, chatId: String, userId: String): Future[Option[CreateChat]]
 
-  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]]
+  def patchEmail(upsertEmailDTO: UpsertEmail, chatId: String, emailId: String, userId: String): Future[Option[Email]]
 
-  def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]]
+  def patchChat(patchChat: PatchChat, chatId: String, userId: String): Future[Option[PatchChat]]
 
   def deleteChat(chatId: String, userId: String): Future[Boolean]
 

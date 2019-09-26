@@ -20,5 +20,15 @@ object ChatPreviewDTO {
         chatPreviewDTO.lastEmailDate,
         chatPreviewDTO.contentPreview))
 
+  def toSeqChatPreviewDTO(chatPreviews: Seq[ChatPreview]): Seq[ChatPreviewDTO] = {
+    chatPreviews.map(chatPreview =>
+      ChatPreviewDTO(
+        chatPreview.chatId,
+        chatPreview.subject,
+        chatPreview.lastAddress,
+        chatPreview.lastEmailDate,
+        chatPreview.contentPreview))
+  }
+
 }
 

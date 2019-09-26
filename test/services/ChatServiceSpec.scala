@@ -1,6 +1,7 @@
 package services
 
 import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
+import repositories.dtos.PatchChat.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.dtos.PostOverseerDTO._
 import model.types.Mailbox.Inbox
@@ -8,9 +9,8 @@ import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalacheck.Gen
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
-import repositories.dtos._
+import repositories.dtos.PatchChat
 
-import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 import scala.concurrent.Future
 import utils.TestGenerators._
 
@@ -60,18 +60,21 @@ class ChatServiceSpec extends AsyncWordSpec
         chatId = None,
         email = randomCreateChatDTO.email.copy(emailId = None))
 
-      val expectedResponse = newCreateChatDTO.copy(
-        chatId = Some(genUUID.sample.value),
-        email = newCreateChatDTO.email.copy(emailId = Some(genUUID.sample.value)))
+      val expectedRepoResponse = CreateChatDTO.toCreateChat(newCreateChatDTO)
+        .copy(
+          chatId = Some(genUUID.sample.value),
+          email = UpsertEmailDTO.toUpsertEmail(newCreateChatDTO.email).copy(emailId = Some(genUUID.sample.value)))
+
+      val expectedServiceResponse = CreateChatDTO.toCreateChatDTO(expectedRepoResponse)
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.postChat(*, *)
         .returns(
-          Future.successful(expectedResponse))
+          Future.successful(expectedRepoResponse))
 
       val serviceResponse = chatService.postChat(newCreateChatDTO, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe expectedResponse)
+      serviceResponse.map(_ mustBe expectedServiceResponse)
     }
   }
 
@@ -79,8 +82,9 @@ class ChatServiceSpec extends AsyncWordSpec
     "return a CreateChatDTO that contains the input emailDTO plus the chatId and a new emailID" in {
       val upsertEmailDTO = genUpsertEmailDTOption.sample.value.copy(emailId = None)
 
-      val expectedResponse = genCreateChatDTOption.sample.value.copy(
-        email = upsertEmailDTO.copy(emailId = Some(genUUID.sample.value)))
+      val expectedResponse = CreateChatDTO.toCreateChat(
+        genCreateChatDTOption.sample.value.copy(
+          email = upsertEmailDTO.copy(emailId = Some(genUUID.sample.value))))
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.postEmail(*, *, *)
@@ -88,38 +92,38 @@ class ChatServiceSpec extends AsyncWordSpec
 
       val serviceResponse = chatService.postEmail(upsertEmailDTO, genUUID.sample.value, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe Some(expectedResponse))
+      serviceResponse.map(_ mustBe Some(CreateChatDTO.toCreateChatDTO(expectedResponse)))
     }
   }
 
   "ChatService#patchChat" should {
     "return some MoveToTrash DTO if the ChatsRepository returns some MoveToTrash DTO" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.patchChat(MoveToTrash, *, *)
-        .returns(Future.successful(Some(MoveToTrash)))
+      mockChatsRep.patchChat(PatchChat.MoveToTrash, *, *)
+        .returns(Future.successful(Some(PatchChat.MoveToTrash)))
 
       val moveChatToTrashService = chatService
-        .patchChat(MoveToTrash, genUUID.sample.value, genUUID.sample.value)
-      moveChatToTrashService.map(_ mustBe Some(MoveToTrash))
+        .patchChat(PatchChatDTO.MoveToTrash, genUUID.sample.value, genUUID.sample.value)
+      moveChatToTrashService.map(_ mustBe Some(PatchChatDTO.MoveToTrash))
     }
     "return some Restore DTO if the ChatsRepository returns some Restore DTO" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.patchChat(Restore, *, *)
-        .returns(Future.successful(Some(Restore)))
+      mockChatsRep.patchChat(PatchChat.Restore, *, *)
+        .returns(Future.successful(Some(PatchChat.Restore)))
 
       val moveChatToTrashService = chatService
-        .patchChat(Restore, genUUID.sample.value, genUUID.sample.value)
-      moveChatToTrashService.map(_ mustBe Some(Restore))
+        .patchChat(PatchChatDTO.Restore, genUUID.sample.value, genUUID.sample.value)
+      moveChatToTrashService.map(_ mustBe Some(PatchChatDTO.Restore))
     }
     "return some ChangeSubject DTO if the ChatsRepository returns some ChangeSubject DTO" in {
       val newSubject = "New Subject"
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.patchChat(ChangeSubject(newSubject), *, *)
-        .returns(Future.successful(Some(ChangeSubject(newSubject))))
+      mockChatsRep.patchChat(PatchChat.ChangeSubject(newSubject), *, *)
+        .returns(Future.successful(Some(PatchChat.ChangeSubject(newSubject))))
 
       val moveChatToTrashService = chatService
-        .patchChat(ChangeSubject(newSubject), genUUID.sample.value, genUUID.sample.value)
-      moveChatToTrashService.map(_ mustBe Some(ChangeSubject(newSubject)))
+        .patchChat(PatchChatDTO.ChangeSubject(newSubject), genUUID.sample.value, genUUID.sample.value)
+      moveChatToTrashService.map(_ mustBe Some(PatchChatDTO.ChangeSubject(newSubject)))
     }
     "return None if the ChatsRepository returns None" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
@@ -127,7 +131,7 @@ class ChatServiceSpec extends AsyncWordSpec
         .returns(Future.successful(None))
 
       val moveChatToTrashService = chatService
-        .patchChat(MoveToTrash, genUUID.sample.value, genUUID.sample.value)
+        .patchChat(PatchChatDTO.MoveToTrash, genUUID.sample.value, genUUID.sample.value)
       moveChatToTrashService.map(_ mustBe None)
     }
   }
@@ -144,7 +148,7 @@ class ChatServiceSpec extends AsyncWordSpec
         genUpsertEmailDTOption.sample.value,
         genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe chatService.toEmailDTO(Some(returnedEmail)))
+      serviceResponse.map(_ mustBe EmailDTO.toEmailDTO(Some(returnedEmail)))
     }
   }
 
@@ -157,7 +161,7 @@ class ChatServiceSpec extends AsyncWordSpec
       mockChatsRep.getEmail(*, *, *)
         .returns(Future.successful(Some(repositoryChatResponse)))
 
-      val expectedServiceResponse = chatService.toChatDTO(Some(repositoryChatResponse))
+      val expectedServiceResponse = Some(ChatDTO.toChatDTO(repositoryChatResponse))
 
       chatService.getEmail(genUUID.sample.value, genUUID.sample.value, genUUID.sample.value).map(
         serviceResponse => serviceResponse.value mustBe expectedServiceResponse.value)

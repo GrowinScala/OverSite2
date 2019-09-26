@@ -1,11 +1,11 @@
 package repositories.slick.implementations
 
 import javax.inject.Inject
-import model.dtos.PatchChatDTO._
 import model.dtos._
 import model.types.Mailbox
 import model.types.Mailbox._
 import repositories.ChatsRepository
+import repositories.dtos.PatchChat.{ ChangeSubject, MoveToTrash, Restore }
 import repositories.slick.mappings._
 import repositories.dtos._
 import slick.dbio.DBIOAction
@@ -13,8 +13,7 @@ import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
 import utils.Generators._
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future }
 
 class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
   extends ChatsRepository {
@@ -194,13 +193,13 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   /**
    * Creates a DBIOAction that inserts a chat with an email into the database
-   * @param createChatDTO The DTO that contains the Chat
+   * @param createChat The DTO that contains the Chat
    * @param userId The Id of the User who is inserting the chat
-   * @return A DBIO that returns a copy of the original createChatDTO but with the Ids of the created chat and email
+   * @return A DBIO that returns a copy of the original createChat but with the Ids of the created chat and email
    *         as well as the emails date.
    */
-  private[implementations] def postChatAction(createChatDTO: CreateChatDTO, userId: String): DBIO[CreateChatDTO] = {
-    val emailDTO = createChatDTO.email
+  private[implementations] def postChatAction(createChat: CreateChat, userId: String): DBIO[CreateChat] = {
+    val emailDTO = createChat.email
     val date = DateUtils.getCurrentDate
 
     /** Generate chatId, userChatId and emailId **/
@@ -209,7 +208,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val emailId = newUUID
 
     val inserts = for {
-      _ <- ChatsTable.all += ChatRow(chatId, createChatDTO.subject.getOrElse(""))
+      _ <- ChatsTable.all += ChatRow(chatId, createChat.subject.getOrElse(""))
       _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
 
       // This assumes that the authentication guarantees that the user exists and has a correct address
@@ -222,22 +221,22 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield fromAddress
 
     inserts.map(fromAddress =>
-      createChatDTO.copy(chatId = Some(chatId), email = emailDTO.copy(
+      createChat.copy(chatId = Some(chatId), email = emailDTO.copy(
         emailId = Some(emailId),
         from = Some(fromAddress), date = Some(date))))
   }
 
   /**
    * Inserts a chat with an email into the database
-   * @param createChatDTO The DTO that contains the Chat
+   * @param createChat The DTO that contains the Chat
    * @param userId The Id of the User who is inserting the chat
-   * @return A Future that contains a copy of the original createChatDTO but with the Ids
+   * @return A Future that contains a copy of the original createChat but with the Ids
    *         of the created chat and email as well as the emails date.
    */
-  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] =
-    db.run(postChatAction(createChatDTO, userId).transactionally)
+  def postChat(createChat: CreateChat, userId: String): Future[CreateChat] =
+    db.run(postChatAction(createChat, userId).transactionally)
 
-  private[implementations] def postEmailAction(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String) = {
+  private[implementations] def postEmailAction(upsertEmail: UpsertEmail, chatId: String, userId: String) = {
     val date = DateUtils.getCurrentDate
 
     val emailId = newUUID
@@ -246,7 +245,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       chatAddress <- getChatDataAction(chatId, userId)
 
       _ <- chatAddress match {
-        case Some((chatID, subject, fromAddress)) => insertEmailAndAddresses(upsertEmailDTO, chatId,
+        case Some((chatID, subject, fromAddress)) => insertEmailAndAddresses(upsertEmail, chatId,
           emailId, fromAddress, date)
           .andThen(UserChatsTable.incrementDrafts(userId, chatId))
         case None => DBIOAction.successful(None)
@@ -256,16 +255,16 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     insertAndUpdate.map {
       case Some(tuple) => tuple match {
-        case (chatID, subject, fromAddress) => Some(CreateChatDTO(
+        case (chatID, subject, fromAddress) => Some(CreateChat(
           Some(chatID),
           Some(subject),
-          UpsertEmailDTO(
+          UpsertEmail(
             emailId = Some(emailId),
             from = Some(fromAddress),
-            to = upsertEmailDTO.to,
-            bcc = upsertEmailDTO.bcc,
-            cc = upsertEmailDTO.cc,
-            body = upsertEmailDTO.body,
+            to = upsertEmail.to,
+            bcc = upsertEmail.bcc,
+            cc = upsertEmail.cc,
+            body = upsertEmail.body,
             date = Some(date),
             sent = Some(false))))
       }
@@ -273,17 +272,17 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     }
   }
 
-  def postEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] =
-    db.run(postEmailAction(upsertEmailDTO, chatId, userId).transactionally)
+  def postEmail(upsertEmail: UpsertEmail, chatId: String, userId: String): Future[Option[CreateChat]] =
+    db.run(postEmailAction(upsertEmail, chatId, userId).transactionally)
 
-  private[implementations] def patchEmailAction(upsertEmailDTO: UpsertEmailDTO, chatId: String,
+  private[implementations] def patchEmailAction(upsertEmail: UpsertEmail, chatId: String,
     emailId: String, userId: String): DBIO[Option[Email]] = {
     val updateAndSendEmail = for {
-      updatedReceiversAddresses <- updateEmailAction(upsertEmailDTO, chatId, emailId, userId)
+      updatedReceiversAddresses <- updateEmailAction(upsertEmail, chatId, emailId, userId)
 
       sendEmail <- DBIO.sequenceOption(
         updatedReceiversAddresses.map(receiversAddresses =>
-          if (upsertEmailDTO.sent.getOrElse(false))
+          if (upsertEmail.sent.getOrElse(false))
             sendEmailAction(userId, chatId, emailId, receiversAddresses)
           else DBIO.successful(0)))
 
@@ -295,20 +294,20 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield optionPatch.flatMap(_ => email.headOption)
   }
 
-  def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[Email]] =
-    db.run(patchEmailAction(upsertEmailDTO, chatId, emailId, userId).transactionally)
+  def patchEmail(upsertEmail: UpsertEmail, chatId: String, emailId: String, userId: String): Future[Option[Email]] =
+    db.run(patchEmailAction(upsertEmail, chatId, emailId, userId).transactionally)
 
-  private[implementations] def patchChatAction(patchChatDTO: PatchChatDTO, chatId: String, userId: String): DBIO[Option[PatchChatDTO]] =
+  private[implementations] def patchChatAction(patchChat: PatchChat, chatId: String, userId: String): DBIO[Option[PatchChat]] =
     for {
-      optionPatch <- patchChatDTO match {
+      optionPatch <- patchChat match {
         case MoveToTrash => moveToTrashAction(chatId, userId)
         case Restore => tryRestoreChatAction(chatId, userId)
         case ChangeSubject(subject) => changeChatSubjectAction(chatId, userId, subject)
       }
-    } yield optionPatch.map(_ => patchChatDTO)
+    } yield optionPatch.map(_ => patchChat)
 
-  def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] =
-    db.run(patchChatAction(patchChatDTO, chatId, userId).transactionally)
+  def patchChat(patchChat: PatchChat, chatId: String, userId: String): Future[Option[PatchChat]] =
+    db.run(patchChatAction(patchChat, chatId, userId).transactionally)
 
   private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String) = {
     getChatAction(chatId, userId)
@@ -795,36 +794,36 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * Method that, given the three different receiver types (to, bcc, cc) and the update of an email,
    * inserts the new email addresses (that are not in the database) and deletes from the database
    * the ones that are not in the update
-   * @param upsertEmailDTO DTO that represents the email data to be updated
+   * @param upsertEmail DTO that represents the email data to be updated
    * @param chatId the ID of the chat
    * @param emailId the ID of the email
    * @return a DBIOAction that does all the inserts and deletes and retrieves a sequence with the resulting
    *         addresses (the ones that remain in the database after the deletions and insertions)
    */
-  private def updateEmailAddresses(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String) = {
+  private def updateEmailAddresses(upsertEmail: UpsertEmail, chatId: String, emailId: String) = {
 
     for {
-      toUpsert <- insertAndDeleteAddressesByParticipantTypeAction(emailId, chatId, "to", upsertEmailDTO.to)
-      bccUpsert <- insertAndDeleteAddressesByParticipantTypeAction(emailId, chatId, "bcc", upsertEmailDTO.bcc)
-      ccUpsert <- insertAndDeleteAddressesByParticipantTypeAction(emailId, chatId, "cc", upsertEmailDTO.cc)
+      toUpsert <- insertAndDeleteAddressesByParticipantTypeAction(emailId, chatId, "to", upsertEmail.to)
+      bccUpsert <- insertAndDeleteAddressesByParticipantTypeAction(emailId, chatId, "bcc", upsertEmail.bcc)
+      ccUpsert <- insertAndDeleteAddressesByParticipantTypeAction(emailId, chatId, "cc", upsertEmail.cc)
 
     } yield toUpsert ++ bccUpsert ++ ccUpsert
   }
 
   /**
    * Method that updates the email row of an email as well as the email's addresses
-   * @param upsertEmailDTO DTO that contains the email data
+   * @param upsertEmail DTO that contains the email data
    * @param chatId ID of the chat
    * @param emailId ID of the email
    * @return the action that updates the email row and the emailAddress rows
    */
-  private def updateEmailAction(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): DBIO[Option[Set[String]]] = {
+  private def updateEmailAction(upsertEmail: UpsertEmail, chatId: String, emailId: String, userId: String): DBIO[Option[Set[String]]] = {
     for {
       optionVerifiedFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
 
-      newBody = upsertEmailDTO.body
+      newBody = upsertEmail.body
       updateBody = if (newBody.isDefined) updateEmailBody(newBody.get, chatId, emailId) else DBIO.successful(0)
-      updateAddresses = updateEmailAddresses(upsertEmailDTO, chatId, emailId)
+      updateAddresses = updateEmailAddresses(upsertEmail, chatId, emailId)
 
       update <- DBIO.sequenceOption(optionVerifiedFromAddress.map(_ =>
         updateBody.andThen(updateAddresses)))
@@ -848,24 +847,24 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   /**
    * Method that inserts a new row for the email in draft state and also inserts new rows for the addresses
-   * @param upsertEmailDTO DTO containing the data of the email
+   * @param upsertEmail DTO containing the data of the email
    * @param chatId the ID of the chat
    * @param emailId the ID of the email
    * @param fromAddress the address of the sender ("from")
    * @param date current date
    * @return the action that inserts a new email and inserts/updates its addresses
    */
-  private def insertEmailAndAddresses(upsertEmailDTO: UpsertEmailDTO, chatId: String,
+  private def insertEmailAndAddresses(upsertEmail: UpsertEmail, chatId: String,
     emailId: String, fromAddress: String, date: String) = {
     for {
-      _ <- EmailsTable.all += EmailRow(emailId, chatId, upsertEmailDTO.body.getOrElse(""), date, 0)
+      _ <- EmailsTable.all += EmailRow(emailId, chatId, upsertEmail.body.getOrElse(""), date, 0)
 
       fromInsert = insertEmailAddress(emailId, chatId, upsertAddress(fromAddress), "from")
-      toInsert = upsertEmailDTO.to.getOrElse(Set()).map(
+      toInsert = upsertEmail.to.getOrElse(Set()).map(
         to => insertEmailAddress(emailId, chatId, upsertAddress(to), "to"))
-      bccInsert = upsertEmailDTO.bcc.getOrElse(Set()).map(
+      bccInsert = upsertEmail.bcc.getOrElse(Set()).map(
         bcc => insertEmailAddress(emailId, chatId, upsertAddress(bcc), "bcc"))
-      ccInsert = upsertEmailDTO.cc.getOrElse(Set()).map(
+      ccInsert = upsertEmail.cc.getOrElse(Set()).map(
         cc => insertEmailAddress(emailId, chatId, upsertAddress(cc), "cc"))
 
       _ <- DBIO.sequence(Vector(fromInsert) ++ toInsert ++ bccInsert ++ ccInsert)
@@ -901,45 +900,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       addressId <- address
       numberOfInsertedRows <- EmailAddressesTable.all += EmailAddressRow(newUUID, emailId, chatId, addressId, participantType)
     } yield numberOfInsertedRows
-
-  /**
-   * Method that transforms an instance of the CreateChatDTO class into an instance of Chat
-   * @param chat instance of the class CreateChatDTO
-   * @return an instance of class Chat
-   */
-  private[implementations] def fromCreateChatDTOtoChat(chat: CreateChatDTO): Chat = {
-    val email = chat.email
-
-    Chat(
-      chatId = chat.chatId.getOrElse(""),
-      subject = chat.subject.getOrElse(""),
-      addresses = email.from.toSet ++ email.to.getOrElse(Set()) ++ email.bcc.getOrElse(Set()) ++ email.cc.getOrElse(Set()),
-      overseers = Set(),
-      emails = Seq(
-        Email(
-          emailId = email.emailId.getOrElse(""),
-          from = email.from.getOrElse(""),
-          to = email.to.getOrElse(Set()),
-          bcc = email.bcc.getOrElse(Set()),
-          cc = email.cc.getOrElse(Set()),
-          body = email.body.getOrElse(""),
-          date = email.date.getOrElse(""),
-          sent = 0,
-          attachments = Set())))
-  }
-
-  private[implementations] def fromUpsertEmailDTOtoEmail(upsertEmail: UpsertEmailDTO): Email = {
-    Email(
-      emailId = upsertEmail.emailId.getOrElse(""),
-      from = upsertEmail.from.getOrElse(""),
-      to = upsertEmail.to.getOrElse(Set()),
-      bcc = upsertEmail.bcc.getOrElse(Set()),
-      cc = upsertEmail.cc.getOrElse(Set()),
-      body = upsertEmail.body.getOrElse(""),
-      date = upsertEmail.date.getOrElse(""),
-      sent = 0,
-      attachments = Set())
-  }
 
   private[implementations] def getUserChatOverseersAction(overseeUserId: String, chatId: String): DBIO[Seq[String]] = {
     OversightsTable.all
