@@ -26,6 +26,8 @@ DELETE  /chats/:id                          controllers.ChatController.deleteCha
 
 DELETE  /chats/:chatId/emails/:emailId      controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
+DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteOverseer(chatId : String, oversightId : String)
+
 DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
 

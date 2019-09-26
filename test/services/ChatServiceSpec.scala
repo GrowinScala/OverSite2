@@ -240,4 +240,25 @@ class ChatServiceSpec extends AsyncWordSpec
     }
   }
 
+  "ChatService#deleteOverseer" should {
+    "return true if the ChatsRepository returns true" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.deleteOverseer(*, *, *)
+        .returns(Future.successful(true))
+
+      val deleteOverseerService = chatService.deleteOverseer(
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
+      deleteOverseerService.map(_ mustBe true)
+    }
+    "return false if the ChatsRepository returns false" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.deleteOverseer(*, *, *)
+        .returns(Future.successful(false))
+
+      val deleteOverseerService = chatService.deleteOverseer(
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
+      deleteOverseerService.map(_ mustBe false)
+    }
+  }
+
 }

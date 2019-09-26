@@ -101,6 +101,12 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       chatService.deleteDraft(chatId, emailId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
   }
 
+  def deleteOverseer(chatId: String, oversightId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.deleteOverseer(chatId, oversightId, authenticatedRequest.userId)
+        .map(if (_) NoContent else NotFound)
+  }
+
   def postOverseers(chatId: String): Action[JsValue] = {
     authenticatedUserAction.async(parse.json) { authenticatedRequest =>
       val jsonValue = authenticatedRequest.request.body
