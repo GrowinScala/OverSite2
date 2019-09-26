@@ -2143,6 +2143,65 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   }
 
+  "SlickChatsRepository#getOverseers" should {
+
+    "return None if the chat does not exist" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow))
+
+        optSetOverseer <- chatsRep.getOverseers(genUUID.sample.value, basicTestDB.userRow.userId)
+      } yield optSetOverseer mustBe None
+
+    }
+
+    "return None if the chat exists but the User does not have access to it" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow))
+
+        optSetOverseer <- chatsRep.getOverseers(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
+      } yield optSetOverseer mustBe None
+
+    }
+
+    "return the user's overseers" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerOneAddressRow = genAddressRow.sample.value
+      val overseerOneUserRow = genUserRow(overseerOneAddressRow.addressId).sample.value
+      val overseerTwoAddressRow = genAddressRow.sample.value
+      val overseerTwoUserRow = genUserRow(overseerTwoAddressRow.addressId).sample.value
+      val setPostOverseer = Set(
+        PostOverseer(overseerOneAddressRow.address, None),
+        PostOverseer(overseerTwoAddressRow.address, None))
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerOneAddressRow, overseerTwoAddressRow),
+          userRows = List(basicTestDB.userRow, overseerOneUserRow, overseerTwoUserRow))
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+
+        postedOverseers <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+
+        getOverseers <- chatsRep.getOverseers(createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+
+      } yield getOverseers mustBe postedOverseers
+
+    }
+
+  }
+
 }
 
 case class BasicTestDB(addressRow: AddressRow, userRow: UserRow, chatRow: ChatRow, emailRow: EmailRow,

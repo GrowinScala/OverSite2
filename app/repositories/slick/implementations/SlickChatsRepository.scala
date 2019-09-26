@@ -353,6 +353,49 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(deleteDraftAction(chatId, emailId, userId).transactionally)
   }
 
+  private def postOverseersAction(postOverseers: Set[PostOverseer], chatId: String, userId: String): DBIO[Option[Set[PostOverseer]]] =
+    for {
+      chatAccessAndParticipation <- checkIfUserHasAccessAndParticipates(chatId, userId)
+
+      optSeqPostOverseer <- if (chatAccessAndParticipation)
+        DBIO.sequence(postOverseers.map(postOverseerAction(_, chatId, userId)).toSeq)
+          .map(Some(_))
+      else DBIO.successful(None)
+
+    } yield optSeqPostOverseer.map(_.toSet)
+
+  def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String): Future[Option[Set[PostOverseer]]] =
+    db.run(postOverseersAction(postOverseers, chatId, userId).transactionally)
+
+  private def getOverseersAction(chatId: String, userId: String): DBIO[Option[Set[PostOverseer]]] = {
+    for {
+      optChatData <- getChatDataAction(chatId, userId)
+      result <- optChatData match {
+        case Some(_) => getOverseersQuery(chatId, userId).result
+          .map(seq => Some(seq.map { case (address, oversightId) => PostOverseer(address, Some(oversightId)) }.toSet))
+
+        case None => DBIO.successful(None)
+      }
+    } yield result
+  }
+
+  def getOverseers(chatId: String, userId: String): Future[Option[Set[PostOverseer]]] =
+    db.run(getOverseersAction(chatId, userId).transactionally)
+
+  //region Auxiliary Methods
+
+  private def getOverseersQuery(chatId: String, userId: String) =
+    for {
+      (oversightId, overseerId) <- OversightsTable.all
+        .filter(oversightRow => oversightRow.chatId === chatId && oversightRow.overseeId === userId)
+        .map(oversightRow => (oversightRow.oversightId, oversightRow.overseerId))
+
+      addressId <- UsersTable.all.filter(_.userId === overseerId).map(_.addressId)
+
+      address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
+
+    } yield (address, oversightId)
+
   private def createNewOverseerAction(overseerId: String, overseerAddress: String, chatId: String, userId: String): DBIO[PostOverseer] =
     for {
       optOverseerUserChatId <- UserChatsTable.all.filter(_.userId === overseerId).map(_.userChatId).result.headOption
@@ -387,23 +430,6 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield postedOverseer
 
   }
-
-  private def postOverseersAction(postOverseers: Set[PostOverseer], chatId: String, userId: String): DBIO[Option[Set[PostOverseer]]] =
-    for {
-      chatAccessAndParticipation <- checkIfUserHasAccessAndParticipates(chatId, userId)
-
-      optSeqPostOverseer <- if (chatAccessAndParticipation)
-        DBIO.sequence(postOverseers.map(postOverseerAction(_, chatId, userId)).toSeq)
-          .map(Some(_))
-      else DBIO.successful(None)
-
-    } yield optSeqPostOverseer.map(_.toSet)
-
-  def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String): Future[Option[Set[PostOverseer]]] = {
-    db.run(postOverseersAction(postOverseers, chatId, userId).transactionally)
-  }
-
-  //region Auxiliary Methods
 
   private def getDraftsUserChat(userId: String, chatId: String) =
     UserChatsTable.all

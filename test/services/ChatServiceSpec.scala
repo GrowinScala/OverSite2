@@ -225,4 +225,19 @@ class ChatServiceSpec extends AsyncWordSpec
     }
   }
 
+  "ChatService#getOverseers" should {
+    "turn the received optional Set of PostOverseer to one of PostOverseerDTO" in {
+
+      val expectedResponse = genSetPostOverseerDTO.sample
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.getOverseers(*, *)
+        .returns(Future.successful(expectedResponse.map(_.map(toPostOverseer))))
+
+      val serviceResponse = chatService.getOverseers(genUUID.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe expectedResponse)
+    }
+  }
+
 }
