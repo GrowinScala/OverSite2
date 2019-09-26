@@ -48,10 +48,13 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getEmail(chatId, emailId, userId).map(toChatDTO)
   }
 
-  def postOverseers(postOverseersDTO: Set[PostOverseerDTO], chatId: String, userId: String): Future[Option[Set[PostOverseerDTO]]] = {
+  def postOverseers(postOverseersDTO: Set[PostOverseerDTO], chatId: String, userId: String): Future[Option[Set[PostOverseerDTO]]] =
     chatsRep.postOverseers(postOverseersDTO.map(toPostOverseer), chatId, userId)
       .map(_.map(_.map(toPostOverseerDTO)))
-  }
+
+  def getOverseers(chatId: String, userId: String): Future[Option[Set[PostOverseerDTO]]] =
+    chatsRep.getOverseers(chatId, userId)
+      .map(_.map(_.map(toPostOverseerDTO)))
 
   //region Auxiliary conversion methods
 

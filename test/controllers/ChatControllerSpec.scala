@@ -45,8 +45,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         .returns(Future.successful(Seq(chatPreviewDTO)))
 
       val result: Future[Result] = chatController.getChats(Inbox).apply(FakeRequest())
-      val json: JsValue = contentAsJson(result)
-      json mustBe Json.toJson(Seq(chatPreviewDTO))
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(Seq(chatPreviewDTO))
     }
 
     "return Json for sent" in {
@@ -56,8 +56,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         .returns(Future.successful(Seq(chatPreviewDTO)))
 
       val result: Future[Result] = chatController.getChats(Sent).apply(FakeRequest())
-      val json: JsValue = contentAsJson(result)
-      json mustBe Json.toJson(Seq(chatPreviewDTO))
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(Seq(chatPreviewDTO))
     }
 
     "return Json for trash" in {
@@ -67,8 +67,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         .returns(Future.successful(Seq(chatPreviewDTO)))
 
       val result: Future[Result] = chatController.getChats(Trash).apply(FakeRequest())
-      val json: JsValue = contentAsJson(result)
-      json mustBe Json.toJson(Seq(chatPreviewDTO))
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(Seq(chatPreviewDTO))
     }
 
     "return Json for drafts" in {
@@ -78,8 +78,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         .returns(Future.successful(Seq(chatPreviewDTO)))
 
       val result: Future[Result] = chatController.getChats(Drafts).apply(FakeRequest())
-      val json: JsValue = contentAsJson(result)
-      json mustBe Json.toJson(Seq(chatPreviewDTO))
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(Seq(chatPreviewDTO))
     }
 
   }
@@ -93,9 +93,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         .returns(Future.successful(Some(chatDTO)))
 
       val result: Future[Result] = chatController.getChat(chatDTO.chatId).apply(FakeRequest())
-      val expectedResult = Json.toJson(chatDTO)
-
-      result.map(_ mustBe Ok(expectedResult))
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(chatDTO)
     }
 
     "return NotFound" in {
@@ -104,7 +103,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         .returns(Future.successful(None))
 
       val result: Future[Result] = chatController.getChat(genUUID.sample.value).apply(FakeRequest())
-      result.map(_ mustBe NotFound)
+      status(result) mustBe NOT_FOUND
     }
 
   }
@@ -130,10 +129,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val result: Future[Result] = chatController.postChat.apply(request)
 
-      val json = contentAsJson(result)
-
       status(result) mustBe OK
-      json mustBe chatJsonResponse
+      contentAsJson(result) mustBe chatJsonResponse
     }
 
     "return 400 Bad Request if any of the email addresses is not a valid address" in {
@@ -179,10 +176,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val result: Future[Result] = chatController.postEmail("").apply(request)
 
-      val json = contentAsJson(result)
-
       status(result) mustBe OK
-      json mustBe chatJsonResponse
+      contentAsJson(result) mustBe chatJsonResponse
     }
 
     "return 400 Bad Request if any of the email addresses is not a valid address" in {
@@ -215,10 +210,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val result: Future[Result] = chatController.postEmail("").apply(request)
 
-      val json = contentAsJson(result)
-
       status(result) mustBe NOT_FOUND
-      json mustBe chatNotFound
+      contentAsJson(result) mustBe chatNotFound
     }
 
   }
@@ -299,7 +292,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val result: Future[Result] = chatController.patchChat(chatId).apply(request)
 
-      result.map(_ mustBe NotFound)
+      status(result) mustBe NOT_FOUND
     }
 
     "return BadRequest if the command is unknown" in {
@@ -318,7 +311,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val result: Future[Result] = chatController.patchChat(chatId).apply(request)
 
-      result.map(_ mustBe BadRequest)
+      status(result) mustBe BAD_REQUEST
     }
   }
 
@@ -346,10 +339,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val result: Future[Result] = chatController
         .patchEmail(chatId, emailId).apply(request)
 
-      val json = contentAsJson(result)
-
       status(result) mustBe OK
-      json mustBe emailJsonResponse
+      contentAsJson(result) mustBe emailJsonResponse
     }
 
     "return 400 Bad Request if any of the email addresses is not a valid address" in {
@@ -381,8 +372,9 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       mockChatService.getEmail(*, *, *)
         .returns(Future.successful(Some(responseChatDto)))
 
-      chatController.getEmail(genUUID.sample.value, genUUID.sample.value).apply(FakeRequest()).map(
-        result => result mustBe Ok(Json.toJson(responseChatDto)))
+      val result = chatController.getEmail(genUUID.sample.value, genUUID.sample.value).apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(responseChatDto)
     }
 
     "return NotFound if service response is None" in {
@@ -390,8 +382,9 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       mockChatService.getEmail(*, *, *)
         .returns(Future.successful(None))
 
-      chatController.getEmail(genUUID.sample.value, genUUID.sample.value).apply(FakeRequest())
-        .map(_ mustBe NotFound)
+      val result = chatController.getEmail(genUUID.sample.value, genUUID.sample.value).apply(FakeRequest())
+
+      status(result) mustBe NOT_FOUND
     }
   }
 
@@ -403,8 +396,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val chatId = genUUID.sample.value
 
-      chatController.deleteChat(chatId).apply(FakeRequest())
-        .map(result => result mustBe NoContent)
+      val result = chatController.deleteChat(chatId).apply(FakeRequest())
+      status(result) mustBe NO_CONTENT
     }
 
     "return NotFound if the response from the service is NOT true" in {
@@ -414,8 +407,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val chatId = genUUID.sample.value
 
-      chatController.deleteChat(chatId).apply(FakeRequest())
-        .map(result => result mustBe NotFound)
+      val result = chatController.deleteChat(chatId).apply(FakeRequest())
+      status(result) mustBe NOT_FOUND
     }
   }
 
@@ -426,9 +419,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       mockChatService.deleteDraft(*, *, *)
         .returns(Future.successful(true))
 
-      chatController.deleteDraft(genUUID.sample.value, genUUID.sample.value)
-        .apply(FakeRequest())
-        .map(result => result mustBe NoContent)
+      val result = chatController.deleteDraft(genUUID.sample.value, genUUID.sample.value).apply(FakeRequest())
+      status(result) mustBe NO_CONTENT
     }
 
     "return NotFound if the response from the service is NOT true" in {
@@ -437,9 +429,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       mockChatService.deleteDraft(*, *, *)
         .returns(Future.successful(false))
 
-      chatController.deleteDraft(genUUID.sample.value, genUUID.sample.value)
-        .apply(FakeRequest())
-        .map(result => result mustBe NotFound)
+      val result = chatController.deleteDraft(genUUID.sample.value, genUUID.sample.value).apply(FakeRequest())
+      status(result) mustBe NOT_FOUND
     }
   }
 
@@ -458,10 +449,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val result: Future[Result] = chatController.postOverseers(genUUID.sample.value).apply(request)
 
-      val json = contentAsJson(result)
-
       status(result) mustBe OK
-      json mustBe Json.toJson(setPostOverseerDTO)
+      contentAsJson(result) mustBe Json.toJson(setPostOverseerDTO)
     }
 
     "return 400 Bad Request if the email address is not a valid address" in {
@@ -496,6 +485,31 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       contentAsJson(result) mustBe chatNotFound
     }
 
+  }
+
+  "ChatController#getOverseers" should {
+    "return the DTO sent by the service" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+
+      val setPostOverseerDTO = genSetPostOverseerDTO.sample.value
+
+      mockChatService.getOverseers(*, *)
+        .returns(Future.successful(Some(setPostOverseerDTO)))
+
+      val result: Future[Result] = chatController.getOverseers(genUUID.sample.value).apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(setPostOverseerDTO)
+    }
+
+    "return NotFound if service response is None" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseers(*, *)
+        .returns(Future.successful(None))
+
+      val result: Future[Result] = chatController.getOverseers(genUUID.sample.value).apply(FakeRequest())
+
+      status(result) mustBe NOT_FOUND
+    }
   }
 
 }
