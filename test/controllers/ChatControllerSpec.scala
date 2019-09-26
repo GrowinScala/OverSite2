@@ -139,11 +139,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     "return 400 Bad Request if any of the email addresses is not a valid address" in {
       val (chatController, _) = getControllerAndServiceMock
 
-      val gencreateChatDTO = genCreateChatDTOption.sample.value.copy(chatId = None)
+      val genCreateChatDTO = genCreateChatDTOption.sample.value.copy(chatId = None)
       val invalidAddress = genString.sample.value
 
-      val chatWithInvalidFromAddress = Json.toJson(gencreateChatDTO.copy(
-        email = gencreateChatDTO.email.copy(from = Some(invalidAddress))))
+      val chatWithInvalidFromAddress = Json.toJson(genCreateChatDTO.copy(
+        email = genCreateChatDTO.email.copy(from = Some(invalidAddress))))
 
       val request = FakeRequest(POST, "/chats")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
