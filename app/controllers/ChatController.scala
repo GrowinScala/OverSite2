@@ -104,6 +104,12 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       chatService.deleteDraft(chatId, emailId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
   }
 
+  def deleteOverseer(chatId: String, oversightId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.deleteOverseer(chatId, oversightId, authenticatedRequest.userId)
+        .map(if (_) NoContent else NotFound)
+  }
+
   def postOverseers(chatId: String): Action[JsValue] = {
     authenticatedUserAction.async(parse.json) { authenticatedRequest =>
       val jsonValue = authenticatedRequest.request.body
@@ -116,6 +122,15 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
             case None => NotFound(chatNotFound)
           })
     }
+  }
+
+  def getOverseers(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+
+      chatService.getOverseers(chatId, authenticatedRequest.userId).map {
+        case Some(postOverseersDTO) => Ok(Json.toJson(postOverseersDTO))
+        case None => NotFound
+      }
   }
 
 }

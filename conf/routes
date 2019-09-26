@@ -10,9 +10,13 @@ GET     /chats/:id                          controllers.ChatController.getChat(i
 
 GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
 
+GET    /chats/:id/overseers                controllers.ChatController.getOverseers(id : String)
+
 POST    /chats                              controllers.ChatController.postChat
 
 POST    /chats/:id/emails                   controllers.ChatController.postEmail(id : String)
+
+POST    /chats/:id/overseers                controllers.ChatController.postOverseers(id : String)
 
 PATCH   /chats/:chatId/emails/:emailId      controllers.ChatController.patchEmail(chatId : String, emailId : String)
 
@@ -22,7 +26,7 @@ DELETE  /chats/:id                          controllers.ChatController.deleteCha
 
 DELETE  /chats/:chatId/emails/:emailId      controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
-POST    /chats/:id/overseers                controllers.ChatController.postOverseers(id : String)
+DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteOverseer(chatId : String, oversightId : String)
 
 DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 

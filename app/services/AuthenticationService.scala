@@ -18,7 +18,7 @@ class AuthenticationService @Inject() (implicit val ec: ExecutionContext, authen
           Future.successful(Left(repeatedUser))
         else {
           val encryptedPassword = userAccessDTO.password.bcrypt
-          authenticationRep.signUpUser(userAccessDTO.copy(password = encryptedPassword))
+          authenticationRep.signUpUser(UserAccessDTO.toUserAccess(userAccessDTO.copy(password = encryptedPassword)))
             .map(token => Right(jsToken(token)))
         })
 
