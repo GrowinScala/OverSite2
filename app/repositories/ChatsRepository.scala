@@ -27,4 +27,6 @@ trait ChatsRepository {
   def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean]
 
   def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String): Future[Option[Set[PostOverseer]]]
+
+  def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean]
 }

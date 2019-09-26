@@ -498,4 +498,28 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
   }
 
+  "ChatController#deleteOverseer" should {
+    "return NoContent if the response from the service is true" in {
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.deleteOverseer(*, *, *)
+        .returns(Future.successful(true))
+
+      chatController.deleteOverseer(genUUID.sample.value, genUUID.sample.value)
+        .apply(FakeRequest())
+        .map(result => result mustBe NoContent)
+    }
+
+    "return NotFound if the response from the service is NOT true" in {
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.deleteOverseer(*, *, *)
+        .returns(Future.successful(false))
+
+      chatController.deleteOverseer(genUUID.sample.value, genUUID.sample.value)
+        .apply(FakeRequest())
+        .map(result => result mustBe NotFound)
+    }
+  }
+
 }

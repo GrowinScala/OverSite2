@@ -53,6 +53,10 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
       .map(_.map(_.map(toPostOverseerDTO)))
   }
 
+  def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean] = {
+    chatsRep.deleteOverseer(chatId, oversightId, userId)
+  }
+
   //region Auxiliary conversion methods
 
   private[services] def toEmailDTO(optionEmail: Option[Email]): Option[EmailDTO] = {

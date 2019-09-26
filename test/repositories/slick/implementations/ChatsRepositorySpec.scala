@@ -2145,6 +2145,126 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   }
 
+  "SlickChatsRepository#deleteOverseers" should {
+
+    "return false if the chat does not exist" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow))
+
+        result <- chatsRep.deleteOverseer(genUUID.sample.value, genUUID.sample.value,
+          basicTestDB.userRow.userId)
+      } yield assert(!result)
+
+    }
+
+    "return false if the chat exists but the User does not have access to it" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow))
+
+        result <- chatsRep.deleteOverseer(genUUID.sample.value, genUUID.sample.value,
+          basicTestDB.userRow.userId)
+      } yield assert(!result)
+
+    }
+
+    "return false if the oversightId is incorrect" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressRow = genAddressRow.sample.value
+      val overseerUserRow = genUserRow(overseerAddressRow.addressId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerAddressRow),
+          userRows = List(basicTestDB.userRow, overseerUserRow))
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+
+        postedOverseers <- chatsRep.postOverseers(
+          Set(PostOverseer(overseerAddressRow.address, None)),
+          createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+
+        result <- chatsRep.deleteOverseer(createdChatDTO.chatId.value, genUUID.sample.value,
+          basicTestDB.userRow.userId)
+
+      } yield assert(!result)
+
+    }
+
+    "return false if the user is not the oversee" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressRow = genAddressRow.sample.value
+      val overseerUserRow = genUserRow(overseerAddressRow.addressId).sample.value
+      val overseeAddressRow = genAddressRow.sample.value
+      val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
+      val oversightRow = genOversightRow(basicTestDB.chatRow.chatId, overseerUserRow.userId, overseeUserRow.userId)
+        .sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerAddressRow, overseeAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow, overseerUserRow, overseeUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow),
+          List(basicTestDB.emailAddressRow),
+          List(oversightRow))
+
+        result <- chatsRep.deleteOverseer(basicTestDB.chatRow.chatId, oversightRow.oversightId,
+          basicTestDB.userRow.userId)
+
+      } yield assert(!result)
+
+    }
+
+    "delete a valid overseer" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressRow = genAddressRow.sample.value
+      val overseerUserRow = genUserRow(overseerAddressRow.addressId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerAddressRow),
+          userRows = List(basicTestDB.userRow, overseerUserRow))
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatDTOption.sample.value, basicTestDB.userRow.userId)
+
+        postedOverseers <- chatsRep.postOverseers(
+          Set(PostOverseer(overseerAddressRow.address, None)),
+          createdChatDTO.chatId.value,
+          basicTestDB.userRow.userId)
+
+        oversightId = postedOverseers.value.headOption.value.oversightId.value
+
+        preDeletionOversight <- db.run(OversightsTable.all.filter(_.oversightId === oversightId)
+          .map(_.oversightId).result.headOption)
+
+        result <- chatsRep.deleteOverseer(
+          createdChatDTO.chatId.value,
+          oversightId,
+          basicTestDB.userRow.userId)
+
+        postDeletionOversight <- db.run(OversightsTable.all.filter(_.oversightId === oversightId).result.headOption)
+
+      } yield assert(result &&
+        preDeletionOversight === Some(oversightId) &&
+        postDeletionOversight === None)
+
+    }
+
+  }
+
 }
 
 case class BasicTestDB(addressRow: AddressRow, userRow: UserRow, chatRow: ChatRow, emailRow: EmailRow,

@@ -404,7 +404,26 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(postOverseersAction(postOverseers, chatId, userId).transactionally)
   }
 
+  private def deleteOverseerAction(chatId: String, oversightId: String, userId: String): DBIO[Boolean] = {
+    for {
+      optChatData <- getChatDataAction(chatId, userId)
+      result <- optChatData match {
+        case Some(_) => deleteOversightRow(chatId, oversightId, userId)
+
+        case None => DBIO.successful(false)
+      }
+    } yield result
+  }
+
+  def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean] =
+    db.run(deleteOverseerAction(chatId, oversightId, userId).transactionally)
+
   //region Auxiliary Methods
+
+  private def deleteOversightRow(chatId: String, oversightId: String, userId: String): DBIO[Boolean] =
+    OversightsTable.all.filter(oversightRow => oversightRow.chatId === chatId &&
+      oversightRow.overseeId === userId && oversightRow.oversightId === oversightId).delete
+      .map(_ == 1)
 
   private def getDraftsUserChat(userId: String, chatId: String) =
     UserChatsTable.all
