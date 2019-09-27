@@ -248,7 +248,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def postChat(createChat: CreateChat, userId: String): Future[Option[CreateChat]] =
     db.run(postChatAction(createChat, userId).transactionally)
 
-  private[implementations] def postEmailAction(upsertEmail: UpsertEmail, chatId: String, userId: String): DBIO[Option[CreateChat]]  = {
+  private[implementations] def postEmailAction(upsertEmail: UpsertEmail, chatId: String, userId: String): DBIO[Option[CreateChat]] = {
     val date = DateUtils.getCurrentDate
 
     val emailId = newUUID
@@ -587,7 +587,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private def moveToTrashAction(chatId: String, userId: String): DBIO[Option[Int]] = {
     for {
-      ifUserChatExists <- UserChatsTable.all.filter(userChat => userChat.chatId === chatId && userChat.userId === userId)
+      ifUserChatExists <- UserChatsTable.all.filter(userChat => userChat.chatId === chatId &&
+        userChat.userId === userId)
         .result.headOption
 
       optionNumberOfRowsUpdated <- DBIO.sequenceOption(
@@ -695,7 +696,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       (for {
         updateReceiversChats <- updateReceiversUserChatsToInbox(chatId, addresses)
         updateEmailStatus <- EmailsTable.all
-          .filter(_.emailId === emailId).map(emailRow => (emailRow.date, emailRow.sent)).update(DateUtils.getCurrentDate, 1)
+          .filter(_.emailId === emailId).map(emailRow => (emailRow.date, emailRow.sent))
+          .update(DateUtils.getCurrentDate, 1)
         updateSenderChat <- UserChatsTable.userEmailWasSent(senderUserId, chatId)
       } yield updateReceiversChats.sum + updateEmailStatus + updateSenderChat).transactionally
     } else DBIO.successful(0)
@@ -704,7 +706,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   /**
    * Method that updates the user's chat status to "inbox".
    * Given a list of addresses, it filters the ones that correspond to a user and then retrieves the userChatRows
-   * for the users who already have the chat. Then updates that row to "inbox" or inserts a new row for that user and chat
+   * for the users who already have the chat. Then updates that row to "inbox" or
+   * inserts a new row for that user and chat
    * @param chatId ID of the chat
    * @param addresses addresses of the people that are going to receive the email (not all of them are users)
    * @return DBIOAction that performs this update
