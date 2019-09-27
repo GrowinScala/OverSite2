@@ -25,7 +25,6 @@ class AuthenticationController @Inject() (implicit
           authenticationService.signUpUser(userAccessDTO).map {
             case Left(error) => BadRequest(error)
             case Right(jsToken) => Ok(jsToken)
-
           })
     }
 

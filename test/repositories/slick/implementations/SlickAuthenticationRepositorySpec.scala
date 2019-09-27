@@ -1,6 +1,7 @@
 package repositories.slick.implementations
 
 import org.scalatest._
+import play.api.Configuration
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
 import repositories.dtos.UserAccess
@@ -19,8 +20,9 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
   private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
   private lazy val injector: Injector = appBuilder.injector()
   private val db = injector.instanceOf[Database]
+  private val config = injector.instanceOf[Configuration]
   implicit val ec: ExecutionContext = injector.instanceOf[ExecutionContext]
-  val authenticationRep = new SlickAuthenticationRepository(db)
+  val authenticationRep = new SlickAuthenticationRepository(config, db)
 
   //region Befores and Afters
 
@@ -146,7 +148,7 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
       val token = genUUID.sample.value
 
       for {
-        _ <- db.run(TokensTable.all += TokenRow(genUUID.sample.value, token, currentDate, currentDate))
+        _ <- db.run(TokensTable.all += TokenRow(genUUID.sample.value, token))
 
         assertion <- authenticationRep.getTokenExpirationDate(token).map(_ mustBe Some(currentDate))
       } yield assertion
@@ -169,7 +171,7 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
 
       for {
         _ <- db.run(DBIO.seq(
-          TokensTable.all += TokenRow(tokenId, token, currentTimestamp, currentTimestamp),
+          TokensTable.all += TokenRow(tokenId, token),
           PasswordsTable.all += PasswordRow(passwordId, userId, password, tokenId)))
 
         userId <- authenticationRep.getUser(token)

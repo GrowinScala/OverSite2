@@ -1,31 +1,42 @@
 package repositories.slick.implementations
 
 import java.sql.Timestamp
+import java.time.LocalDateTime
 
 import javax.inject.Inject
 import repositories.AuthenticationRepository
-import repositories.dtos.UserAccess
+import repositories.dtos._
 import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
 import utils.Generators._
+import java.time.Clock
+
+import pdi.jwt.{ JwtAlgorithm, JwtJson }
+import play.api.Configuration
+import play.api.libs.json.{ JsObject, Json }
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
+class SlickAuthenticationRepository @Inject() (config: Configuration, db: Database)(implicit executionContext: ExecutionContext)
   extends AuthenticationRepository {
+
+  implicit val clock: Clock = Clock.systemUTC
+  private val algo = JwtAlgorithm.HS256
+  val key: String = config.get[String]("secretKey")
 
   /**
    * Creates a DBIOAction that inserts a new token or updates it in case it already exists
+   * @param userId The Id of the user
    * @param tokenId The Id of the token
-   * @param token The token
    * @return A DBIOAction that inserts a new token or updates it in case it already exists
    */
-  def upsertTokenAction(tokenId: String, token: String): DBIO[Int] = {
-    val valid_time_24h = 24 * 60 * 60 * 1000
-    val current_time = System.currentTimeMillis
-    val start_date = new Timestamp(current_time)
-    val end_date = new Timestamp(current_time + valid_time_24h)
-    TokensTable.all.insertOrUpdate(TokenRow(tokenId, token, start_date, end_date))
+  def upsertTokenAction(userId: String, tokenId: String): DBIO[String] = {
+    val startDate = LocalDateTime.now
+    val endDate = startDate.plusDays(1)
+    val claim = Json.obj(("userId", userId), ("startDate", startDate), ("endDate", endDate))
+    val jtw = JwtJson.encode(claim, key, algo)
+    TokensTable.all.insertOrUpdate(TokenRow(tokenId, jtw))
+      .map(_ => jtw)
   }
 
   /**
@@ -48,9 +59,8 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
       _ <- UsersTable.all += UserRow(userUUID, addressId, userAccess.first_name.getOrElse(""),
         userAccess.last_name.getOrElse(""))
 
-      token = newUUID
       tokenId = newUUID
-      _ <- upsertTokenAction(tokenId, token)
+      token <- upsertTokenAction(userUUID, tokenId)
       passwordUUID = newUUID
       _ <- PasswordsTable.all += PasswordRow(passwordUUID, userUUID, userAccess.password, tokenId)
     } yield token
@@ -115,7 +125,7 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
       // Assumes that the previous verification for the password/user/address will give a result here
 
       newToken = newUUID
-      _ <- upsertTokenAction(tokenId, newToken)
+      // _ <- upsertTokenAction(tokenId, newToken)
 
     } yield newToken
 
@@ -128,7 +138,8 @@ class SlickAuthenticationRepository @Inject() (db: Database)(implicit executionC
     db.run(updateTokenAction(address).transactionally)
 
   def getTokenExpirationDate(token: String): Future[Option[Timestamp]] =
-    db.run(TokensTable.all.filter(_.token === token).map(_.endDate).result.headOption)
+    Future.successful(Some(new Timestamp(312)))
+  //db.run(TokensTable.all.filter(_.token === token).map(_.endDate).result.headOption)
 
   def getUser(token: String): Future[String] =
     db.run((for {
