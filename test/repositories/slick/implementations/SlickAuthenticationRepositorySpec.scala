@@ -133,10 +133,16 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
 
         assertion <- db.run(TokensTable.all.filter(_.tokenId === tokenId.value)
           .map(_.token).result.headOption).map {
-          case Some(foundToken) => foundToken mustBe token
+          case Some(foundToken) => Some(foundToken) mustBe token
           case None => fail("Failed to find tokenId")
         }
       } yield assertion
+    }
+
+    "return None for a missing token" in {
+
+      authenticationRep.updateToken(genString.sample.value)
+        .map(_ mustBe None)
 
     }
   }

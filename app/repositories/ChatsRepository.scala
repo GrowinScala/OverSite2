@@ -12,7 +12,7 @@ trait ChatsRepository {
 
   def getChat(chatId: String, userId: String): Future[Option[Chat]]
 
-  def postChat(createChat: CreateChat, userId: String): Future[CreateChat]
+  def postChat(createChat: CreateChat, userId: String): Future[Option[CreateChat]]
 
   def postEmail(upsertEmail: UpsertEmail, chatId: String, userId: String): Future[Option[CreateChat]]
 

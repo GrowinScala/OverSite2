@@ -36,7 +36,10 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       jsonValue.validate[CreateChatDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
         createChatDTO => chatService.postChat(createChatDTO, authenticatedRequest.userId)
-          .map(result => Ok(Json.toJson(result))))
+          .map {
+            case Some(crChatDTO) => Ok(Json.toJson(crChatDTO))
+            case None => InternalServerError
+          })
     }
   }
 

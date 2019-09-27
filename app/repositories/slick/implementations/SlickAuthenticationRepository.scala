@@ -115,36 +115,38 @@ class SlickAuthenticationRepository @Inject() (config: Configuration, db: Databa
    * @param address The address in question
    * @return A DBIOAction that updates the token of a given address
    */
-  def updateTokenAction(address: String): DBIO[String] =
+  def updateTokenAction(address: String): DBIO[Option[String]] =
     for {
-      tokenId <- (for {
+      optTokenId <- (for {
         addressId <- AddressesTable.all.filter(_.address === address).map(_.addressId)
         userId <- UsersTable.all.filter(_.addressId === addressId).map(_.userId)
         tokenId <- PasswordsTable.all.filter(_.userId === userId).map(_.tokenId)
-      } yield tokenId).result.head
-      // Assumes that the previous verification for the password/user/address will give a result here
+      } yield tokenId).result.headOption
 
       newToken = newUUID
-      // _ <- upsertTokenAction(tokenId, newToken)
+      _ <- optTokenId match {
+        case Some(tokenId) => upsertTokenAction(tokenId, newToken)
+        case None => DBIO.successful(())
+      }
 
-    } yield newToken
+    } yield optTokenId.map(_ => newToken)
 
   /**
    * Updates the token of a given address
    * @param address The address in question
    * @return The new token
    */
-  def updateToken(address: String): Future[String] =
+  def updateToken(address: String): Future[Option[String]] =
     db.run(updateTokenAction(address).transactionally)
 
   def getTokenExpirationDate(token: String): Future[Option[Timestamp]] =
     Future.successful(Some(new Timestamp(312)))
   //db.run(TokensTable.all.filter(_.token === token).map(_.endDate).result.headOption)
 
-  def getUser(token: String): Future[String] =
+  def getUser(token: String): Future[Option[String]] =
     db.run((for {
       tokenId <- TokensTable.all.filter(_.token === token).map(_.tokenId)
       userId <- PasswordsTable.all.filter(_.tokenId === tokenId).map(_.userId)
-    } yield userId).result.head)
+    } yield userId).result.headOption)
 
 }

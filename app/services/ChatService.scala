@@ -18,8 +18,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getChat(chatId, userId).map(_.map(ChatDTO.toChatDTO))
   }
 
-  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[CreateChatDTO] = {
-    chatsRep.postChat(CreateChatDTO.toCreateChat(createChatDTO), userId).map(CreateChatDTO.toCreateChatDTO)
+  def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
+    chatsRep.postChat(CreateChatDTO.toCreateChat(createChatDTO), userId).map(_.map(CreateChatDTO.toCreateChatDTO))
   }
 
   def postEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
