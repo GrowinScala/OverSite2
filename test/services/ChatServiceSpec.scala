@@ -1,12 +1,9 @@
 package services
 
-import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
-import repositories.dtos.PatchChat.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.dtos.PostOverseerDTO._
 import model.types.Mailbox.Inbox
 import org.mockito.scalatest.AsyncIdiomaticMockito
-import org.scalacheck.Gen
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
 import repositories.dtos.PatchChat
@@ -32,7 +29,7 @@ class ChatServiceSpec extends AsyncWordSpec
       mockChatsRep.getChatsPreview(*, *)
         .returns(Future.successful(chatsPreview))
 
-      val chatsPreviewDTO = chatService.getChats(Inbox, chatsPreview.head.chatId)
+      val chatsPreviewDTO = chatService.getChats(Inbox, chatsPreview.headOption.value.chatId)
       chatsPreviewDTO.map(_ mustBe testChatsPreviewDTO)
     }
   }
@@ -54,37 +51,29 @@ class ChatServiceSpec extends AsyncWordSpec
 
   "ChatService#postChat" should {
     "return a CreateChatDTO equal to the input plus a new chatId and a new emailID" in {
-      val randomCreateChatDTO = genCreateChatDTOption.sample.value
+      val createChatDTO = genCreateChatDTOption.sample.value
 
-      val newCreateChatDTO = randomCreateChatDTO.copy(
-        chatId = None,
-        email = randomCreateChatDTO.email.copy(emailId = None))
-
-      val expectedRepoResponse = CreateChatDTO.toCreateChat(newCreateChatDTO)
-        .copy(
-          chatId = Some(genUUID.sample.value),
-          email = UpsertEmailDTO.toUpsertEmail(newCreateChatDTO.email).copy(emailId = Some(genUUID.sample.value)))
+      val expectedRepoResponse = CreateChatDTO.toCreateChat(createChatDTO)
 
       val expectedServiceResponse = CreateChatDTO.toCreateChatDTO(expectedRepoResponse)
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.postChat(*, *)
         .returns(
-          Future.successful(expectedRepoResponse))
+          Future.successful(Some(expectedRepoResponse)))
 
-      val serviceResponse = chatService.postChat(newCreateChatDTO, genUUID.sample.value)
+      val serviceResponse = chatService.postChat(createChatDTO, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe expectedServiceResponse)
+      serviceResponse.map(_ mustBe Some(expectedServiceResponse))
     }
+
   }
 
   "ChatService#postEmail" should {
     "return a CreateChatDTO that contains the input emailDTO plus the chatId and a new emailID" in {
-      val upsertEmailDTO = genUpsertEmailDTOption.sample.value.copy(emailId = None)
+      val upsertEmailDTO = genUpsertEmailDTOption.sample.value
 
-      val expectedResponse = CreateChatDTO.toCreateChat(
-        genCreateChatDTOption.sample.value.copy(
-          email = upsertEmailDTO.copy(emailId = Some(genUUID.sample.value))))
+      val expectedResponse = CreateChatDTO.toCreateChat(genCreateChatDTOption.sample.value)
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.postEmail(*, *, *)

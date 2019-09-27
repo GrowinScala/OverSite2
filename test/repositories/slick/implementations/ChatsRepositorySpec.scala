@@ -12,6 +12,8 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.duration.Duration
 import scala.concurrent._
 import model.types.Mailbox._
+import model.types.ParticipantType._
+import repositories.dtos._
 import repositories.slick.mappings._
 import utils.TestGenerators._
 
@@ -74,8 +76,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
   //endregion
 
   def fillDB(addressRows: List[AddressRow] = Nil, chatRows: List[ChatRow] = Nil, userRows: List[UserRow] = Nil,
-    userChatRows: List[UserChatRow] = Nil, emailRows: List[EmailRow] = Nil, emailAddressRows: List[EmailAddressRow] = Nil,
-    oversightRows: List[OversightRow] = Nil): Future[Unit] =
+    userChatRows: List[UserChatRow] = Nil, emailRows: List[EmailRow] = Nil,
+    emailAddressRows: List[EmailAddressRow] = Nil, oversightRows: List[OversightRow] = Nil): Future[Unit] =
     db.run(DBIO.seq(
       AddressesTable.all ++= addressRows,
       ChatsTable.all ++= chatRows,
@@ -125,9 +127,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 1)),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "to"),
+            basicTestDB.emailAddressRow.copy(participantType = To),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value))
+              senderAddressRow.addressId, From).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
@@ -147,9 +149,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 1)),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "cc"),
+            basicTestDB.emailAddressRow.copy(participantType = Cc),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value))
+              senderAddressRow.addressId, From).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
@@ -168,9 +170,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 1)),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "bcc"),
+            basicTestDB.emailAddressRow.copy(participantType = Bcc),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value))
+              senderAddressRow.addressId, From).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
@@ -189,9 +191,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "to"),
+            basicTestDB.emailAddressRow.copy(participantType = To),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value))
+              senderAddressRow.addressId, From).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.userRow.userId)
       } yield chatsPreview mustBe empty
@@ -209,9 +211,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "cc"),
+            basicTestDB.emailAddressRow.copy(participantType = Cc),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value))
+              senderAddressRow.addressId, From).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.userRow.userId)
       } yield chatsPreview mustBe empty
@@ -229,9 +231,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "bcc"),
+            basicTestDB.emailAddressRow.copy(participantType = Bcc),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value))
+              senderAddressRow.addressId, From).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.userRow.userId)
       } yield chatsPreview mustBe empty
@@ -383,7 +385,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(
             basicTestDB.emailAddressRow,
             genEmailAddressRow(oldEmailRow.emailId, basicTestDB.chatRow.chatId,
-              basicTestDB.addressRow.addressId, "from").sample.value))
+              basicTestDB.addressRow.addressId, From).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
@@ -404,7 +406,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(
             basicTestDB.emailAddressRow,
             genEmailAddressRow(otherEmailRow.emailId, basicTestDB.chatRow.chatId,
-              basicTestDB.addressRow.addressId, "from").sample.value))
+              basicTestDB.addressRow.addressId, From).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
@@ -417,7 +419,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       val otherChatRow = genChatRow.sample.value
       val otherEmailRow = genEmailRow(otherChatRow.chatId).sample.value
       val otherEmailAddressesRow = genEmailAddressRow(otherEmailRow.emailId, otherChatRow.chatId,
-        basicTestDB.addressRow.addressId, "from").sample.value
+        basicTestDB.addressRow.addressId, From).sample.value
 
       for {
         _ <- fillDB(
@@ -431,7 +433,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(
             basicTestDB.emailAddressRow,
             genEmailAddressRow(otherEmailRow.emailId, otherChatRow.chatId,
-              basicTestDB.addressRow.addressId, "from").sample.value))
+              basicTestDB.addressRow.addressId, From).sample.value))
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, basicTestDB.userRow.userId)
       } yield chatsPreview mustBe List(
@@ -459,7 +461,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-            overseeAddressRow.addressId, "from").sample.value),
+            overseeAddressRow.addressId, From).sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
@@ -483,7 +485,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(overseeEmailRow),
           List(genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-            overseeAddressRow.addressId, "from").sample.value),
+            overseeAddressRow.addressId, From).sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
@@ -507,9 +509,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              overseeAddressRow.addressId, "to").sample.value,
+              overseeAddressRow.addressId, To).sample.value,
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value),
+              senderAddressRow.addressId, From).sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
@@ -535,9 +537,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              overseeAddressRow.addressId, "cc").sample.value,
+              overseeAddressRow.addressId, Cc).sample.value,
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value),
+              senderAddressRow.addressId, From).sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
@@ -562,9 +564,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              overseeAddressRow.addressId, "bcc").sample.value,
+              overseeAddressRow.addressId, Bcc).sample.value,
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value),
+              senderAddressRow.addressId, From).sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
@@ -590,9 +592,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              overseeAddressRow.addressId, "to").sample.value,
+              overseeAddressRow.addressId, To).sample.value,
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value),
+              senderAddressRow.addressId, From).sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
@@ -616,9 +618,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              overseeAddressRow.addressId, "cc").sample.value,
+              overseeAddressRow.addressId, Cc).sample.value,
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value),
+              senderAddressRow.addressId, From).sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
@@ -642,9 +644,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(overseeEmailRow),
           List(
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              overseeAddressRow.addressId, "bcc").sample.value,
+              overseeAddressRow.addressId, Bcc).sample.value,
             genEmailAddressRow(overseeEmailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value),
+              senderAddressRow.addressId, From).sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
@@ -719,13 +721,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 1), notSentEmail),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "to"),
+            basicTestDB.emailAddressRow.copy(participantType = To),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              senderAddressRow.addressId, From).sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
             genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.addressRow.addressId,
-              "to").sample.value))
+              To).sample.value))
 
         optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
       } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
@@ -749,13 +751,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 1), notSentEmail),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "cc"),
+            basicTestDB.emailAddressRow.copy(participantType = Cc),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              senderAddressRow.addressId, From).sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
             genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.addressRow.addressId,
-              "cc").sample.value))
+              Cc).sample.value))
 
         optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
       } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
@@ -778,13 +780,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(basicTestDB.emailRow.copy(sent = 1), notSentEmail),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "bcc"),
+            basicTestDB.emailAddressRow.copy(participantType = Bcc),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              senderAddressRow.addressId, From).sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
             genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.addressRow.addressId,
-              "bcc").sample.value))
+              Bcc).sample.value))
 
         optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
       } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
@@ -808,7 +810,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(
             basicTestDB.emailAddressRow,
             genEmailAddressRow(oldEmailRow.emailId, basicTestDB.chatRow.chatId,
-              basicTestDB.addressRow.addressId, "from").sample.value))
+              basicTestDB.addressRow.addressId, From).sample.value))
 
         optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
       } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
@@ -835,9 +837,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(sentEmail, notSentEmail),
           List(
-            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "from")
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, From)
               .sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "from")
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, From)
               .sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
@@ -867,13 +869,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(sentEmail, notSentEmail),
           List(
-            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
-            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "to")
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, To)
               .sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "to")
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, To)
               .sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
@@ -903,13 +905,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(sentEmail, notSentEmail),
           List(
-            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
-            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "cc")
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, Cc)
               .sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "cc")
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, Cc)
               .sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
@@ -939,13 +941,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow),
           List(sentEmail, notSentEmail),
           List(
-            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
-            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "bcc")
+            genEmailAddressRow(sentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, Bcc)
               .sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, "bcc")
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, overseeAddressRow.addressId, Bcc)
               .sample.value),
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
@@ -1017,11 +1019,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             List(
               basicTestDB.emailAddressRow,
               genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-                toAddressRow.addressId, "to").sample.value,
+                toAddressRow.addressId, To).sample.value,
               genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-                ccAddressRow.addressId, "cc").sample.value,
+                ccAddressRow.addressId, Cc).sample.value,
               genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-                bccAddressRow.addressId, "bcc").sample.value),
+                bccAddressRow.addressId, Bcc).sample.value),
             List(
               genOversightRow(basicTestDB.chatRow.chatId, fromOverseerUserRow.userId, basicTestDB.userRow.userId)
                 .sample.value,
@@ -1076,9 +1078,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             List(
               basicTestDB.emailAddressRow,
               genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-                bccOneAddressRow.addressId, "bcc").sample.value,
+                bccOneAddressRow.addressId, Bcc).sample.value,
               genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-                bccTwoAddressRow.addressId, "bcc").sample.value),
+                bccTwoAddressRow.addressId, Bcc).sample.value),
             List(
               genOversightRow(basicTestDB.chatRow.chatId, fromOverseerUserRow.userId, basicTestDB.userRow.userId)
                 .sample.value,
@@ -1128,6 +1130,17 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   "SlickChatsRepository#postChat" should {
 
+    "not post the chat if the userId does not have a corresponding address" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          userRows = List(basicTestDB.userRow))
+        postResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+      } yield postResponse mustBe None
+
+    }
+
     "create a chat with an email draft for a user and then get the same chat for the same user: results must match" in {
       val basicTestDB = genBasicTestDB.sample.value
 
@@ -1136,8 +1149,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postResponse.chatId.get, basicTestDB.userRow.userId)
-      } yield getResponse mustBe Some(CreateChat.fromCreateChatToChat(postResponse))
+        getResponse <- chatsRep.getChat(postResponse.value.chatId.get, basicTestDB.userRow.userId)
+      } yield getResponse mustBe Some(CreateChat.fromCreateChatToChat(postResponse.value))
 
     }
 
@@ -1155,7 +1168,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           postResponse <- chatsRep.postChat(
             origCreateChatDTO.copy(email = origCreateChatDTO.email.copy(to = Some(Set(receiverAddressRow.address)))),
             basicTestDB.userRow.userId)
-          getResponse <- chatsRep.getChat(postResponse.chatId.get, receiverUserRow.userId)
+          getResponse <- chatsRep.getChat(postResponse.value.chatId.value, receiverUserRow.userId)
         } yield getResponse mustBe None
 
       }
@@ -1173,7 +1186,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         postResponse <- chatsRep.postChat(
           origCreateChat.copy(email = origCreateChat.email.copy(cc = Some(Set(receiverAddressRow.address)))),
           basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postResponse.chatId.get, receiverUserRow.userId)
+        getResponse <- chatsRep.getChat(postResponse.value.chatId.value, receiverUserRow.userId)
       } yield getResponse mustBe None
 
     }
@@ -1191,7 +1204,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         postResponse <- chatsRep.postChat(
           origCreateChatDTO.copy(email = origCreateChatDTO.email.copy(bcc = Some(Set(receiverAddressRow.address)))),
           basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postResponse.chatId.get, receiverUserRow.userId)
+        getResponse <- chatsRep.getChat(postResponse.value.chatId.value, receiverUserRow.userId)
       } yield getResponse mustBe None
 
     }
@@ -1218,8 +1231,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postResponse <- chatsRep.postChat(chatWithEmptyDraft, basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postResponse.chatId.get, basicTestDB.userRow.userId)
-      } yield getResponse mustBe Some(CreateChat.fromCreateChatToChat(postResponse))
+        getResponse <- chatsRep.getChat(postResponse.value.chatId.get, basicTestDB.userRow.userId)
+      } yield getResponse mustBe Some(CreateChat.fromCreateChatToChat(postResponse.value))
 
     }
 
@@ -1235,14 +1248,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postChatResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
-        postEmailResponse <- chatsRep.postEmail(genUpsertEmailOption.sample.value, postChatResponse.chatId.value,
+        postEmailResponse <- chatsRep.postEmail(genUpsertEmailOption.sample.value, postChatResponse.value.chatId.value,
           basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postChatResponse.chatId.value, basicTestDB.userRow.userId)
+        getResponse <- chatsRep.getChat(postChatResponse.value.chatId.value, basicTestDB.userRow.userId)
         nrDrafts <- db.run(UserChatsTable.all.filter(_.userId === basicTestDB.userRow.userId).map(_.draft)
           .result.headOption)
 
       } yield assert(getResponse.value === {
-        val originalChat = CreateChat.fromCreateChatToChat(postChatResponse)
+        val originalChat = CreateChat.fromCreateChatToChat(postChatResponse.value)
         originalChat.copy(
           emails = (UpsertEmail.fromUpsertEmailToEmail(postEmailResponse.value.email) +: originalChat.emails)
             .sortBy(email => (email.date, email.emailId)),
@@ -1263,13 +1276,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           addressRows = List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postChat <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
-        getPostedEmail = CreateChat.fromCreateChatToChat(postChat).emails.headOption.value
+        getPostedEmail = CreateChat.fromCreateChatToChat(postChat.value).emails.headOption.value
 
         patchBody = genString.sample.value
 
         patchEmail <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, Some(patchBody), None, None),
-          postChat.chatId.value, postChat.email.emailId.value, basicTestDB.userRow.userId)
+          postChat.value.chatId.value, postChat.value.email.emailId.value, basicTestDB.userRow.userId)
       } yield patchEmail.value mustBe getPostedEmail.copy(body = patchBody, date = patchEmail.value.date)
     }
 
@@ -1288,19 +1301,19 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             addressRows = List(basicTestDB.addressRow, toAddressRow, ccAddressRow, bccAddressRow),
             userRows = List(basicTestDB.userRow, toUserRow, ccUserRow, bccUserRow))
           postChat <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
-          getPostedChat = CreateChat.fromCreateChatToChat(postChat)
-          getPostedEmail = CreateChat.fromCreateChatToChat(postChat).emails.headOption.value
+          getPostedChat = CreateChat.fromCreateChatToChat(postChat.value)
+          getPostedEmail = CreateChat.fromCreateChatToChat(postChat.value).emails.headOption.value
 
           patchEmail <- chatsRep.patchEmail(
             UpsertEmail(None, None, Some(Set(toAddressRow.address)),
               Some(Set(bccAddressRow.address)), Some(Set(ccAddressRow.address)), None, None, Some(true)),
-            postChat.chatId.value, postChat.email.emailId.value,
+            postChat.value.chatId.value, postChat.value.email.emailId.value,
             basicTestDB.userRow.userId)
 
-          fromUserGetChat <- chatsRep.getChat(postChat.chatId.value, basicTestDB.userRow.userId)
-          toUserGetChat <- chatsRep.getChat(postChat.chatId.value, toUserRow.userId)
-          ccUserGetChat <- chatsRep.getChat(postChat.chatId.value, ccUserRow.userId)
-          bccUserGetChat <- chatsRep.getChat(postChat.chatId.value, bccUserRow.userId)
+          fromUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, basicTestDB.userRow.userId)
+          toUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, toUserRow.userId)
+          ccUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, ccUserRow.userId)
+          bccUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, bccUserRow.userId)
 
           senderChatsPreviewSent <- chatsRep.getChatsPreview(Sent, basicTestDB.userRow.userId)
           senderChatsPreviewDrafts <- chatsRep.getChatsPreview(Drafts, basicTestDB.userRow.userId)
@@ -1356,9 +1369,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
         patchEmail <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, None, None, Some(true)),
-          postChat.chatId.value, postChat.email.emailId.value, basicTestDB.userRow.userId)
+          postChat.value.chatId.value, postChat.value.email.emailId.value, basicTestDB.userRow.userId)
       } yield assert(
-        patchEmail.value === CreateChat.fromCreateChatToChat(postChat).emails.headOption.value &&
+        patchEmail.value === CreateChat.fromCreateChatToChat(postChat.value).emails.headOption.value &&
           patchEmail.value.sent === 0)
     }
 
@@ -1374,11 +1387,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           userRows = List(basicTestDB.userRow, otherUserRow))
         postChat <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email.copy(to =
           Some(Set(otherAddressRow.address)))), basicTestDB.userRow.userId)
-        getPostedEmail = CreateChat.fromCreateChatToChat(postChat).emails.headOption.value
+        getPostedEmail = CreateChat.fromCreateChatToChat(postChat.value).emails.headOption.value
 
         patchEmail <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, Some(genString.sample.value), None, None),
-          postChat.chatId.value, postChat.email.emailId.value, otherUserRow.userId)
+          postChat.value.chatId.value, postChat.value.email.emailId.value, otherUserRow.userId)
       } yield patchEmail mustBe None
 
     }
@@ -1393,15 +1406,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           userRows = List(basicTestDB.userRow))
         postChat <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
           .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
-        getPostedEmail = CreateChat.fromCreateChatToChat(postChat).emails.headOption.value
+        getPostedEmail = CreateChat.fromCreateChatToChat(postChat.value).emails.headOption.value
 
         patchEmail <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, None, None, Some(true)),
-          postChat.chatId.value, postChat.email.emailId.value, basicTestDB.userRow.userId)
+          postChat.value.chatId.value, postChat.value.email.emailId.value, basicTestDB.userRow.userId)
 
         retryPatchEmailAfterSent <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, Some(genString.sample.value), None, None),
-          postChat.chatId.value, postChat.email.emailId.value, basicTestDB.userRow.userId)
+          postChat.value.chatId.value, postChat.value.email.emailId.value, basicTestDB.userRow.userId)
 
       } yield retryPatchEmailAfterSent mustBe None
     }
@@ -1414,11 +1427,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           addressRows = List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postChat <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
-        createdChatId = postChat.chatId.value
+        createdChatId = postChat.value.chatId.value
 
         patchEmail <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, Some(genString.sample.value), None, None),
-          postChat.chatId.value, genUUID.sample.value, basicTestDB.userRow.userId)
+          postChat.value.chatId.value, genUUID.sample.value, basicTestDB.userRow.userId)
       } yield patchEmail mustBe None
 
     }
@@ -1460,14 +1473,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           userRows = List(basicTestDB.userRow))
         createdChatDTO <- chatsRep.postChat(origCreateChatDTO.copy(email = origCreateChatDTO.email
           .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
-        _ <- chatsRep.postEmail(genUpsertEmailOption.sample.value, createdChatDTO.chatId.value,
+        _ <- chatsRep.postEmail(genUpsertEmailOption.sample.value, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
         _ <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, None, None, Some(true)),
-          createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, basicTestDB.userRow.userId)
-        _ <- chatsRep.patchChat(MoveToTrash, createdChatDTO.chatId.value, basicTestDB.userRow.userId)
-        result <- chatsRep.patchChat(Restore, createdChatDTO.chatId.value, basicTestDB.userRow.userId)
-        optUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === createdChatDTO.chatId.value
+          createdChatDTO.value.chatId.value, createdChatDTO.value.email.emailId.value, basicTestDB.userRow.userId)
+        _ <- chatsRep.patchChat(MoveToTrash, createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
+        result <- chatsRep.patchChat(Restore, createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
+        optUserChat <- db.run(UserChatsTable.all.filter(uc => uc.chatId === createdChatDTO.value.chatId.value
           && uc.userId === basicTestDB.userRow.userId)
           .result.headOption)
         userChat = optUserChat.value
@@ -1538,8 +1551,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           .copy(to = Some(Set(basicTestDB.addressRow.address)))), basicTestDB.userRow.userId)
 
         newSubject = genString.sample.value
-        result <- chatsRep.patchChat(ChangeSubject(newSubject), createdChatDTO.chatId.value, basicTestDB.userRow.userId)
-        getPatchedChat <- chatsRep.getChat(createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+        result <- chatsRep.patchChat(ChangeSubject(newSubject), createdChatDTO.value.chatId.value,
+          basicTestDB.userRow.userId)
+        getPatchedChat <- chatsRep.getChat(createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
 
       } yield assert(
         result === Some(ChangeSubject(newSubject)) &&
@@ -1560,11 +1574,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         sendEmail <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, None, None, Some(true)),
-          createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, basicTestDB.userRow.userId)
+          createdChatDTO.value.chatId.value, createdChatDTO.value.email.emailId.value, basicTestDB.userRow.userId)
 
-        oldSubject = createdChatDTO.subject.getOrElse("")
-        result <- chatsRep.patchChat(ChangeSubject(genString.sample.value), createdChatDTO.chatId.value, basicTestDB.userRow.userId)
-        getChat <- chatsRep.getChat(createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+        oldSubject = createdChatDTO.value.subject.getOrElse("")
+        result <- chatsRep.patchChat(ChangeSubject(genString.sample.value), createdChatDTO.value.chatId.value,
+          basicTestDB.userRow.userId)
+        getChat <- chatsRep.getChat(createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
 
       } yield assert(result === None &&
         getChat.value.subject === oldSubject)
@@ -1705,7 +1720,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(
             basicTestDB.emailAddressRow,
             genEmailAddressRow(otherEmailRow.emailId, basicTestDB.chatRow.chatId,
-              basicTestDB.addressRow.addressId, "from").sample.value))
+              basicTestDB.addressRow.addressId, From).sample.value))
 
         optChat <- chatsRep.getEmail(basicTestDB.chatRow.chatId, basicTestDB.emailRow.emailId,
           basicTestDB.userRow.userId)
@@ -1731,13 +1746,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             .sample.value.copy(draft = 1)),
           List(basicTestDB.emailRow.copy(sent = 1), notSentEmail),
           List(
-            basicTestDB.emailAddressRow.copy(participantType = "to"),
+            basicTestDB.emailAddressRow.copy(participantType = To),
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
-              senderAddressRow.addressId, "from").sample.value,
-            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, "from")
+              senderAddressRow.addressId, From).sample.value,
+            genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, senderAddressRow.addressId, From)
               .sample.value,
             genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.addressRow.addressId,
-              "to").sample.value))
+              To).sample.value))
 
         optChat <- chatsRep.getEmail(basicTestDB.chatRow.chatId, notSentEmail.emailId, basicTestDB.userRow.userId)
       } yield optChat mustBe None
@@ -1754,7 +1769,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         createdChat <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
-        optChat <- chatsRep.getEmail(createdChat.chatId.value, createdChat.email.emailId.value,
+        optChat <- chatsRep.getEmail(createdChat.value.chatId.value, createdChat.value.email.emailId.value,
           genUUID.sample.value)
       } yield optChat mustBe None
     }
@@ -1770,7 +1785,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         firstChat <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
         secondChat <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
-        optChat <- chatsRep.getEmail(firstChat.chatId.value, secondChat.email.emailId.value,
+        optChat <- chatsRep.getEmail(firstChat.value.chatId.value, secondChat.value.email.emailId.value,
           basicTestDB.userRow.userId)
       } yield optChat mustBe None
     }
@@ -1817,29 +1832,30 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           .copy(to = Some(Set(genEmailAddress.sample.value)))), basicTestDB.userRow.userId)
         _ <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, None, None, Some(true)),
-          createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, basicTestDB.userRow.userId)
-        _ <- chatsRep.postEmail(genUpsertEmailOption.sample.value, createdChatDTO.chatId.value,
+          createdChatDTO.value.chatId.value, createdChatDTO.value.email.emailId.value, basicTestDB.userRow.userId)
+        _ <- chatsRep.postEmail(genUpsertEmailOption.sample.value, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
-        _ <- chatsRep.postEmail(genUpsertEmailOption.sample.value, createdChatDTO.chatId.value,
+        _ <- chatsRep.postEmail(genUpsertEmailOption.sample.value, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
         numberOfDraftsBefore <- db.run(UserChatsTable.all
           .filter(userChatRow => userChatRow.userId === basicTestDB.userRow.userId &&
-            userChatRow.chatId === createdChatDTO.chatId.value).map(_.draft)
+            userChatRow.chatId === createdChatDTO.value.chatId.value).map(_.draft)
           .result.headOption)
 
-        deleteDraft <- chatsRep.deleteDraft(createdChatDTO.chatId.value, createdChatDTO.email.emailId.value,
+        deleteDraft <- chatsRep.deleteDraft(createdChatDTO.value.chatId.value, createdChatDTO.value.email.emailId.value,
           basicTestDB.userRow.userId)
-        getEmail <- chatsRep.getEmail(createdChatDTO.chatId.value, createdChatDTO.email.emailId.value,
+        getEmail <- chatsRep.getEmail(createdChatDTO.value.chatId.value, createdChatDTO.value.email.emailId.value,
           basicTestDB.userRow.userId)
 
-        emailRow <- db.run(EmailsTable.all.filter(_.emailId === createdChatDTO.email.emailId.value)
+        emailRow <- db.run(EmailsTable.all.filter(_.emailId === createdChatDTO.value.email.emailId.value)
           .result.headOption)
-        emailAddressesRows <- db.run(EmailAddressesTable.all.filter(_.emailId === createdChatDTO.email.emailId.value)
+        emailAddressesRows <- db.run(EmailAddressesTable.all.
+          filter(_.emailId === createdChatDTO.value.email.emailId.value)
           .result.headOption)
         numberOfDraftsAfter <- db.run(UserChatsTable.all
           .filter(userChatRow => userChatRow.userId === basicTestDB.userRow.userId
-            && userChatRow.chatId === createdChatDTO.chatId.value).map(_.draft)
+            && userChatRow.chatId === createdChatDTO.value.chatId.value).map(_.draft)
           .result.headOption)
 
       } yield assert(!deleteDraft && getEmail.nonEmpty &&
@@ -1931,14 +1947,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         createdDraft <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
-        deleteDraft <- chatsRep.deleteDraft(createdDraft.chatId.value, createdDraft.email.emailId.value,
+        deleteDraft <- chatsRep.deleteDraft(createdDraft.value.chatId.value, createdDraft.value.email.emailId.value,
           basicTestDB.userRow.userId)
 
-        tryGetEmailBefore <- chatsRep.getEmail(createdDraft.chatId.value, createdDraft.email.emailId.value,
+        tryGetEmailBefore <- chatsRep.getEmail(createdDraft.value.chatId.value, createdDraft.value.email.emailId.value,
           basicTestDB.userRow.userId)
-        tryPatch <- chatsRep.patchEmail(genUpsertEmailOption.sample.value, createdDraft.chatId.value,
-          createdDraft.email.emailId.value, basicTestDB.userRow.userId)
-        tryGetEmailAfter <- chatsRep.getEmail(createdDraft.chatId.value, createdDraft.email.emailId.value,
+        tryPatch <- chatsRep.patchEmail(genUpsertEmailOption.sample.value, createdDraft.value.chatId.value,
+          createdDraft.value.email.emailId.value, basicTestDB.userRow.userId)
+        tryGetEmailAfter <- chatsRep.getEmail(createdDraft.value.chatId.value, createdDraft.value.email.emailId.value,
           basicTestDB.userRow.userId)
       } yield assert(tryPatch.isEmpty && tryGetEmailBefore === tryGetEmailAfter && tryGetEmailAfter === None)
     }
@@ -2003,7 +2019,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
-        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
       } yield optSetOverseer.value mustBe setPostOverseer.map(_.copy(oversightId = None))
@@ -2055,9 +2071,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         _ <- chatsRep.patchEmail(
           UpsertEmail(None, None, None, None, None, None, None, Some(true)),
-          createdChatDTO.chatId.value, createdChatDTO.email.emailId.value, overseerUserRow.userId)
+          createdChatDTO.value.chatId.value, createdChatDTO.value.email.emailId.value, overseerUserRow.userId)
 
-        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
         optOversightId <- db.run(OversightsTable.all.filter(_.overseerId === overseerUserRow.userId)
@@ -2087,7 +2103,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
-        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
         optOversightId <- db.run(OversightsTable.all.filter(_.overseerId === overseerUserRow.userId)
@@ -2121,7 +2137,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
-        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+        optSetOverseer <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
         overseersIds <- db.run(OversightsTable.all.filter(_.overseeId === basicTestDB.userRow.userId)
@@ -2191,10 +2207,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
 
-        postedOverseers <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.chatId.value,
+        postedOverseers <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
-        getOverseers <- chatsRep.getOverseers(createdChatDTO.chatId.value, basicTestDB.userRow.userId)
+        getOverseers <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
 
       } yield getOverseers mustBe postedOverseers
 
@@ -2249,10 +2265,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         postedOverseers <- chatsRep.postOverseers(
           Set(PostOverseer(overseerAddressRow.address, None)),
-          createdChatDTO.chatId.value,
+          createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
-        result <- chatsRep.deleteOverseer(createdChatDTO.chatId.value, genUUID.sample.value,
+        result <- chatsRep.deleteOverseer(createdChatDTO.value.chatId.value, genUUID.sample.value,
           basicTestDB.userRow.userId)
 
       } yield assert(!result)
@@ -2299,7 +2315,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         postedOverseers <- chatsRep.postOverseers(
           Set(PostOverseer(overseerAddressRow.address, None)),
-          createdChatDTO.chatId.value,
+          createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
         oversightId = postedOverseers.value.headOption.value.oversightId.value
@@ -2308,7 +2324,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           .map(_.oversightId).result.headOption)
 
         result <- chatsRep.deleteOverseer(
-          createdChatDTO.chatId.value,
+          createdChatDTO.value.chatId.value,
           oversightId,
           basicTestDB.userRow.userId)
 

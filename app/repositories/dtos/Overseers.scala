@@ -1,3 +1,4 @@
 package repositories.dtos
 
-case class Overseers(user: String, overseers: Set[String])
+case class Overseers(overseeAddress: String, overseersAddresses: Set[String])
+

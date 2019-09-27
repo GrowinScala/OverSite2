@@ -36,7 +36,8 @@ class AuthenticationController @Inject() (implicit
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
         userAccessDTO =>
           authenticationService.signInUser(userAccessDTO).map {
-            case Left(error) => BadRequest(error)
+            case Left(error) => if (error == internalError) InternalServerError
+            else BadRequest(error)
             case Right(jsToken) => Ok(jsToken)
           })
     }
@@ -63,7 +64,8 @@ class ImplAuthenticatedUserAction @Inject() (implicit
     request.headers.get("Authorization") match {
       case None => Future.successful(BadRequest(tokenNotFound))
       case Some(token) => authenticationService.validateToken(token).flatMap {
-        case Left(message) => Future.successful(BadRequest(message))
+        case Left(error) => Future.successful(if (error == internalError) InternalServerError
+        else BadRequest(error))
         case Right(userId) => block(AuthenticatedUser(userId, request))
       }
     }
