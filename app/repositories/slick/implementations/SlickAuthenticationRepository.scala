@@ -10,12 +10,13 @@ import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
 import utils.Generators._
 import java.time.Clock
-
+import utils.Jsons._
 import pdi.jwt.{ JwtAlgorithm, JwtJson }
 import play.api.Configuration
 import play.api.libs.json.{ JsObject, Json }
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 class SlickAuthenticationRepository @Inject() (config: Configuration, db: Database)(implicit executionContext: ExecutionContext)
   extends AuthenticationRepository {
@@ -31,9 +32,7 @@ class SlickAuthenticationRepository @Inject() (config: Configuration, db: Databa
    * @return A DBIOAction that inserts a new token or updates it in case it already exists
    */
   def upsertTokenAction(userId: String, tokenId: String): DBIO[String] = {
-    val startDate = LocalDateTime.now
-    val endDate = startDate.plusDays(1)
-    val claim = Json.obj(("userId", userId), ("startDate", startDate), ("endDate", endDate))
+    val claim = Json.obj(("userId", userId), ("expirationDate", LocalDateTime.now.plusDays(1)))
     val jtw = JwtJson.encode(claim, key, algo)
     TokensTable.all.insertOrUpdate(TokenRow(tokenId, jtw))
       .map(_ => jtw)
@@ -117,19 +116,18 @@ class SlickAuthenticationRepository @Inject() (config: Configuration, db: Databa
    */
   def updateTokenAction(address: String): DBIO[Option[String]] =
     for {
-      optTokenId <- (for {
+      optUserTokenId <- (for {
         addressId <- AddressesTable.all.filter(_.address === address).map(_.addressId)
         userId <- UsersTable.all.filter(_.addressId === addressId).map(_.userId)
         tokenId <- PasswordsTable.all.filter(_.userId === userId).map(_.tokenId)
-      } yield tokenId).result.headOption
+      } yield (userId, tokenId)).result.headOption
 
-      newToken = newUUID
-      _ <- optTokenId match {
-        case Some(tokenId) => upsertTokenAction(tokenId, newToken)
-        case None => DBIO.successful(())
+      optToken <- optUserTokenId match {
+        case Some((userId, tokenId)) => upsertTokenAction(userId, tokenId).map(Some(_))
+        case None => DBIO.successful(None)
       }
 
-    } yield optTokenId.map(_ => newToken)
+    } yield optToken
 
   /**
    * Updates the token of a given address
@@ -139,14 +137,17 @@ class SlickAuthenticationRepository @Inject() (config: Configuration, db: Databa
   def updateToken(address: String): Future[Option[String]] =
     db.run(updateTokenAction(address).transactionally)
 
-  def getTokenExpirationDate(token: String): Future[Option[Timestamp]] =
-    Future.successful(Some(new Timestamp(312)))
-  //db.run(TokensTable.all.filter(_.token === token).map(_.endDate).result.headOption)
-
-  def getUser(token: String): Future[Option[String]] =
-    db.run((for {
-      tokenId <- TokensTable.all.filter(_.token === token).map(_.tokenId)
-      userId <- PasswordsTable.all.filter(_.tokenId === tokenId).map(_.userId)
-    } yield userId).result.headOption)
+  def getUser(token: String): Future[Either[Error, String]] =
+    db.run(TokensTable.all.filter(_.token === token).exists.result).map(
+      if (_) {
+        JwtJson.decodeJson(token, key, Seq(algo)) match {
+          case Success(json) => json.validate[Jwt].fold(
+            errors => Left(internalError),
+            jwt => if (jwt.expirationDate.isAfter(LocalDateTime.now))
+              Right(jwt.userId)
+            else Left(tokenNotValid))
+          case Failure(e) => Left(internalError)
+        }
+      } else Left(tokenNotValid))
 
 }

@@ -1,18 +1,24 @@
 package repositories.slick.implementations
 
+import java.time.LocalDateTime
+
 import org.scalatest._
+import pdi.jwt.{ JwtAlgorithm, JwtJson }
 import play.api.Configuration
 import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
-import repositories.dtos.UserAccess
+import repositories.dtos.{ Jwt, UserAccess }
 import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
 import utils.DataValidators
 import utils.Generators._
+import utils.Jsons.{ internalError, tokenNotValid }
 import utils.TestGenerators._
+import play.api.libs.json._
 
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext }
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 class SlickAuthenticationRepositorySpec extends AsyncWordSpec
   with OptionValues with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach {
@@ -82,21 +88,36 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
   "SlickAuthenticationRepository#signUpUser" should {
 
     "signUp user" in {
-      val userAccess: UserAccess = genUserAccess.sample.value.copy(token = None)
-      Await.result(authenticationRep.signUpUser(userAccess), Duration.Inf)
+      val userAccess: UserAccess = genUserAccess.sample.value
+      val key: String = config.get[String]("secretKey")
+      val algo = JwtAlgorithm.HS256
 
-      val testQuery = db.run((for {
-        addressRow <- AddressesTable.all.filter(_.address === userAccess.address)
-        userRow <- UsersTable.all.filter(_.addressId === addressRow.addressId)
-        passwordRow <- PasswordsTable.all.filter(_.userId === userRow.userId)
-        tokenRow <- TokensTable.all.filter(_.tokenId === passwordRow.tokenId)
-      } yield (addressRow.address, passwordRow.password, userRow.firstName, userRow.lastName, tokenRow.token))
-        .result.headOption)
+      for {
+        createdtoken <- authenticationRep.signUpUser(userAccess)
 
-      testQuery.map {
-        case Some(tuple) => assert(tuple._1 === userAccess.address &&
-          tuple._2 === userAccess.password && tuple._3 === userAccess.first_name.value &&
-          tuple._4 === userAccess.last_name.value && DataValidators.isValidUUID(tuple._5))
+        testQuery <- db.run((for {
+          addressRow <- AddressesTable.all.filter(_.address === userAccess.address)
+          userRow <- UsersTable.all.filter(_.addressId === addressRow.addressId)
+          passwordRow <- PasswordsTable.all.filter(_.userId === userRow.userId)
+          tokenRow <- TokensTable.all.filter(_.tokenId === passwordRow.tokenId)
+        } yield (addressRow.address, userRow.userId, passwordRow.password, userRow.firstName, userRow.lastName,
+          tokenRow.token))
+          .result.headOption)
+
+      } yield testQuery match {
+        case Some((address, userId, password, firstName, lastName, token)) =>
+          assert(address === userAccess.address &&
+            password === userAccess.password &&
+            firstName === userAccess.first_name.value &&
+            lastName === userAccess.last_name.value &&
+            {
+              JwtJson.decodeJson(token, key, Seq(algo)) match {
+                case Success(json) => json.validate[Jwt].fold(
+                  errors => fail("Failed to validate the JWT to the case class"),
+                  jwt => jwt.userId === userId)
+                case Failure(e) => fail("Failed to decode the token")
+              }
+            })
 
         case None => fail("Test Query failed to find user info")
       }
@@ -106,25 +127,36 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
   "SlickAuthenticationRepository#getPassword" should {
 
     "get existing password " in {
-      val userAccess: UserAccess = genUserAccess.sample.value.copy(token = None)
-      Await.result(authenticationRep.signUpUser(userAccess), Duration.Inf)
-
-      authenticationRep.getPassword(userAccess.address).map(_ mustBe Some(userAccess.password))
+      val userAccess: UserAccess = genUserAccess.sample.value
+      for {
+        _ <- authenticationRep.signUpUser(userAccess)
+        optPassword <- authenticationRep.getPassword(userAccess.address)
+      } yield optPassword mustBe Some(userAccess.password)
     }
 
     "not find missing password" in {
-
-      authenticationRep.getPassword(genEmailAddress.sample.value).map(_ mustBe None)
+      authenticationRep.getPassword(genEmailAddress.sample.value)
+        .map(_ mustBe None)
     }
   }
 
   "SlickAuthenticationRepository#updateToken" should {
 
     "update Token" in {
-      val userAccess: UserAccess = genUserAccess.sample.value.copy(token = None)
+      val userAccess: UserAccess = genUserAccess.sample.value
+      val key: String = config.get[String]("secretKey")
+      val algo = JwtAlgorithm.HS256
 
       for {
-        _ <- authenticationRep.signUpUser(userAccess)
+        userId <- authenticationRep.signUpUser(userAccess).map(token =>
+          {
+            JwtJson.decodeJson(token, key, Seq(algo)) match {
+              case Success(json) => json.validate[Jwt].fold(
+                errors => fail("Failed to validate the JWT to the case class (1st)"),
+                jwt => jwt.userId)
+              case Failure(e) => fail("Failed to decode the token (1st)")
+            }
+          })
 
         tokenId <- db.run(PasswordsTable.all.filter(_.password === userAccess.password)
           .map(_.tokenId).result.headOption)
@@ -133,7 +165,16 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
 
         assertion <- db.run(TokensTable.all.filter(_.tokenId === tokenId.value)
           .map(_.token).result.headOption).map {
-          case Some(foundToken) => Some(foundToken) mustBe token
+          case Some(foundToken) => assert(
+            Some(foundToken) === token &&
+              {
+                JwtJson.decodeJson(foundToken, key, Seq(algo)) match {
+                  case Success(json) => json.validate[Jwt].fold(
+                    errors => fail("Failed to validate the JWT to the case class (2nd)"),
+                    jwt => jwt.userId === userId)
+                  case Failure(e) => fail("Failed to decode the token (2nd)")
+                }
+              })
           case None => fail("Failed to find tokenId")
         }
       } yield assertion
@@ -143,25 +184,6 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
 
       authenticationRep.updateToken(genString.sample.value)
         .map(_ mustBe None)
-
-    }
-  }
-
-  "SlickAuthenticationRepository#getTokenExpirationDate" should {
-
-    "get Token Expiration Date if it exists" in {
-      val currentDate = currentTimestamp
-      val token = genUUID.sample.value
-
-      for {
-        _ <- db.run(TokensTable.all += TokenRow(genUUID.sample.value, token))
-
-        assertion <- authenticationRep.getTokenExpirationDate(token).map(_ mustBe Some(currentDate))
-      } yield assertion
-    }
-
-    "detect missing Token Expiration Date" in {
-      authenticationRep.getTokenExpirationDate(genUUID.sample.value).map(_ mustBe None)
 
     }
   }

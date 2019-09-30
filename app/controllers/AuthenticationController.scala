@@ -49,7 +49,8 @@ case class AuthenticatedUser[A](userId: String, request: Request[A]) extends Wra
       super.newWrapper(newRequest))
 }
 
-class ImplAuthenticatedUserAction @Inject() (implicit
+class ImplAuthenticatedUserAction @Inject() (
+  implicit
   val executionContext: ExecutionContext,
   defaultParser: BodyParsers.Default,
   authenticationService: AuthenticationService)
@@ -63,8 +64,9 @@ class ImplAuthenticatedUserAction @Inject() (implicit
     request.headers.get("Authorization") match {
       case None => Future.successful(BadRequest(tokenNotFound))
       case Some(token) => authenticationService.validateToken(token).flatMap {
-        case Left(error) => Future.successful(if (error == internalError) InternalServerError
-        else BadRequest(error))
+        case Left(error) => Future.successful(
+          if (error == internalError) InternalServerError
+          else BadRequest(error))
         case Right(userId) => block(AuthenticatedUser(userId, request))
       }
     }
