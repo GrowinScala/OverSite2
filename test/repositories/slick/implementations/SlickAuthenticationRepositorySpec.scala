@@ -1,6 +1,6 @@
 package repositories.slick.implementations
 
-import java.time.LocalDateTime
+import java.time.{ Clock, LocalDateTime }
 
 import org.scalatest._
 import pdi.jwt.{ JwtAlgorithm, JwtJson }
@@ -190,22 +190,67 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
 
   "SlickAuthenticationRepository#getUser" should {
 
-    "get User" in {
+    "notice non-existing token" in {
+      val userAccess: UserAccess = genUserAccess.sample.value
+
+      for {
+        createdtoken <- authenticationRep.signUpUser(userAccess)
+
+        error <- authenticationRep.getUser(genUUID.sample.value)
+
+      } yield error mustBe Left(tokenNotValid)
+
+    }
+
+    "detect failure to validate the token" in {
       val tokenId = genUUID.sample.value
       val token = genUUID.sample.value
-      val passwordId = genUUID.sample.value
-      val userId = genUUID.sample.value
-      val password = genString.sample.value
+      for {
+        _ <- db.run(DBIO.seq(
+          TokensTable.all += TokenRow(tokenId, token)))
+
+        error <- authenticationRep.getUser(token)
+      } yield error mustBe Left(internalError)
+
+    }
+
+    "detect out of date token" in {
+      val tokenId = genUUID.sample.value
+      implicit val clock: Clock = Clock.systemUTC
+      val key: String = config.get[String]("secretKey")
+      val algo = JwtAlgorithm.HS256
+
+      val claim = Json.obj(("userId", genUUID.sample.value), ("expirationDate", LocalDateTime.now.minusDays(1)))
+      val token = JwtJson.encode(claim, key, algo)
 
       for {
         _ <- db.run(DBIO.seq(
-          TokensTable.all += TokenRow(tokenId, token),
-          PasswordsTable.all += PasswordRow(passwordId, userId, password, tokenId)))
+          TokensTable.all += TokenRow(tokenId, token)))
 
-        userId <- authenticationRep.getUser(token)
+        error <- authenticationRep.getUser(token)
+      } yield error mustBe Left(tokenNotValid)
 
-        assertion <- userId mustBe userId
-      } yield assertion
+    }
+
+    "get userId" in {
+      val userAccess: UserAccess = genUserAccess.sample.value
+      val key: String = config.get[String]("secretKey")
+      val algo = JwtAlgorithm.HS256
+
+      for {
+        (token, userId) <- authenticationRep.signUpUser(userAccess).map(token =>
+          {
+            JwtJson.decodeJson(token, key, Seq(algo)) match {
+              case Success(json) => json.validate[Jwt].fold(
+                errors => fail("Failed to validate the JWT to the case class"),
+                jwt => (token, jwt.userId))
+              case Failure(e) => fail("Failed to decode the token")
+            }
+          })
+
+        result <- authenticationRep.getUser(token)
+
+      } yield result mustBe Right(userId)
     }
   }
 

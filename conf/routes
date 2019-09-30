@@ -10,7 +10,7 @@ GET     /chats/:id                          controllers.ChatController.getChat(i
 
 GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
 
-GET    /chats/:id/overseers                controllers.ChatController.getOverseers(id : String)
+GET    /chats/:id/overseers                 controllers.ChatController.getOverseers(id : String)
 
 POST    /chats                              controllers.ChatController.postChat
 
