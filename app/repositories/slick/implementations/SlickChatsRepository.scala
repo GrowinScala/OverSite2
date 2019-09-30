@@ -456,9 +456,48 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean] =
     db.run(deleteOverseerAction(chatId, oversightId, userId).transactionally)
+  
+  private def getOversightsAction (userId: String): DBIO[Oversight] =
+    for{
+      overseeing <- getOverseeing(userId)
+      
+      oversought <- getOversought(userId)
+      
+    }yield Oversight(overseeing, oversought)
+  
+  def getOversights(userId: String): Future[Oversight] =
+    db.run(getOversightsAction(userId).transactionally)
 
   //region Auxiliary Methods
 
+  private def getOverseeing(userId: String): DBIO[Set[ChatOverseeing]] =
+    (for {
+      (chatId, oversightId, overseeId) <- OversightsTable.all.filter(_.overseerId === userId)
+        .map(oversightRow => (oversightRow.chatId, oversightRow.oversightId, oversightRow.overseeId))
+      overseeAddressId <- UsersTable.all.filter(_.userId === overseeId).map(_.addressId)
+      overseeAddress <- AddressesTable.all.filter(_.addressId === overseeAddressId).map(_.address)
+    } yield (chatId, oversightId, overseeAddress)).result
+      .map(_.groupBy{ case (chatId, _, _) => chatId}.toSet
+        .map{ case (chatId, seq) => ChatOverseeingDatatoDTO(chatId, seq)})
+  
+   private def ChatOverseeingDatatoDTO(chatId: String, dataSeq: Seq[(String, String, String)]): ChatOverseeing =
+     ChatOverseeing(
+       chatId,
+       dataSeq.map{ case (_, oversightId, overseeAddress) => Overseeing(oversightId, overseeAddress)}.toSet)
+  
+  private def getOversought(userId: String): DBIO[Set[ChatOversought]] =
+    (for {
+      (chatId, oversightId, overseerId) <- OversightsTable.all.filter(_.overseeId === userId)
+        .map(oversightRow => (oversightRow.chatId, oversightRow.oversightId, oversightRow.overseerId))
+      overseerAddressId <- UsersTable.all.filter(_.userId === overseerId).map(_.addressId)
+      overseerAddress <- AddressesTable.all.filter(_.addressId === overseerAddressId).map(_.address)
+    } yield (chatId, oversightId, overseerAddress)).result
+      .map(_.groupBy{ case (chatId, _, _) => chatId}.toSet
+        .map{ case (chatId, seq) => ChatOversought(
+          chatId,
+          seq.map{ case (_, oversightId, overseerAddress) => Oversought(oversightId, overseerAddress)}.toSet)})
+    
+  
   private def deleteOversightRow(chatId: String, oversightId: String, userId: String): DBIO[Boolean] =
     OversightsTable.all.filter(oversightRow => oversightRow.chatId === chatId &&
       oversightRow.overseeId === userId && oversightRow.oversightId === oversightId).delete

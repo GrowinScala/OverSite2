@@ -133,4 +133,13 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       }
   }
 
+  def getOversights: Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+
+      chatService.getOversights(authenticatedRequest.userId).map {
+        case Some(postOverseersDTO) => Ok(Json.toJson(postOverseersDTO))
+        case None => NotFound
+      }
+  }
+
 }
