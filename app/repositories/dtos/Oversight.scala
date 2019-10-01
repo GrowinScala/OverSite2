@@ -1,3 +1,3 @@
 package repositories.dtos
 
-case class Oversight(overseeing: Set[ChatOverseeing], oversought: Set[ChatOversought])
+case class Oversight(overseeing: Set[ChatOverseeing], overseen: Set[ChatOverseen])

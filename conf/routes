@@ -6,13 +6,13 @@
 # Chats
 GET     /chats                              controllers.ChatController.getChats(mailbox: Mailbox)
 
-GET     /chats/:id                          controllers.ChatController.getChat(id : String)
-
 GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
 
-GET    /chats/:id/overseers                 controllers.ChatController.getOverseers(id : String)
+GET     /chats/:id/overseers                controllers.ChatController.getOverseers(id : String)
 
-GET    /chats/oversights                    controllers.ChatController.getOversights
+GET     /chats/oversights                   controllers.ChatController.getOversights
+
+GET     /chats/:id                          controllers.ChatController.getChat(id : String)
 
 POST    /chats                              controllers.ChatController.postChat
 
