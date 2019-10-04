@@ -29,12 +29,14 @@ object Mailbox {
     def unbind(key: String, mailbox: Mailbox): String
   } =
     new QueryStringBindable[Mailbox] {
-      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Mailbox]] = {
-        params.get(key).flatMap(_.headOption).flatMap(Mailbox(_)) match {
-          case Some(mailbox) => Some(Right(mailbox))
-          case None => Some(Left("Wrong mailbox parameter"))
+      override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Mailbox]] =
+        params.get(key) match {
+          case None => Some(Right(Inbox))
+          case Some(seq) => seq.headOption.flatMap(Mailbox(_)) match {
+            case Some(mailbox) => Some(Right(mailbox))
+            case None => Some(Left("Wrong mailbox parameter"))
+          }
         }
-      }
 
       override def unbind(key: String, mailbox: Mailbox): String = {
         bindableString.unbind(key, mailbox.value)

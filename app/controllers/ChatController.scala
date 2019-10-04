@@ -3,12 +3,12 @@ package controllers
 import javax.inject._
 import model.dtos._
 import play.api.mvc._
-import play.api.libs.json.{ JsError, JsValue, Json }
+import play.api.libs.json._
 import services.ChatService
 import utils.Jsons._
 
 import scala.concurrent.{ ExecutionContext, Future }
-import model.types.Mailbox
+import model.types.{ Mailbox, Page, PerPage }
 
 @Singleton
 class ChatController @Inject() (implicit val ec: ExecutionContext, cc: ControllerComponents, chatService: ChatService,
@@ -24,9 +24,27 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       }
   }
 
-  def getChats(mailbox: Mailbox): Action[AnyContent] = authenticatedUserAction.async {
+  def getChats(mailbox: Mailbox, page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      chatService.getChats(mailbox, authenticatedRequest.userId).map(seq => Ok(Json.toJson(seq)))
+
+      chatService.getChats(mailbox, page, perPage, authenticatedRequest.userId)
+        .map {
+          case Some((chatsPreviewDTO, totalCount, lastPage)) =>
+            val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
+
+            val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+              totalCount,
+              LinksDTO(
+                self = makeGetChatsLink(mailbox, page, perPage, authenticatedRequest),
+                first = makeGetChatsLink(mailbox, Page(0), perPage, authenticatedRequest),
+                previous = if (page == 0) None
+                else Some(makeGetChatsLink(mailbox, page - 1, perPage, authenticatedRequest)),
+                next = if (page >= lastPage) None
+                else Some(makeGetChatsLink(mailbox, page + 1, perPage, authenticatedRequest)),
+                last = makeGetChatsLink(mailbox, lastPage, perPage, authenticatedRequest)))))
+            Ok(chats ++ metadata)
+          case None => InternalServerError(internalError)
+        }
   }
 
   def postChat: Action[JsValue] = {
@@ -132,5 +150,10 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
         case None => NotFound
       }
   }
+
+  //region Auxiliary Methods
+  def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getChats(mailbox, page, perPage).absoluteURL(auth.secure)(auth.request)
+  //endregion
 
 }
