@@ -5,6 +5,7 @@ import model.dtos._
 import model.types.Mailbox
 import repositories.ChatsRepository
 import PostOverseerDTO._
+import OversightDTO._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -23,11 +24,13 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def postEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, userId: String): Future[Option[CreateChatDTO]] = {
-    chatsRep.postEmail(UpsertEmailDTO.toUpsertEmail(upsertEmailDTO), chatId, userId).map(_.map(CreateChatDTO.toCreateChatDTO))
+    chatsRep.postEmail(UpsertEmailDTO.toUpsertEmail(upsertEmailDTO), chatId, userId)
+      .map(_.map(CreateChatDTO.toCreateChatDTO))
   }
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String, userId: String): Future[Option[EmailDTO]] = {
-    chatsRep.patchEmail(UpsertEmailDTO.toUpsertEmail(upsertEmailDTO), chatId, emailId, userId).map(EmailDTO.toEmailDTO)
+    chatsRep.patchEmail(UpsertEmailDTO.toUpsertEmail(upsertEmailDTO), chatId, emailId, userId)
+      .map(EmailDTO.toEmailDTO)
   }
 
   def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] = {
@@ -57,4 +60,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getOverseers(chatId, userId)
       .map(_.map(_.map(toPostOverseerDTO)))
 
+  def getOversights(userId: String): Future[OversightDTO] =
+    chatsRep.getOversights(userId)
+      .map(toOversightDTO)
 }

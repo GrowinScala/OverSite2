@@ -13,9 +13,10 @@ object Jsons {
 
   val repeatedUser: Error = Json.parse("""{ "Error": "User already exists"}  """)
   val failedSignIn: Error = Json.parse("""{ "Error": "Failed to Sign-In with the given address and password"}  """)
-  val tokenNotFound: Error = Json.parse("""{ "Error": "Authentication Token not found in request headers"}  """)
-  val tokenNotValid: Error = Json.parse("""{ "Error": "Invalid Authentication Token"}  """)
+  val tokenNotFound: Error = Json.parse("""{ "Error": "Authorization Token not found in request headers"}  """)
+  val tokenNotValid: Error = Json.parse("""{ "Error": "Invalid Authorization Token"}  """)
   val chatNotFound: Error = Json.parse("""{ "Error": "The given chat was not found"}  """)
+  val overseerNotFound: Error = Json.parse("""{ "Error": "The given overseer was not found"}  """)
   val emailNotFound: Error = Json.parse("""{ "Error": "The given email was not found"}  """)
   val cannotBothDeleteAndRestore: Error =
     Json.parse("""{ "Error": "Cannot move chat to trash and restore chat simultaneously"}""")
