@@ -20,8 +20,8 @@ import utils.TestGenerators._
 
 import scala.concurrent._
 
-class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatchers with BeforeAndAfterAll
-  with Inside with BeforeAndAfterEach {
+class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatchers
+  with BeforeAndAfterAll with Inside with BeforeAndAfterEach {
 
   private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
   private lazy val injector: Injector = appBuilder.injector()
@@ -100,7 +100,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   "SlickChatsRepository#getChatsPreview" should {
 
-    "return None if page is less than zero" in {
+    /* "return None if page is less than zero" in {
       for {
         chatsPreview <- chatsRep.getChatsPreview(genMailbox.sample.value, choose(-10, -1).sample.value,
           choose(1, 10).sample.value, genUUID.sample.value)
@@ -667,48 +667,48 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
-    }
-  
+    }*/
+
     "sample the chats according to the given page and perPage values" in {
       val basicTestDB = genBasicTestDB.sample.value
-      val chatList = genList(0,20, genChatRow).sample.value // Try with 0
+      val chatList = genList(0, 20, genChatRow).sample.value // Try with 0
       val userChatList = chatList.map(chatRow =>
         genUserChatRow(basicTestDB.userRow.userId, chatRow.chatId).sample.value)
       val emailList = chatList.map(chatRow => genEmailRow(chatRow.chatId).sample.value)
       val emailAddressList = emailList.map(emailRow => genEmailAddressRow(emailRow.emailId, emailRow.chatId,
         basicTestDB.addressRow.addressId, from).sample.value)
-      val page = choose(0,20).sample.value
-      val perPage = choose(1,20).sample.value
-      
-    
+      val page = choose(0, 20).sample.value
+      val perPage = choose(1, 20).sample.value
+
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow),
-          chatList,
-          List(basicTestDB.userRow),
-          userChatList,
-          emailList,
-          emailAddressList)
-      
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, page, perPage, basicTestDB.userRow.userId)
-      } yield assert( chatsPreview.value match {
-        case (chats, totalCount, lastPage) => chats.size === min(perPage, chatList.size) &
-          totalCount === chatList.size &
-          {chats.headOption match {
-            case Some(chatPreview) => chatPreview.contentPreview === emailList.sortBy(emailrow =>
-              (emailrow.date, emailrow.body))(
-              Ordering.Tuple2(Ordering.String.reverse, Ordering.String))(perPage * page).body
-            case None => true}} &
-          (lastPage + 1) * perPage > chatList.size
-          
-          
-        case _ => fail("Failed to pattern match the result")
-      })
-      
+          addressRows = List(basicTestDB.addressRow),
+          chatRows = chatList,
+          userRows = List(basicTestDB.userRow),
+          userChatRows = userChatList,
+          emailRows = emailList,
+          emailAddressRows = emailAddressList)
+
+        optChatsPreview <- chatsRep.getChatsPreview(Inbox, page, perPage, basicTestDB.userRow.userId)
+      } yield {
+
+        val chatsPreview = optChatsPreview.value
+        val chats = chatsPreview._1
+        val totalCount = chatsPreview._2
+        val lastPage = chatsPreview._3
+        val sortedEmailList = emailList.sortBy(emailrow => (emailrow.date, emailrow.body))(
+          Ordering.Tuple2(Ordering.String.reverse, Ordering.String))
+        if (chats.isEmpty) succeed
+        else {
+          val firstEmail = sortedEmailList(perPage * page).body
+          chats.size mustBe min(perPage, chatList.size)
+          totalCount mustBe chatList.size
+          chats.headOption.value.contentPreview mustBe firstEmail
+          (lastPage + 1) * perPage must be > chatList.size - 1
+        }
+      }
     }
-
   }
-
   /*"SlickChatsRepository#getChat" should {
     "Not detect a non existing chat" in {
       val basicTestDB = genBasicTestDB.sample.value
@@ -2499,7 +2499,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     }
 
   }*/
-
 }
 
 case class BasicTestDB(addressRow: AddressRow, userRow: UserRow, chatRow: ChatRow, emailRow: EmailRow,

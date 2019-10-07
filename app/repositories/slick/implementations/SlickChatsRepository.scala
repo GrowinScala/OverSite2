@@ -21,6 +21,8 @@ import math._
 import scala.concurrent._
 import repositories.slick.mappings.EmailAddressesTable._
 
+import scala.concurrent.duration.Duration
+
 class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
   extends ChatsRepository {
 
@@ -114,13 +116,40 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         The preview of each chat only shows the most recent email
    */
   private[implementations] def getChatsPreviewAction(mailbox: Mailbox, page: Int, perPage: Int,
-    userId: String): DBIO[Option[(Seq[ChatPreview], Int, Int)]] =
+    userId: String): DBIO[Option[(Seq[ChatPreview], Int, Int)]] = {
+
+    println(s"THIS IS THE PAGE: $page AND THE PER_PAGE: $perPage")
+
+    println("\n")
+    println("THIS IS THE CHATS_TABLE", Await.result(db.run(ChatsTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE CHATS_TABLE")
+    println("\n")
+    println("THIS IS THE USER_CHATS_TABLE", Await.result(db.run(UserChatsTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE USER_CHATS_TABLE")
+    println("\n")
+    println("THIS IS THE EMAIL_ADDRESS_TABLE", Await.result(db.run(EmailAddressesTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE EMAIL_ADDRESS_TABLE")
+    println("\n")
+    println("THIS IS THE ADDRESS_TABLE", Await.result(db.run(AddressesTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE ADDRESS_TABLE")
+    println("\n")
+    println("THIS IS THE EMAILS_TABLE", Await.result(db.run(EmailsTable.all.sortBy(_.chatId).result), Duration.Inf),
+      "THIS IS THE END OF THE EMAILS_TABLE")
+    println("\n")
+    println("THIS IS THE USERS_TABLE", Await.result(db.run(UsersTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE USERS_TABLE")
+    println("\n")
+    println("THIS IS THE OVERSIGHTS TABLE", Await.result(db.run(OversightsTable.all.result), Duration.Inf),
+      "THIS IS THE END OF THE OVERSIGHTS TABLE")
+    println("\n")
 
     if (page < 0 || perPage <= 0) DBIO.successful(None)
 
     else {
 
       val visibleEmailsQuery = getVisibleEmailsQuery(userId, Some(mailbox))
+
+      println("THIS IS THE VISIBLE_EMAILS_QUERY", Await.result(db.run(visibleEmailsQuery.result), Duration.Inf))
 
       val groupedQuery = visibleEmailsQuery
         .map { case (chatId, emailId, body, date, sent) => (chatId, date) }
@@ -144,6 +173,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
             (chatId, chatEmailQuery.map { case (chat, emailId) => emailId }.min)
         }
 
+      println("THIS IS THE GROUPED_QUERY", Await.result(db.run(groupedQuery.result), Duration.Inf))
+
       val chatPreviewQuery = for {
         (chatId, emailId) <- groupedQuery
         subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
@@ -157,6 +188,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       } yield (chatId, subject, address, date, body)
 
+      println("THIS IS THE CHAT_PREVIEW_QUERY", Await.result(db.run(chatPreviewQuery.result), Duration.Inf))
+
       chatPreviewQuery
         .sortBy { case (chatId, subject, address, date, body) => (date.desc, body.asc, address.asc) }
         .result
@@ -168,6 +201,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         })
     }
 
+  }
+
   /**
    * Method that returns a preview of all the chats of a given user in a given Mailbox
    *
@@ -175,7 +210,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param userId  The userId of the user in question
    * @return A Future sequence of ChatPreview dtos. The preview of each chat only shows the most recent email
    */
-  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatPreview], Int, Int)]] =
+  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int,
+    userId: String): Future[Option[(Seq[ChatPreview], Int, Int)]] =
     db.run(getChatsPreviewAction(mailbox, page, perPage, userId).transactionally)
 
   /**
