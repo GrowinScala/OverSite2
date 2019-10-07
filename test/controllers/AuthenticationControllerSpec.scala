@@ -155,18 +155,6 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
       contentAsJson(result) mustBe jsonMessage
     }
 
-    "transmit internal error" in {
-      val (_, mockAuthenticationService, authenticatedUserAction) =
-        getControllerServiceMockAndAuthAction
-      mockAuthenticationService.validateToken(*)
-        .returns(Future.successful(Left(internalError)))
-
-      val result = authenticatedUserAction.async(
-        authenticatedUser => Future.successful(Ok)).apply(FakeRequest().withHeaders("Authorization" ->
-          genUUID.sample.value))
-      status(result) mustBe INTERNAL_SERVER_ERROR
-    }
-
     "forward to block" in {
       val userId = genUUID.sample.value
       val (_, mockAuthenticationService, authenticatedUserAction) =

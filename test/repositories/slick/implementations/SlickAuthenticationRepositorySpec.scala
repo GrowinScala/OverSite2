@@ -191,12 +191,19 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
   "SlickAuthenticationRepository#getUser" should {
 
     "notice non-existing token" in {
+      val tokenId = genUUID.sample.value
+      implicit val clock: Clock = Clock.systemUTC
+      val key: String = config.get[String]("secretKey")
+      val algo = JwtAlgorithm.HS256
+
+      val claim = Json.obj(("userId", genUUID.sample.value), ("expirationDate", LocalDateTime.now.plusDays(1)))
+      val token = JwtJson.encode(claim, key, algo)
       val userAccess: UserAccess = genUserAccess.sample.value
 
       for {
         createdtoken <- authenticationRep.signUpUser(userAccess)
 
-        error <- authenticationRep.getUser(genUUID.sample.value)
+        error <- authenticationRep.getUser(token)
 
       } yield error mustBe Left(tokenNotValid)
 
@@ -206,11 +213,10 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
       val tokenId = genUUID.sample.value
       val token = genUUID.sample.value
       for {
-        _ <- db.run(DBIO.seq(
-          TokensTable.all += TokenRow(tokenId, token)))
+        _ <- db.run(TokensTable.all += TokenRow(tokenId, token))
 
         error <- authenticationRep.getUser(token)
-      } yield error mustBe Left(internalError)
+      } yield error mustBe Left(tokenNotValid)
 
     }
 
@@ -224,8 +230,7 @@ class SlickAuthenticationRepositorySpec extends AsyncWordSpec
       val token = JwtJson.encode(claim, key, algo)
 
       for {
-        _ <- db.run(DBIO.seq(
-          TokensTable.all += TokenRow(tokenId, token)))
+        _ <- db.run(TokensTable.all += TokenRow(tokenId, token))
 
         error <- authenticationRep.getUser(token)
       } yield error mustBe Left(tokenNotValid)

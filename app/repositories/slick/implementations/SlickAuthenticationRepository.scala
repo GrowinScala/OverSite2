@@ -138,16 +138,14 @@ class SlickAuthenticationRepository @Inject() (config: Configuration, db: Databa
     db.run(updateTokenAction(address).transactionally)
 
   def getUser(token: String): Future[Either[Error, String]] =
-    db.run(TokensTable.all.filter(_.token === token).exists.result).map(
-      if (_) {
-        JwtJson.decodeJson(token, key, Seq(algo)) match {
-          case Success(json) => json.validate[Jwt].fold(
-            errors => Left(internalError),
-            jwt => if (jwt.expirationDate.isAfter(LocalDateTime.now))
-              Right(jwt.userId)
-            else Left(tokenNotValid))
-          case Failure(e) => Left(internalError)
-        }
-      } else Left(tokenNotValid))
-
+    JwtJson.decodeJson(token, key, Seq(algo)) match {
+      case Success(json) => json.validate[Jwt].fold(
+        errors => Future.successful(Left(tokenNotValid)),
+        jwt => if (jwt.expirationDate.isAfter(LocalDateTime.now))
+          db.run(TokensTable.all.filter(_.token === token).exists.result).map(
+          if (_) Right(jwt.userId)
+          else Left(tokenNotValid))
+        else Future.successful(Left(tokenNotValid)))
+      case Failure(e) => Future.successful(Left(tokenNotValid))
+    }
 }
