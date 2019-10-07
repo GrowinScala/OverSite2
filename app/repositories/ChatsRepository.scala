@@ -8,7 +8,8 @@ import scala.concurrent.Future
 
 trait ChatsRepository {
 
-  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int, user: String): Future[Option[(Seq[ChatPreview], Int, Int)]]
+  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int,
+    user: String): Future[Option[(Seq[ChatPreview], Int, Int)]]
 
   def getChat(chatId: String, userId: String): Future[Option[Chat]]
 
