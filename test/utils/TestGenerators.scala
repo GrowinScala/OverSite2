@@ -238,7 +238,6 @@ object TestGenerators {
         subject <- genString
         overseers <- genList(0, 2, genOverseers).map(_.toSet)
       } yield Chat(chatId, subject, addresses, overseers, emails.sortBy(_.date))
-
     })
 
   val genPostOverseerDTO: Gen[PostOverseerDTO] =
@@ -267,4 +266,35 @@ object TestGenerators {
 
   val genMailbox: Gen[Mailbox] =
     oneOf(Inbox, Sent, Drafts, Trash)
+
+  val genOverseeingDTO: Gen[OverseeingDTO] =
+    for {
+      oversightId <- genUUID
+      overseeAddress <- genEmailAddress
+    } yield OverseeingDTO(oversightId, overseeAddress)
+
+  val genChatOverseeingDTO: Gen[ChatOverseeingDTO] =
+    for {
+      chatId <- genUUID
+      overseeings <- genList(1, 3, genOverseeingDTO).map(_.toSet)
+    } yield ChatOverseeingDTO(chatId, overseeings)
+
+  val genOverseenDTO: Gen[OverseenDTO] =
+    for {
+      oversightId <- genUUID
+      overseeAddress <- genEmailAddress
+    } yield OverseenDTO(oversightId, overseeAddress)
+
+  val genChatOverseenDTO: Gen[ChatOverseenDTO] =
+    for {
+      chatId <- genUUID
+      overseens <- genList(1, 3, genOverseenDTO).map(_.toSet)
+    } yield ChatOverseenDTO(chatId, overseens)
+
+  val genOversightDTO: Gen[OversightDTO] =
+    for {
+      overseeing <- genList(1, 3, genChatOverseeingDTO).map(_.toSet)
+      overseen <- genList(1, 3, genChatOverseenDTO).map(_.toSet)
+    } yield OversightDTO(overseeing, overseen)
+
 }
