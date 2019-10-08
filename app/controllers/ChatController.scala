@@ -47,6 +47,34 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
         }
   }
 
+  /**
+   * Gets the user's overseers for the given chat
+   * @param chatId The chat's Id
+   * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
+   */
+  def getOverseers(chatId: String, page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+
+      chatService.getOverseers(chatId, page, perPage, authenticatedRequest.userId).map {
+        case Right((postOverseerDTO, totalCount, lastPage)) =>
+          val chats = Json.obj("overseers" -> Json.toJson(postOverseerDTO))
+
+          val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+            totalCount,
+            LinksDTO(
+              self = makeGetOverseersLink(chatId, page, perPage, authenticatedRequest),
+              first = makeGetOverseersLink(chatId, Page(0), perPage, authenticatedRequest),
+              previous = if (page == 0) None
+              else Some(makeGetOverseersLink(chatId, page - 1, perPage, authenticatedRequest)),
+              next = if (page >= lastPage) None
+              else Some(makeGetOverseersLink(chatId, page + 1, perPage, authenticatedRequest)),
+              last = makeGetOverseersLink(chatId, lastPage, perPage, authenticatedRequest)))))
+          Ok(chats ++ metadata)
+        case Left(`chatNotFound`) => BadRequest(chatNotFound)
+        case Left(_) => InternalServerError(internalError)
+      }
+  }
+
   def postChat: Action[JsValue] = {
     authenticatedUserAction.async(parse.json) { authenticatedRequest =>
       val jsonValue = authenticatedRequest.request.body
@@ -143,20 +171,6 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
     }
   }
 
-  /**
-   * Gets the user's overseers for the given chat
-   * @param chatId The chat's Id
-   * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
-   */
-  def getOverseers(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
-    authenticatedRequest =>
-
-      chatService.getOverseers(chatId, authenticatedRequest.userId).map {
-        case Some(postOverseersDTO) => Ok(Json.toJson(postOverseersDTO))
-        case None => NotFound(chatNotFound)
-      }
-  }
-
   def getOversights: Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
       chatService.getOversights(authenticatedRequest.userId)
@@ -166,6 +180,9 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   //region Auxiliary Methods
   def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getChats(mailbox, page, perPage).absoluteURL(auth.secure)(auth.request)
+
+  def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getOverseers(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
   //endregion
 
 }

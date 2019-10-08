@@ -9,6 +9,7 @@ import repositories.dtos._
 import repositories.slick.mappings._
 import slick.jdbc.MySQLProfile.api._
 import org.scalacheck.Gen._
+
 import scala.math._
 import scala.concurrent.duration.Duration
 import scala.concurrent._
@@ -16,12 +17,13 @@ import model.types.Mailbox._
 import model.types.ParticipantType._
 import repositories.dtos._
 import repositories.slick.mappings._
+import repositories.utils.RepMessages._
 import utils.TestGenerators._
 
 import scala.concurrent._
 
 class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatchers
-  with BeforeAndAfterAll with Inside with BeforeAndAfterEach {
+  with BeforeAndAfterAll with Inside with BeforeAndAfterEach with AppendedClues {
 
   private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
   private lazy val injector: Injector = appBuilder.injector()
@@ -102,16 +104,16 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     "return None if page is less than zero" in {
       for {
-        chatsPreview <- chatsRep.getChatsPreview(genMailbox.sample.value, choose(-10, -1).sample.value,
+        optChatsPreview <- chatsRep.getChatsPreview(genMailbox.sample.value, choose(-10, -1).sample.value,
           choose(1, 10).sample.value, genUUID.sample.value)
-      } yield chatsPreview mustBe None
+      } yield optChatsPreview mustBe None
     }
 
     "return None if perPage is not greater than zero" in {
       for {
-        chatsPreview <- chatsRep.getChatsPreview(genMailbox.sample.value, choose(1, 10).sample.value.sample.value,
+        optChatsPreview <- chatsRep.getChatsPreview(genMailbox.sample.value, choose(1, 10).sample.value.sample.value,
           choose(-10, 0).sample.value, genUUID.sample.value)
-      } yield chatsPreview mustBe None
+      } yield optChatsPreview mustBe None
     }
 
     "detect a draft made by the viewer " in {
@@ -701,10 +703,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         if (chats.isEmpty) succeed
         else {
           val firstEmail = sortedEmailList(perPage * page).body
-          chats.size mustBe min(perPage, chatList.size)
-          totalCount mustBe chatList.size
-          chats.headOption.value.contentPreview mustBe firstEmail
-          (lastPage + 1) * perPage must be > chatList.size - 1
+          chats.size mustBe min(perPage, chatList.size) withClue "The size of the slice sequence is wrong"
+          totalCount mustBe chatList.size withClue "The totalCount is wrong"
+          chats.headOption.value.contentPreview mustBe firstEmail withClue "The first element of the sliced sequence" +
+            " is wrong"
+          (lastPage + 1) * perPage must be > chatList.size - 1 withClue "The value for the lastPage is wrong"
         }
       }
     }
@@ -2215,7 +2218,21 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   "SlickChatsRepository#getOverseers" should {
 
-    "return None if the chat does not exist" in {
+    "return INVALID_PAGINATION if page is less than zero" in {
+      for {
+        result <- chatsRep.getOverseers(genUUID.sample.value, choose(-10, -1).sample.value,
+          choose(1, 10).sample.value, genUUID.sample.value)
+      } yield result mustBe Left(INVALID_PAGINATION)
+    }
+
+    "return INVALID_PAGINATION if perPage is not greater than zero" in {
+      for {
+        result <- chatsRep.getOverseers(genUUID.sample.value, choose(1, 10).sample.value.sample.value,
+          choose(-10, 0).sample.value, genUUID.sample.value)
+      } yield result mustBe Left(INVALID_PAGINATION)
+    }
+
+    "return CHAT_NOT_FOUND if the chat does not exist" in {
       val basicTestDB = genBasicTestDB.sample.value
 
       for {
@@ -2225,12 +2242,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userRow),
           List(basicTestDB.userChatRow))
 
-        optSetOverseer <- chatsRep.getOverseers(genUUID.sample.value, basicTestDB.userRow.userId)
-      } yield optSetOverseer mustBe None
+        result <- chatsRep.getOverseers(genUUID.sample.value, 0, 5, basicTestDB.userRow.userId)
+      } yield result mustBe Left(CHAT_NOT_FOUND)
 
     }
 
-    "return None if the chat exists but the User does not have access to it" in {
+    "return CHAT_NOT_FOUND if the chat exists but the User does not have access to it" in {
       val basicTestDB = genBasicTestDB.sample.value
 
       for {
@@ -2239,8 +2256,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.chatRow),
           List(basicTestDB.userRow))
 
-        optSetOverseer <- chatsRep.getOverseers(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optSetOverseer mustBe None
+        result <- chatsRep.getOverseers(genUUID.sample.value, 0, 5, basicTestDB.userRow.userId)
+      } yield result mustBe Left(CHAT_NOT_FOUND)
 
     }
 
@@ -2264,10 +2281,54 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         postedOverseers <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
-        getOverseers <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
+        result <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, 0, 5, basicTestDB.userRow.userId)
 
-      } yield getOverseers mustBe postedOverseers
+      } yield result mustBe Right((postedOverseers.value.toSeq.sortBy {
+        case PostOverseer(address, optOversightId) =>
+          (address, optOversightId.value)
+      }, 2, 0))
 
+    }
+
+    "sample the overseers according to the given page and perPage values" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressList = genList(0, 20, genAddressRow).sample.value
+      val overseerUserList = overseerAddressList.map(addressRow => genUserRow(addressRow.addressId).sample.value)
+      val seqPostOverseer = overseerAddressList.map(addressRow => PostOverseer(addressRow.address, None))
+      val page = choose(0, 20).sample.value
+      val perPage = choose(1, 20).sample.value
+
+      for {
+        _ <- fillDB(
+          addressRows = List(basicTestDB.addressRow) ++ overseerAddressList,
+          userRows = List(basicTestDB.userRow) ++ overseerUserList)
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+
+        postedOverseers <- chatsRep.postOverseers(seqPostOverseer.toSet, createdChatDTO.value.chatId.value,
+          basicTestDB.userRow.userId)
+
+        eitherResult <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, page, perPage,
+          basicTestDB.userRow.userId)
+
+      } yield {
+        val result = eitherResult.toOption.value
+        val overseers = result._1
+        val totalCount = result._2
+        val lastPage = result._3
+        val sortedOverseers = postedOverseers.value.toSeq.sortBy {
+          case PostOverseer(address, optOversightId) =>
+            (address, optOversightId.value)
+        }
+        if (overseers.isEmpty) succeed
+        else {
+          val firstOverseer = sortedOverseers(perPage * page)
+          overseers.size mustBe min(perPage, seqPostOverseer.size) withClue "The size of the slice sequence is wrong"
+          totalCount mustBe seqPostOverseer.size withClue "The totalCount is wrong"
+          overseers.headOption.value mustBe firstOverseer withClue "The first element of the sliced sequence is wrong"
+          (lastPage + 1) * perPage must be > seqPostOverseer.size - 1 withClue "The value for the lastPage is wrong"
+        }
+      }
     }
 
   }

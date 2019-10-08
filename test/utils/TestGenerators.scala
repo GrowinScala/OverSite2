@@ -246,6 +246,9 @@ object TestGenerators {
       optOversightId <- Gen.option(genUUID)
     } yield PostOverseerDTO(address, optOversightId)
 
+  val genSeqPostOverseerDTO: Gen[Seq[PostOverseerDTO]] =
+    genList(1, 4, genPostOverseerDTO)
+
   val genSetPostOverseerDTO: Gen[Set[PostOverseerDTO]] =
     genList(1, 4, genPostOverseerDTO).map(_.toSet)
 
@@ -255,11 +258,14 @@ object TestGenerators {
       optOversightId <- Gen.option(genUUID)
     } yield PostOverseer(address, optOversightId)
 
+  val genSeqPostOverseer: Gen[Seq[PostOverseer]] =
+    genList(1, 4, genPostOverseer)
+
   val genSetPostOverseer: Gen[Set[PostOverseer]] =
     genList(1, 4, genPostOverseer).map(_.toSet)
 
   val genPage: Gen[Page] =
-    choose(0, 10).map(Page(_))
+    choose(1, 10).map(Page(_))
 
   val genPerPage: Gen[PerPage] =
     choose(1, 10).map(PerPage(_))
