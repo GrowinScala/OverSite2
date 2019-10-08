@@ -1,7 +1,10 @@
 package repositories
 
 import java.sql.Timestamp
+
 import repositories.dtos.UserAccess
+import utils.Jsons.Error
+
 import scala.concurrent.Future
 
 trait AuthenticationRepository {
@@ -14,8 +17,6 @@ trait AuthenticationRepository {
 
   def updateToken(address: String): Future[Option[String]]
 
-  def getTokenExpirationDate(token: String): Future[Option[Timestamp]]
-
-  def getUser(token: String): Future[Option[String]]
+  def getUser(token: String): Future[Either[Error, String]]
 
 }

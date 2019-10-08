@@ -17,7 +17,8 @@ libraryDependencies ++= Seq(
   "org.mockito" % "mockito-scala-scalatest_2.12" % "1.5.12",
   "com.h2database" % "h2" % "1.4.199" % Test,
   "com.github.t3hnar" %% "scala-bcrypt" % "4.1",
-  "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
+  "org.scalacheck" %% "scalacheck" % "1.14.0" % Test,
+  "com.pauldijou" %% "jwt-play-json" % "4.1.0"
 )
 
 routesImport ++= Seq("model.types.Mailbox")
