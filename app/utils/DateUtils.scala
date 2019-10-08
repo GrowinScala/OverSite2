@@ -1,11 +1,11 @@
 package utils
 
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time._
+import java.time.format.DateTimeFormatter
 
 object DateUtils {
-  def getCurrentDate: String = {
-    val dateFormatter = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss")
-    dateFormatter.format(new Date())
-  }
+  val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+  def getCurrentDate: String = dateFormatter.format(LocalDateTime.now)
+
 }
