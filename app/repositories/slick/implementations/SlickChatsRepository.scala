@@ -16,7 +16,7 @@ import slick.dbio.{ DBIOAction, Effect }
 import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
 import utils.Generators._
-import repositories.utils.RepMessages._
+import repositories.RepUtils.RepMessages._
 
 import math._
 import scala.concurrent._

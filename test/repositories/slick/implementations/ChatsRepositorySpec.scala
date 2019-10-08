@@ -17,7 +17,7 @@ import model.types.Mailbox._
 import model.types.ParticipantType._
 import repositories.dtos._
 import repositories.slick.mappings._
-import repositories.utils.RepMessages._
+import repositories.RepUtils.RepMessages._
 import utils.TestGenerators._
 
 import scala.concurrent._

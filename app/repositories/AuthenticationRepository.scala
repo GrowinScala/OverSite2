@@ -1,7 +1,5 @@
 package repositories
 
-import java.sql.Timestamp
-
 import repositories.dtos.UserAccess
 import utils.Jsons.Error
 

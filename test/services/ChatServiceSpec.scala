@@ -12,7 +12,7 @@ import OversightDTO._
 import ChatPreviewDTO._
 import Gen._
 import model.types._
-import repositories.utils.RepMessages._
+import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 
 import scala.concurrent.Future
@@ -238,7 +238,7 @@ class ChatServiceSpec extends AsyncWordSpec
       val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
         genPerPage.sample.value, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe Right(postOverseersDTO, totalCount, lastPage))
+      serviceResponse.map(_ mustBe Right(postOverseersDTO, totalCount, Page(lastPage)))
     }
 
     "return chatNotFound according to the repositories response" in {
