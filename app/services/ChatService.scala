@@ -75,6 +75,10 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean] =
     chatsRep.deleteOverseer(chatId, oversightId, userId)
 
+  def getOversightsOLD(userId: String): Future[OversightDTO] =
+    chatsRep.getOversights(userId)
+      .map(toOversightDTO)
+  
   def getOversights(userId: String): Future[OversightDTO] =
     chatsRep.getOversights(userId)
       .map(toOversightDTO)
