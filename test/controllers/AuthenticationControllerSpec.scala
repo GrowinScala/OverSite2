@@ -1,7 +1,5 @@
 package controllers
 
-import javax.inject.Inject
-import model.dtos.UserAccessDTO
 import org.scalatestplus.play._
 import play.api.libs.json.Json
 import play.api.mvc._
@@ -48,23 +46,18 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
 
     "transmit the service error message" in {
       val jsonMessage = genSimpleJsObj.sample.value
-      val userAccessDTO = genUserAccessDTO.sample.value
-
       val (authenticationController, mockAuthenticationService, _) = getControllerServiceMockAndAuthAction
       mockAuthenticationService.signUpUser(*)
         .returns(Future.successful(Left(jsonMessage)))
 
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.toJson(
-        userAccessDTO))
+        genUserAccessDTO.sample.value))
       val result = authenticationController.signUpUser.apply(request)
       status(result) mustBe BAD_REQUEST
       contentAsJson(result) mustBe jsonMessage
     }
 
     "return token" in {
-      val token = genUUID.sample.value
-      val userAccessDTO = genUserAccessDTO.sample.value
-      val userAccessJson = Json.toJson(userAccessDTO)
       val jsonToken = jsToken(genUUID.sample.value)
 
       val (authenticationController, mockAuthenticationService, _) = getControllerServiceMockAndAuthAction
@@ -72,7 +65,7 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
         .returns(Future.successful(Right(jsonToken)))
 
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.toJson(
-        userAccessJson))
+        Json.toJson(genUserAccessDTO.sample.value)))
       val result = authenticationController.signUpUser.apply(request)
       status(result) mustBe OK
       contentAsJson(result) mustBe jsonToken
@@ -94,22 +87,30 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
 
     "transmit the service error message" in {
       val jsonMessage = genSimpleJsObj.sample.value
-      val userAccessDTO = genUserAccessDTO.sample.value
 
       val (authenticationController, mockAuthenticationService, _) = getControllerServiceMockAndAuthAction
       mockAuthenticationService.signInUser(*)
         .returns(Future.successful(Left(jsonMessage)))
 
-      val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.toJson(userAccessDTO))
+      val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json")
+        .withBody(Json.toJson(genUserAccessDTO.sample.value))
       val result = authenticationController.signInUser.apply(request)
       status(result) mustBe BAD_REQUEST
       contentAsJson(result) mustBe jsonMessage
     }
 
+    "transmit internal error" in {
+      val (authenticationController, mockAuthenticationService, _) = getControllerServiceMockAndAuthAction
+      mockAuthenticationService.signInUser(*)
+        .returns(Future.successful(Left(internalError)))
+
+      val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json")
+        .withBody(Json.toJson(genUserAccessDTO.sample.value))
+      val result = authenticationController.signInUser.apply(request)
+      status(result) mustBe INTERNAL_SERVER_ERROR
+    }
+
     "return token" in {
-      val token = genUUID.sample.value
-      val userAccessDTO = genUserAccessDTO.sample.value
-      val userAccessJson = Json.toJson(userAccessDTO)
       val jsonToken = jsToken(genUUID.sample.value)
 
       val (authenticationController, mockAuthenticationService, _) = getControllerServiceMockAndAuthAction
@@ -117,7 +118,7 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
         .returns(Future.successful(Right(jsonToken)))
 
       val request = FakeRequest().withHeaders(CONTENT_TYPE -> "application/json").withBody(Json.toJson(
-        userAccessJson))
+        Json.toJson(genUserAccessDTO.sample.value)))
       val result = authenticationController.signInUser.apply(request)
       status(result) mustBe OK
       contentAsJson(result) mustBe jsonToken
@@ -141,7 +142,6 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
 
     "transmit the service error message" in {
       val jsonMessage = genSimpleJsObj.sample.value
-      val token = genUUID.sample.value
 
       val (_, mockAuthenticationService, authenticatedUserAction) =
         getControllerServiceMockAndAuthAction
@@ -149,22 +149,21 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
         .returns(Future.successful(Left(jsonMessage)))
 
       val result = authenticatedUserAction.async(
-        authenticatedUser => Future.successful(Ok)).apply(FakeRequest().withHeaders("Authorization" -> token))
+        authenticatedUser => Future.successful(Ok)).apply(FakeRequest().withHeaders("Authorization" ->
+          genUUID.sample.value))
       status(result) mustBe BAD_REQUEST
       contentAsJson(result) mustBe jsonMessage
     }
 
     "forward to block" in {
       val userId = genUUID.sample.value
-      val token = genUUID.sample.value
-
       val (_, mockAuthenticationService, authenticatedUserAction) =
         getControllerServiceMockAndAuthAction
       mockAuthenticationService.validateToken(*)
         .returns(Future.successful(Right(userId)))
 
       val result = authenticatedUserAction.invokeBlock[AnyContent](
-        FakeRequest().withHeaders("Authorization" -> token),
+        FakeRequest().withHeaders("Authorization" -> genUUID.sample.value),
         authenticatedUser => Future.successful(Ok(authenticatedUser.userId)))
       status(result) mustBe OK
       contentAsString(result) mustBe userId

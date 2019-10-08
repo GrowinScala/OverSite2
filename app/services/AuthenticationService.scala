@@ -34,16 +34,6 @@ class AuthenticationService @Inject() (implicit val ec: ExecutionContext, authen
     }
   }
 
-  def validateToken(token: String): Future[Either[Error, String]] = {
-    authenticationRep.getTokenExpirationDate(token).flatMap {
-      case None => Future.successful(Left(tokenNotValid))
-      case Some(endDate) => if (endDate.before(currentTimestamp))
-        Future.successful(Left(tokenNotValid))
-      else authenticationRep.getUser(token).map {
-        case Some(userId) => Right(userId)
-        case None => Left(internalError)
-      }
-    }
-  }
-
+  def validateToken(token: String): Future[Either[Error, String]] =
+    authenticationRep.getUser(token)
 }
