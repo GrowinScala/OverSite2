@@ -11,10 +11,16 @@ object PostOverseerDTO {
     (JsPath \ "address").format[String](email) and
     (JsPath \ "oversightId").formatNullable[String])(PostOverseerDTO.apply, unlift(PostOverseerDTO.unapply))
 
-  def toPostOverseer(postOverseerDTO: PostOverseerDTO): PostOverseer =
-    PostOverseer(postOverseerDTO.address, postOverseerDTO.oversightId)
+  def toSeqPostOverseer(postOverseersDTO: Seq[PostOverseerDTO]): Seq[PostOverseer] =
+    postOverseersDTO.map(postOverseerDTO => PostOverseer(postOverseerDTO.address, postOverseerDTO.oversightId))
 
-  def toPostOverseerDTO(postOverseer: PostOverseer): PostOverseerDTO =
-    PostOverseerDTO(postOverseer.address, postOverseer.oversightId)
+  def toSeqPostOverseerDTO(postOverseers: Seq[PostOverseer]): Seq[PostOverseerDTO] =
+    postOverseers.map(postOverseer => PostOverseerDTO(postOverseer.address, postOverseer.oversightId))
+
+  def toSetPostOverseer(postOverseersDTO: Set[PostOverseerDTO]): Set[PostOverseer] =
+    postOverseersDTO.map(postOverseerDTO => PostOverseer(postOverseerDTO.address, postOverseerDTO.oversightId))
+
+  def toSetPostOverseerDTO(postOverseers: Set[PostOverseer]): Set[PostOverseerDTO] =
+    postOverseers.map(postOverseer => PostOverseerDTO(postOverseer.address, postOverseer.oversightId))
 }
 

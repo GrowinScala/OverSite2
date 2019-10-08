@@ -20,5 +20,9 @@ libraryDependencies ++= Seq(
   "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
 )
 
-routesImport ++= Seq("model.types.Mailbox")
+routesImport ++= Seq(
+  "model.types.Mailbox",
+  "model.types.Page",
+  "model.types.PerPage"
+)
 
