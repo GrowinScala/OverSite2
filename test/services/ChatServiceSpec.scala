@@ -8,7 +8,7 @@ import org.scalacheck.Gen
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
 import repositories.dtos.PatchChat
-import OversightDTO._
+import OversightDtoOLD._
 import ChatPreviewDTO._
 import Gen._
 import model.types._
@@ -298,8 +298,8 @@ class ChatServiceSpec extends AsyncWordSpec
       val expectedResponse = genOversightDTO.sample.value
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getOversights(*)
-        .returns(Future.successful(toOversight(expectedResponse)))
+      mockChatsRep.getOversightsOLD(*)
+        .returns(Future.successful(toOversightOLD(expectedResponse)))
 
       val serviceResponse = chatService.getOversights(genUUID.sample.value)
 

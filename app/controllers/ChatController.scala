@@ -180,7 +180,10 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def getOversights: Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
       chatService.getOversights(authenticatedRequest.userId)
-        .map(oversightDTO => Ok(Json.toJson(oversightDTO)))
+        .map{
+          case Some(oversightDTO) => Ok(Json.toJson(oversightDTO))
+          case None => NotFound(oversightsNotFound)
+        }
   }
 
   //region Auxiliary Methods

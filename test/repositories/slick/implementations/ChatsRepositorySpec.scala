@@ -2471,9 +2471,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           userRows = List(basicTestDB.userRow, overseeOneUserRow, overseeTwoUserRow),
           oversightRows = List(overseeingRowOne, overseeingRowTwo))
 
-        oversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+        oversight <- chatsRep.getOversightsOLD(basicTestDB.userRow.userId)
 
-      } yield oversight mustBe Oversight(
+      } yield oversight mustBe OversightOLD(
         Set(ChatOverseeing(
           chatId,
           Set(
@@ -2498,9 +2498,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           userRows = List(basicTestDB.userRow, overseerOneUserRow, overseerTwoUserRow),
           oversightRows = List(overseenRowOne, overseenRowTwo))
 
-        oversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+        oversight <- chatsRep.getOversightsOLD(basicTestDB.userRow.userId)
 
-      } yield oversight mustBe Oversight(
+      } yield oversight mustBe OversightOLD(
         Set.empty[ChatOverseeing],
         Set(ChatOverseen(
           chatId,
@@ -2528,9 +2528,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           userRows = List(basicTestDB.userRow, overseeOneUserRow, overseeTwoUserRow),
           oversightRows = List(overseeingRowOne, overseeingRowTwo))
 
-        oversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+        oversight <- chatsRep.getOversightsOLD(basicTestDB.userRow.userId)
 
-      } yield oversight mustBe Oversight(
+      } yield oversight mustBe OversightOLD(
         Set(
           ChatOverseeing(
             chatIdOne,
@@ -2560,9 +2560,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           userRows = List(basicTestDB.userRow, overseerOneUserRow, overseerTwoUserRow),
           oversightRows = List(overseenRowOne, overseenRowTwo))
 
-        oversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+        oversight <- chatsRep.getOversightsOLD(basicTestDB.userRow.userId)
 
-      } yield oversight mustBe Oversight(
+      } yield oversight mustBe OversightOLD(
         Set.empty[ChatOverseeing],
         Set(
           ChatOverseen(
@@ -2589,9 +2589,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           userRows = List(basicTestDB.userRow, overseerUserRow, overseeUserRow),
           oversightRows = List(overseeingRow, overseenRow))
 
-        oversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+        oversight <- chatsRep.getOversightsOLD(basicTestDB.userRow.userId)
 
-      } yield oversight mustBe Oversight(
+      } yield oversight mustBe OversightOLD(
         Set(ChatOverseeing(
           chatId,
           Set(

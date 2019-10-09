@@ -5,15 +5,15 @@ import repositories.dtos.Oversight
 import ChatOverseeingDTO._
 import ChatOverseenDTO._
 
-case class OversightDTO(overseeing: Set[ChatOverseeingDTO], overseen: Set[ChatOverseenDTO])
+case class OversightDTO(optOverseeing: Option[ChatOverseeingDTO], optOverseen: Option[ChatOverseenDTO])
 
 object OversightDTO {
-  implicit val OversightDtoOFormat: OFormat[OversightDTO] = Json.format[OversightDTO]
-
-  def toOversightDTO(oversight: Oversight): OversightDTO =
-    OversightDTO(oversight.overseeing.map(toChatOverseeingDTO), oversight.overseen.map(toChatOverseenDTO))
-
-  def toOversight(oversightDTO: OversightDTO): Oversight =
-    Oversight(oversightDTO.overseeing.map(toChatOverseeing), oversightDTO.overseen.map(toChatOverseen))
-
+	implicit val OversightDtoOFormat: OFormat[OversightDTO] = Json.format[OversightDTO]
+	
+	def toOversightDTO(oversight: Oversight): OversightDTO =
+		OversightDTO(oversight.optOverseeing.map(toChatOverseeingDTO), oversight.optOverseen.map(toChatOverseenDTO))
+	
+	def toOversight(oversightDTO: OversightDTO): Oversight =
+		Oversight(oversightDTO.optOverseeing.map(toChatOverseeing), oversightDTO.optOverseen.map(toChatOverseen))
+	
 }
