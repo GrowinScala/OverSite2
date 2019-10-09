@@ -8,7 +8,7 @@ import PostOverseerDTO._
 import OversightDtoOLD._
 import OversightDTO._
 import ChatPreviewDTO._
-import repositories.utils.RepMessages._
+import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 
 import scala.concurrent.{ ExecutionContext, Future }

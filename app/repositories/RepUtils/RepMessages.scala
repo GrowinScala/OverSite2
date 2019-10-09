@@ -1,4 +1,4 @@
-package repositories.utils
+package repositories.RepUtils
 
 object RepMessages {
 
