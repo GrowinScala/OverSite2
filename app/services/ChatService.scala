@@ -79,7 +79,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   def getOversightsOLD(userId: String): Future[OversightDtoOLD] =
     chatsRep.getOversightsOLD(userId)
       .map(toOversightDtoOLD)
-  
+
   def getOversights(userId: String): Future[Option[OversightDTO]] =
     chatsRep.getOversights(userId)
       .map(_.map(toOversightDTO))

@@ -100,7 +100,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       email.bcc.getOrElse(Set.empty[String])
   }
 
-  "SlickChatsRepository#getChatsPreview" should {
+  /*"SlickChatsRepository#getChatsPreview" should {
 
     "return None if page is less than zero" in {
       for {
@@ -2451,9 +2451,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     }
 
-  }
+  }*/
 
-  "SlickChatsRepository#getOversights" should {
+  "SlickChatsRepository#getOversightsOLD" should {
 
     "return more than one overseeing for the same chat" in {
       val basicTestDB = genBasicTestDB.sample.value
@@ -2601,6 +2601,162 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             chatId,
             Set(Overseen(overseenRow.oversightId, overseerAddressRow.address)))))
     }
+
+  }
+
+  "SlickChatsRepository#getOversights" should {
+
+    "return more than one overseeing for the same chat" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseeOneAddressRow = genAddressRow.sample.value
+      val overseeOneUserRow = genUserRow(overseeOneAddressRow.addressId).sample.value
+      val overseeTwoAddressRow = genAddressRow.sample.value
+      val overseeTwoUserRow = genUserRow(overseeTwoAddressRow.addressId).sample.value
+      val overseeingRowOne = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
+        overseeOneUserRow.userId).sample.value
+      val overseeingRowTwo = genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
+        overseeTwoUserRow.userId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseeOneAddressRow, overseeTwoAddressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow, overseeOneUserRow, overseeTwoUserRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow),
+          List(basicTestDB.emailAddressRow),
+          oversightRows = List(overseeingRowOne, overseeingRowTwo))
+
+        optOversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+
+      } yield optOversight.value mustBe Oversight(
+        Some(ChatOverseeing(
+        basicTestDB.chatRow.chatId,
+        Set(
+          Overseeing(overseeingRowOne.oversightId, overseeOneAddressRow.address),
+          Overseeing(overseeingRowTwo.oversightId, overseeTwoAddressRow.address)))),
+        None)
+    }
+
+    /*  "return more than one overseen for the same chat" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerOneAddressRow = genAddressRow.sample.value
+      val overseerOneUserRow = genUserRow(overseerOneAddressRow.addressId).sample.value
+      val overseerTwoAddressRow = genAddressRow.sample.value
+      val overseerTwoUserRow = genUserRow(overseerTwoAddressRow.addressId).sample.value
+      val chatId = genUUID.sample.value
+      val overseenRowOne = genOversightRow(chatId, overseerOneUserRow.userId, basicTestDB.userRow.userId).sample.value
+      val overseenRowTwo = genOversightRow(chatId, overseerTwoUserRow.userId, basicTestDB.userRow.userId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerOneAddressRow, overseerTwoAddressRow),
+          userRows = List(basicTestDB.userRow, overseerOneUserRow, overseerTwoUserRow),
+          oversightRows = List(overseenRowOne, overseenRowTwo))
+
+        oversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+
+      } yield oversight mustBe OversightOLD(
+        Set.empty[ChatOverseeing],
+        Set(ChatOverseen(
+          chatId,
+          Set(
+            Overseen(overseenRowOne.oversightId, overseerOneAddressRow.address),
+            Overseen(overseenRowTwo.oversightId, overseerTwoAddressRow.address)))))
+    }
+
+    "return more than one overseeing for different chats" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseeOneAddressRow = genAddressRow.sample.value
+      val overseeOneUserRow = genUserRow(overseeOneAddressRow.addressId).sample.value
+      val overseeTwoAddressRow = genAddressRow.sample.value
+      val overseeTwoUserRow = genUserRow(overseeTwoAddressRow.addressId).sample.value
+      val chatIdOne = genUUID.sample.value
+      val chatIdTwo = genUUID.sample.value
+      val overseeingRowOne = genOversightRow(chatIdOne, basicTestDB.userRow.userId, overseeOneUserRow.userId)
+        .sample.value
+      val overseeingRowTwo = genOversightRow(chatIdTwo, basicTestDB.userRow.userId, overseeTwoUserRow.userId)
+        .sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseeOneAddressRow, overseeTwoAddressRow),
+          userRows = List(basicTestDB.userRow, overseeOneUserRow, overseeTwoUserRow),
+          oversightRows = List(overseeingRowOne, overseeingRowTwo))
+
+        oversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+
+      } yield oversight mustBe OversightOLD(
+        Set(
+          ChatOverseeing(
+            chatIdOne,
+            Set(Overseeing(overseeingRowOne.oversightId, overseeOneAddressRow.address))),
+          ChatOverseeing(
+            chatIdTwo,
+            Set(Overseeing(overseeingRowTwo.oversightId, overseeTwoAddressRow.address)))),
+        Set.empty[ChatOverseen])
+    }
+
+    "return more than one overseen for different chats" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerOneAddressRow = genAddressRow.sample.value
+      val overseerOneUserRow = genUserRow(overseerOneAddressRow.addressId).sample.value
+      val overseerTwoAddressRow = genAddressRow.sample.value
+      val overseerTwoUserRow = genUserRow(overseerTwoAddressRow.addressId).sample.value
+      val chatIdOne = genUUID.sample.value
+      val chatIdTwo = genUUID.sample.value
+      val overseenRowOne = genOversightRow(chatIdOne, overseerOneUserRow.userId, basicTestDB.userRow.userId)
+        .sample.value
+      val overseenRowTwo = genOversightRow(chatIdTwo, overseerTwoUserRow.userId, basicTestDB.userRow.userId)
+        .sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerOneAddressRow, overseerTwoAddressRow),
+          userRows = List(basicTestDB.userRow, overseerOneUserRow, overseerTwoUserRow),
+          oversightRows = List(overseenRowOne, overseenRowTwo))
+
+        oversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+
+      } yield oversight mustBe OversightOLD(
+        Set.empty[ChatOverseeing],
+        Set(
+          ChatOverseen(
+            chatIdOne,
+            Set(Overseen(overseenRowOne.oversightId, overseerOneAddressRow.address))),
+          ChatOverseen(
+            chatIdTwo,
+            Set(Overseen(overseenRowTwo.oversightId, overseerTwoAddressRow.address)))))
+    }
+
+    "return both overseeing and overseen" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressRow = genAddressRow.sample.value
+      val overseerUserRow = genUserRow(overseerAddressRow.addressId).sample.value
+      val overseeAddressRow = genAddressRow.sample.value
+      val overseeUserRow = genUserRow(overseeAddressRow.addressId).sample.value
+      val chatId = genUUID.sample.value
+      val overseeingRow = genOversightRow(chatId, basicTestDB.userRow.userId, overseeUserRow.userId).sample.value
+      val overseenRow = genOversightRow(chatId, overseerUserRow.userId, basicTestDB.userRow.userId).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerAddressRow, overseeAddressRow),
+          userRows = List(basicTestDB.userRow, overseerUserRow, overseeUserRow),
+          oversightRows = List(overseeingRow, overseenRow))
+
+        oversight <- chatsRep.getOversights(basicTestDB.userRow.userId)
+
+      } yield oversight mustBe OversightOLD(
+        Set(ChatOverseeing(
+          chatId,
+          Set(
+            Overseeing(overseeingRow.oversightId, overseeAddressRow.address)))),
+        Set(
+          ChatOverseen(
+            chatId,
+            Set(Overseen(overseenRow.oversightId, overseerAddressRow.address)))))
+    }*/
 
   }
 

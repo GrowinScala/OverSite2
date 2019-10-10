@@ -14,6 +14,10 @@ GET     /chats/oversightsOLD                controllers.ChatController.getOversi
 
 GET     /chats/oversights                   controllers.ChatController.getOversights
 
+GET     /chats/oversights/overseeings       controllers.ChatController.getOverseeings
+
+GET     /chats/oversights/overseens         controllers.ChatController.getOverseens
+
 GET     /chats/:id                          controllers.ChatController.getChat(id : String)
 
 POST    /chats                              controllers.ChatController.postChat

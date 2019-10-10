@@ -297,10 +297,16 @@ object TestGenerators {
       overseens <- genList(1, 3, genOverseenDTO).map(_.toSet)
     } yield ChatOverseenDTO(chatId, overseens)
 
-  val genOversightDTO: Gen[OversightDtoOLD] =
+  val genOversightDtoOLD: Gen[OversightDtoOLD] =
     for {
       overseeing <- genList(1, 3, genChatOverseeingDTO).map(_.toSet)
       overseen <- genList(1, 3, genChatOverseenDTO).map(_.toSet)
     } yield OversightDtoOLD(overseeing, overseen)
+
+  val genOversightDTO: Gen[OversightDTO] =
+    for {
+      overseeing <- option(genChatOverseeingDTO)
+      overseen <- option(genChatOverseenDTO)
+    } yield OversightDTO(overseeing, overseen)
 
 }

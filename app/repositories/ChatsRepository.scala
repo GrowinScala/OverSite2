@@ -35,6 +35,6 @@ trait ChatsRepository {
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean]
 
   def getOversightsOLD(userId: String): Future[OversightOLD]
-  
+
   def getOversights(userId: String): Future[Option[Oversight]]
 }

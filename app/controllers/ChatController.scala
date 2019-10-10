@@ -34,7 +34,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
             val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
               totalCount,
-              LinksDTO(
+              PageLinksDTO(
                 self = makeGetChatsLink(mailbox, page, perPage, authenticatedRequest),
                 first = makeGetChatsLink(mailbox, Page(0), perPage, authenticatedRequest),
                 previous = if (page == 0) None
@@ -61,7 +61,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
           val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
             totalCount,
-            LinksDTO(
+            PageLinksDTO(
               self = makeGetOverseersLink(chatId, page, perPage, authenticatedRequest),
               first = makeGetOverseersLink(chatId, Page(0), perPage, authenticatedRequest),
               previous = if (page == 0) None
@@ -176,14 +176,31 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       chatService.getOversightsOLD(authenticatedRequest.userId)
         .map(oversightDTO => Ok(Json.toJson(oversightDTO)))
   }
-  
+
   def getOversights: Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
       chatService.getOversights(authenticatedRequest.userId)
-        .map{
-          case Some(oversightDTO) => Ok(Json.toJson(oversightDTO))
+        .map {
+          case Some(oversightDTO) =>
+            val oversightsPreview = Json.obj("oversightsPreview" -> Json.toJson(oversightDTO))
+            val metadata = Json.obj("_metadata" ->
+              Json.obj("links" ->
+                Json.obj(
+                  "overseeing" -> routes.ChatController.getOverseeings()
+                  .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request),
+                  "overseen" -> routes.ChatController.getOverseens()
+                    .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request))))
+            Ok(oversightsPreview ++ metadata)
           case None => NotFound(oversightsNotFound)
         }
+  }
+
+  def getOverseeings: Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest => ???
+  }
+
+  def getOverseens: Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest => ???
   }
 
   //region Auxiliary Methods

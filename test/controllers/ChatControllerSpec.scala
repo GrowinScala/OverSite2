@@ -63,7 +63,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
-          LinksDTO(
+          PageLinksDTO(
             self = makeGetChatsLink(mailbox, page, perPage),
             first = makeGetChatsLink(mailbox, Page(0), perPage),
             previous = Some(makeGetChatsLink(mailbox, page - 1, perPage)),
@@ -94,7 +94,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
-          LinksDTO(
+          PageLinksDTO(
             self = makeGetChatsLink(mailbox, page, perPage),
             first = makeGetChatsLink(mailbox, Page(0), perPage),
             previous = None,
@@ -125,7 +125,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
-          LinksDTO(
+          PageLinksDTO(
             self = makeGetChatsLink(mailbox, page, perPage),
             first = makeGetChatsLink(mailbox, Page(0), perPage),
             previous = Some(makeGetChatsLink(mailbox, page - 1, perPage)),
@@ -595,7 +595,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
-          LinksDTO(
+          PageLinksDTO(
             self = makeGetOverseersLink(chatId, page, perPage),
             first = makeGetOverseersLink(chatId, Page(0), perPage),
             previous = Some(makeGetOverseersLink(chatId, page - 1, perPage)),
@@ -626,7 +626,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
-          LinksDTO(
+          PageLinksDTO(
             self = makeGetOverseersLink(chatId, page, perPage),
             first = makeGetOverseersLink(chatId, Page(0), perPage),
             previous = None,
@@ -657,7 +657,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
-          LinksDTO(
+          PageLinksDTO(
             self = makeGetOverseersLink(chatId, page, perPage),
             first = makeGetOverseersLink(chatId, Page(0), perPage),
             previous = Some(makeGetOverseersLink(chatId, page - 1, perPage)),
@@ -716,18 +716,52 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     }
   }
 
-  "ChatController#getOversights" should {
+  "ChatController#getOversightsOLD" should {
     "return the DTO sent by the service" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+
+      val oversightDtoOLD = genOversightDtoOLD.sample.value
+
+      mockChatService.getOversightsOLD(*)
+        .returns(Future.successful(oversightDtoOLD))
+
+      val result: Future[Result] = chatController.getOversightsOLD.apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(oversightDtoOLD)
+    }
+  }
+
+  "ChatController#getOversights" should {
+    "return the DTO sent by the service along with the metadata" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
 
       val oversightDTO = genOversightDTO.sample.value
 
       mockChatService.getOversights(*)
-        .returns(Future.successful(oversightDTO))
+        .returns(Future.successful(Some(oversightDTO)))
 
       val result: Future[Result] = chatController.getOversights.apply(FakeRequest())
       status(result) mustBe OK
-      contentAsJson(result) mustBe Json.toJson(oversightDTO)
+      contentAsJson(result) mustBe {
+        val oversightsPreview = Json.obj("oversightsPreview" -> Json.toJson(oversightDTO))
+        val metadata = Json.obj("_metadata" ->
+          Json.obj("links" ->
+            Json.obj(
+              "overseeing" -> "http://localhost/chats/oversights/overseeings",
+              "overseen" -> "http://localhost/chats/oversights/overseens")))
+        oversightsPreview ++ metadata
+      }
+    }
+
+    "return NotFound when the service returns None" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+
+      mockChatService.getOversights(*)
+        .returns(Future.successful(None))
+
+      val result: Future[Result] = chatController.getOversights.apply(FakeRequest())
+      status(result) mustBe NOT_FOUND
+      contentAsJson(result) mustBe oversightsNotFound
     }
   }
 
