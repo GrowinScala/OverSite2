@@ -1,18 +1,30 @@
 package controllers
 
+import java.io.File
+import java.nio.file.{ Files, Path, Paths }
+
 import javax.inject._
 import model.dtos._
-import play.api.mvc._
-import play.api.libs.json.{ JsError, JsValue, Json }
 import services.ChatService
 import utils.Jsons._
+import akka.stream.IOResult
+import akka.stream.scaladsl._
+import akka.util.ByteString
+import play.api._
+import play.api.data.Form
+import play.api.data.Forms._
+import play.api.libs.streams._
+import play.api.libs.json.{ JsError, JsValue, Json }
+import play.api.mvc.MultipartFormData.FilePart
+import play.api.mvc._
+import play.core.parsers.Multipart.FileInfo
 
 import scala.concurrent.{ ExecutionContext, Future }
 import model.types.Mailbox
 
 @Singleton
-class ChatController @Inject() (implicit val ec: ExecutionContext, cc: ControllerComponents, chatService: ChatService,
-  authenticatedUserAction: AuthenticatedUserAction)
+class ChatController @Inject() (implicit val ec: ExecutionContext, config: Configuration, cc: ControllerComponents,
+  chatService: ChatService, authenticatedUserAction: AuthenticatedUserAction)
   extends AbstractController(cc) {
 
   def getChat(id: String): Action[AnyContent] = authenticatedUserAction.async {
@@ -129,5 +141,67 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
         case None => NotFound
       }
   }
+
+/************************************************************************************************/
+
+  def postAttachment(chatId: String, emailId: String): Action[MultipartFormData[File]] =
+    Action(parse.multipartFormData(handleFilePartAsFile)) { implicit request =>
+      val fileOption = request.body.file("name").map {
+        case FilePart(key, filename, contentType, file) => operateOnTempFile(file)
+      }
+
+      Ok(s"file size = ${fileOption.getOrElse("no file")}")
+    }
+
+  type FilePartHandler[A] = FileInfo => Accumulator[ByteString, FilePart[A]]
+
+  /**
+   * Uses a custom FilePartHandler to return a type of "File" rather than
+   * using Play's TemporaryFile class.  Deletion must happen explicitly on
+   * completion, rather than TemporaryFile (which uses finalization to
+   * delete temporary files).
+   *
+   * @return
+   */
+  private def handleFilePartAsFile: FilePartHandler[File] = {
+    case FileInfo(partName, filename, contentType) =>
+      val path: Path = Files.createTempFile("multipartBody", filename)
+      val fileSink: Sink[ByteString, Future[IOResult]] = FileIO.toPath(path)
+      val accumulator: Accumulator[ByteString, IOResult] = Accumulator(fileSink)
+      accumulator.map {
+        case IOResult(count, status) => println(s"count = $count, status = $status"); FilePart(partName, filename, contentType, path.toFile)
+      }
+  }
+
+  /**
+   * A generic operation on the temporary file that deletes the temp file after completion.
+   */
+  private def operateOnTempFile(file: File): Long = {
+    val size = Files.size(file.toPath)
+    val filename = file.toPath.getFileName
+    val myUploadDirectory = config.get[String]("myUploadDir")
+
+    val moveFile = Files.move(file.toPath, Paths.get(myUploadDirectory + s"\\$filename"))
+    println(s"path = $myUploadDirectory")
+    val deleteTemporaryFile = Files.deleteIfExists(file.toPath)
+
+    size
+  }
+
+  /**
+   * Uploads a multipart file as a POST request.
+   *
+   * @return
+   */
+  def upload: Action[MultipartFormData[File]] =
+    authenticatedUserAction.async(parse.multipartFormData(handleFilePartAsFile)) { implicit authenticatedRequest =>
+      val fileOption = authenticatedRequest.body.file("attachment").map {
+        case FilePart(key, filename, contentType, file) =>
+          println(s"key = $key, filename = $filename, contentType = ${contentType.getOrElse("")}")
+          operateOnTempFile(file)
+      }
+
+      Future.successful(Ok(s"file size = ${fileOption.getOrElse("no file")}"))
+    }
 
 }
