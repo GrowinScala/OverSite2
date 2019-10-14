@@ -32,7 +32,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
 
       chatService.getChat(id, authenticatedRequest.userId).map {
         case Some(chatDTO) => Ok(Json.toJson(chatDTO))
-        case None => NotFound
+        case None => NotFound(chatNotFound)
       }
   }
 
@@ -48,7 +48,10 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
       jsonValue.validate[CreateChatDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
         createChatDTO => chatService.postChat(createChatDTO, authenticatedRequest.userId)
-          .map(result => Ok(Json.toJson(result))))
+          .map {
+            case Some(crChatDTO) => Ok(Json.toJson(crChatDTO))
+            case None => InternalServerError(internalError)
+          })
     }
   }
 
@@ -99,24 +102,25 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
 
       chatService.getEmail(chatId, emailId, authenticatedRequest.userId).map {
         case Some(chatDTO) => Ok(Json.toJson(chatDTO))
-        case None => NotFound
+        case None => NotFound(emailNotFound)
       }
   }
 
   def deleteChat(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      chatService.deleteChat(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
+      chatService.deleteChat(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound(chatNotFound))
   }
 
   def deleteDraft(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      chatService.deleteDraft(chatId, emailId, authenticatedRequest.userId).map(if (_) NoContent else NotFound)
+      chatService.deleteDraft(chatId, emailId, authenticatedRequest.userId).map(if (_) NoContent
+      else NotFound(emailNotFound))
   }
 
   def deleteOverseer(chatId: String, oversightId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
       chatService.deleteOverseer(chatId, oversightId, authenticatedRequest.userId)
-        .map(if (_) NoContent else NotFound)
+        .map(if (_) NoContent else NotFound(overseerNotFound))
   }
 
   def postOverseers(chatId: String): Action[JsValue] = {
@@ -133,13 +137,24 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
     }
   }
 
+  /**
+   * Gets the user's overseers for the given chat
+   * @param chatId The chat's Id
+   * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
+   */
   def getOverseers(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       chatService.getOverseers(chatId, authenticatedRequest.userId).map {
         case Some(postOverseersDTO) => Ok(Json.toJson(postOverseersDTO))
-        case None => NotFound
+        case None => NotFound(chatNotFound)
       }
+  }
+
+  def getOversights: Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.getOversights(authenticatedRequest.userId)
+        .map(oversightDTO => Ok(Json.toJson(oversightDTO)))
   }
 
   def postAttachment(chatId: String, emailId: String): Action[MultipartFormData[File]] =

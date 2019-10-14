@@ -76,7 +76,7 @@ object TestGenerators {
       chatId <- genUUID
       subject <- genString
       lastAddress <- genEmailAddress
-      lastEmailDate <- genString
+      lastEmailDate = getCurrentDate
       contentPreview <- genString
     } yield ChatPreviewDTO(chatId, subject, lastAddress, lastEmailDate, contentPreview)
 
@@ -91,24 +91,24 @@ object TestGenerators {
       bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
       cc <- genList(0, 1, genEmailAddress).map(_.toSet)
       body <- genString
-      date <- genString
+      date = getCurrentDate
       sent <- Gen.oneOf(true, false)
       attachments <- genList(0, 1, genString).map(_.toSet)
     } yield EmailDTO(emailId, from, to, bcc, cc, body, date, sent, attachments)
 
   val genOverseersDTO: Gen[OverseersDTO] =
     for {
-      user <- genEmailAddress
-      overseers <- genList(1, 2, genEmailAddress).map(_.toSet)
+      overseeAddress <- genEmailAddress
+      overseersAddresses <- genList(1, 2, genEmailAddress).map(_.toSet)
 
-    } yield OverseersDTO(user, overseers)
+    } yield OverseersDTO(overseeAddress, overseersAddresses)
 
   val genOverseers: Gen[Overseers] =
     for {
-      user <- genEmailAddress
-      overseers <- genList(1, 2, genEmailAddress).map(_.toSet)
+      overseeAddress <- genEmailAddress
+      overseersAddresses <- genList(1, 2, genEmailAddress).map(_.toSet)
 
-    } yield Overseers(user, overseers)
+    } yield Overseers(overseeAddress, overseersAddresses)
 
   val genChatDTO: Gen[ChatDTO] =
     genList(1, 4, genEmailDTO).flatMap(emails => {
@@ -161,12 +161,6 @@ object TestGenerators {
       email <- genUpsertEmailDTOption
     } yield CreateChatDTO(chatId, subject, email)
 
-  val genSimpleParticipantType: Gen[Option[ParticipantType]] =
-    Gen.oneOf(Some(From), Some(To), Some(Cc), Some(Bcc), None)
-
-  val genParticipantType: Gen[Option[ParticipantType]] =
-    Gen.oneOf(Some(From), Some(To), Some(Cc), Some(Bcc), Some(Overseer), None)
-
   val genAddressRow: Gen[AddressRow] =
     for {
       addressId <- genUUID
@@ -194,7 +188,7 @@ object TestGenerators {
       sent <- genBinary
     } yield EmailRow(emailId, chatId, body, date, sent)
 
-  def genEmailAddressRow(emailId: String, chatId: String, addressId: String, participantType: String): Gen[EmailAddressRow] =
+  def genEmailAddressRow(emailId: String, chatId: String, addressId: String, participantType: ParticipantType): Gen[EmailAddressRow] =
     for {
       emailAddressId <- genUUID
     } yield EmailAddressRow(emailAddressId, emailId, chatId, addressId, participantType)
@@ -215,7 +209,7 @@ object TestGenerators {
       userRow <- genUserRow(addressRow.addressId)
       chatRow <- genChatRow
       emailRow <- genEmailRow(chatRow.chatId)
-      emailAddressRow <- genEmailAddressRow(emailRow.emailId, chatRow.chatId, addressRow.addressId, "from")
+      emailAddressRow <- genEmailAddressRow(emailRow.emailId, chatRow.chatId, addressRow.addressId, From)
       userChatRow <- genUserChatRow(userRow.userId, chatRow.chatId)
     } yield BasicTestDB(addressRow, userRow, chatRow, emailRow, emailAddressRow, userChatRow)
 
@@ -227,7 +221,7 @@ object TestGenerators {
       bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
       cc <- genList(0, 1, genEmailAddress).map(_.toSet)
       body <- genString
-      date <- genString
+      date = getCurrentDate
       sent <- genBinary
       attachments <- genList(0, 1, genString).map(_.toSet)
     } yield Email(emailId, from, to, bcc, cc, body, date, sent, attachments)
@@ -242,7 +236,6 @@ object TestGenerators {
         subject <- genString
         overseers <- genList(0, 2, genOverseers).map(_.toSet)
       } yield Chat(chatId, subject, addresses, overseers, emails.sortBy(_.date))
-
     })
 
   val genPostOverseerDTO: Gen[PostOverseerDTO] =
@@ -262,4 +255,35 @@ object TestGenerators {
 
   val genSetPostOverseer: Gen[Set[PostOverseer]] =
     genList(1, 4, genPostOverseer).map(_.toSet)
+
+  val genOverseeingDTO: Gen[OverseeingDTO] =
+    for {
+      oversightId <- genUUID
+      overseeAddress <- genEmailAddress
+    } yield OverseeingDTO(oversightId, overseeAddress)
+
+  val genChatOverseeingDTO: Gen[ChatOverseeingDTO] =
+    for {
+      chatId <- genUUID
+      overseeings <- genList(1, 3, genOverseeingDTO).map(_.toSet)
+    } yield ChatOverseeingDTO(chatId, overseeings)
+
+  val genOverseenDTO: Gen[OverseenDTO] =
+    for {
+      oversightId <- genUUID
+      overseeAddress <- genEmailAddress
+    } yield OverseenDTO(oversightId, overseeAddress)
+
+  val genChatOverseenDTO: Gen[ChatOverseenDTO] =
+    for {
+      chatId <- genUUID
+      overseens <- genList(1, 3, genOverseenDTO).map(_.toSet)
+    } yield ChatOverseenDTO(chatId, overseens)
+
+  val genOversightDTO: Gen[OversightDTO] =
+    for {
+      overseeing <- genList(1, 3, genChatOverseeingDTO).map(_.toSet)
+      overseen <- genList(1, 3, genChatOverseenDTO).map(_.toSet)
+    } yield OversightDTO(overseeing, overseen)
+
 }

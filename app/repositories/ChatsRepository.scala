@@ -12,7 +12,7 @@ trait ChatsRepository {
 
   def getChat(chatId: String, userId: String): Future[Option[Chat]]
 
-  def postChat(createChat: CreateChat, userId: String): Future[CreateChat]
+  def postChat(createChat: CreateChat, userId: String): Future[Option[CreateChat]]
 
   def postEmail(upsertEmail: UpsertEmail, chatId: String, userId: String): Future[Option[CreateChat]]
 
@@ -31,4 +31,6 @@ trait ChatsRepository {
   def getOverseers(chatId: String, userId: String): Future[Option[Set[PostOverseer]]]
 
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean]
+
+  def getOversights(userId: String): Future[Oversight]
 }

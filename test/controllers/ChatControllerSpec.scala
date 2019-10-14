@@ -117,7 +117,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val createChatDTOWithId = createChatDTO.copy(chatId = Some(genUUID.sample.value))
 
       mockChatService.postChat(*, *)
-        .returns(Future.successful(createChatDTOWithId))
+        .returns(Future.successful(Some(createChatDTOWithId)))
 
       val chatJsonRequest = Json.toJson(createChatDTO)
 
@@ -150,6 +150,24 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       status(result) mustBe BAD_REQUEST
     }
+
+    "return 500 Internal Server Error if the service returns None" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+
+      mockChatService.postChat(*, *)
+        .returns(Future.successful(None))
+
+      val chatJsonRequest = Json.toJson(genCreateChatDTOption.sample.value)
+
+      val request = FakeRequest(POST, "/chats")
+        .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
+        .withBody(chatJsonRequest)
+
+      val result: Future[Result] = chatController.postChat.apply(request)
+
+      status(result) mustBe INTERNAL_SERVER_ERROR
+    }
+
   }
 
   "ChatController#postEmail" should {
@@ -533,6 +551,21 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       chatController.deleteOverseer(genUUID.sample.value, genUUID.sample.value)
         .apply(FakeRequest())
         .map(result => result mustBe NotFound)
+    }
+  }
+
+  "ChatController#getOversights" should {
+    "return the DTO sent by the service" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+
+      val oversightDTO = genOversightDTO.sample.value
+
+      mockChatService.getOversights(*)
+        .returns(Future.successful(oversightDTO))
+
+      val result: Future[Result] = chatController.getOversights.apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(oversightDTO)
     }
   }
 
