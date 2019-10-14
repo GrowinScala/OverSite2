@@ -142,26 +142,30 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
       }
   }
 
-/************************************************************************************************/
-
   def postAttachment(chatId: String, emailId: String): Action[MultipartFormData[File]] =
-    Action(parse.multipartFormData(handleFilePartAsFile)) { implicit request =>
-      val fileOption = request.body.file("name").map {
-        case FilePart(key, filename, contentType, file) => operateOnTempFile(file)
-      }
-
-      Ok(s"file size = ${fileOption.getOrElse("no file")}")
+    authenticatedUserAction.async(parse.multipartFormData(handleFilePartAsFile)) {
+      implicit authenticatedRequest =>
+        authenticatedRequest.body.file("attachment").map {
+          case FilePart(key, filename, contentType, file) => uploadAttachment(file)
+        } match {
+          case None => Future.successful(BadRequest(missingAttachment))
+          case Some(attachmentPath) =>
+            chatService.postAttachment(chatId, emailId, attachmentPath).map {
+              case Some(attachmentId) => Ok(Json.toJson(attachmentId))
+              case None => NotFound
+            }
+        }
+      //Future.successful(Ok(s"file size = ${fileOption.getOrElse("no file")}"))
     }
+
+/********** Auxiliary Methods *************/
 
   type FilePartHandler[A] = FileInfo => Accumulator[ByteString, FilePart[A]]
 
   /**
-   * Uses a custom FilePartHandler to return a type of "File" rather than
-   * using Play's TemporaryFile class.  Deletion must happen explicitly on
-   * completion, rather than TemporaryFile (which uses finalization to
-   * delete temporary files).
-   *
-   * @return
+   * Uses a custom FilePartHandler to return a type of "File" rather than using Play's TemporaryFile class.
+   * Deletion must happen explicitly on completion, rather than TemporaryFile
+   * (which uses finalization to delete temporary files).
    */
   private def handleFilePartAsFile: FilePartHandler[File] = {
     case FileInfo(partName, filename, contentType) =>
@@ -173,35 +177,17 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
       }
   }
 
-  /**
-   * A generic operation on the temporary file that deletes the temp file after completion.
-   */
-  private def operateOnTempFile(file: File): Long = {
-    val size = Files.size(file.toPath)
-    val filename = file.toPath.getFileName
-    val myUploadDirectory = config.get[String]("myUploadDir")
+  private def uploadAttachment(file: File): String = {
+    val filePath = file.toPath
+    val uploadPath = config.get[String]("uploadDirectory") + "\\" + filePath.getFileName
 
-    val moveFile = Files.move(file.toPath, Paths.get(myUploadDirectory + s"\\$filename"))
-    println(s"path = $myUploadDirectory")
-    val deleteTemporaryFile = Files.deleteIfExists(file.toPath)
+    Files.move(filePath, Paths.get(uploadPath)) //Move file
 
-    size
+    println(s"path = $uploadPath")
+
+    Files.deleteIfExists(filePath) //Delete temporary file
+
+    uploadPath
   }
-
-  /**
-   * Uploads a multipart file as a POST request.
-   *
-   * @return
-   */
-  def upload: Action[MultipartFormData[File]] =
-    authenticatedUserAction.async(parse.multipartFormData(handleFilePartAsFile)) { implicit authenticatedRequest =>
-      val fileOption = authenticatedRequest.body.file("attachment").map {
-        case FilePart(key, filename, contentType, file) =>
-          println(s"key = $key, filename = $filename, contentType = ${contentType.getOrElse("")}")
-          operateOnTempFile(file)
-      }
-
-      Future.successful(Ok(s"file size = ${fileOption.getOrElse("no file")}"))
-    }
 
 }

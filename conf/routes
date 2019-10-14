@@ -30,9 +30,9 @@ DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteO
 
 DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
-#POST    /chats/:chatId/emails/:emailId/attachments      controllers.ChatController.postAttachment(chatId : String, emailId : String)
+POST    /chats/:chatId/emails/:emailId/attachments      controllers.ChatController.postAttachment(chatId : String, emailId : String)
 
-POST    /upload      controllers.ChatController.upload
+#POST    /upload      controllers.ChatController.upload
 
 
 # Authentication

@@ -18,6 +18,7 @@ object Jsons {
   val tokenExpired: Error = Json.parse("""{ "Error": "Authentication Token has expired, please sign-in again"}  """)
   val chatNotFound: Error = Json.parse("""{ "Error": "The given chat was not found"}  """)
   val emailNotFound: Error = Json.parse("""{ "Error": "The given email was not found"}  """)
+  val missingAttachment: Error = Json.parse("""{ "Error": "The attachment to be uploaded is missing"}  """)
   val cannotBothDeleteAndRestore: Error =
     Json.parse("""{ "Error": "Cannot move chat to trash and restore chat simultaneously"}""")
 
