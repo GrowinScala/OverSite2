@@ -3,6 +3,8 @@ package controllers
 import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.types._
+import model.types.Page._
+import model.types.PerPage._
 import org.scalatestplus.play._
 import play.api.libs.json._
 import play.api.mvc._
@@ -734,6 +736,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   "ChatController#getOversights" should {
     "return the DTO sent by the service along with the metadata" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
+      val defaultPage = DEFAULT_PAGE.value
+      val defaultPerPage = DEFAULT_PER_PAGE.value
 
       val oversightDTO = genOversightDTO.sample.value
 
@@ -747,7 +751,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" ->
           Json.obj("links" ->
             Json.obj(
-              "overseeing" -> "http://localhost/chats/oversights/overseeings",
+              "overseeing" ->
+                s"http://localhost/chats/oversights/overseeings?page=$defaultPage&perPage=$defaultPerPage",
               "overseen" -> "http://localhost/chats/oversights/overseens")))
         oversightsPreview ++ metadata
       }
@@ -762,6 +767,116 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val result: Future[Result] = chatController.getOversights.apply(FakeRequest())
       status(result) mustBe NOT_FOUND
       contentAsJson(result) mustBe oversightsNotFound
+    }
+  }
+
+  "ChatController#getOverseeings" should {
+    def makeGetOverseeingsLink(page: Page, perPage: PerPage): String =
+      s"http://localhost/chats/oversights/overseeings?page=" + page.value.toString + "&perPage=" +
+        perPage.value.toString
+
+    "return the DTO sent by the service along with the metadata" in {
+      val seqChatOverseeingDTO = genSeqChatOverseeingDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = genPage.sample.value
+      val lastPage = page + choose(1, 5).sample.value
+      val chatId = genUUID.sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseeings(*, *, *)
+        .returns(Future.successful(Some((seqChatOverseeingDTO, totalCount, lastPage))))
+
+      val result: Future[Result] = chatController.getOverseeings(page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val overseeings = Json.obj("overseeings" -> Json.toJson(seqChatOverseeingDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseeingsLink(page, perPage),
+            first = makeGetOverseeingsLink(Page(0), perPage),
+            previous = Some(makeGetOverseeingsLink(page - 1, perPage)),
+            next = Some(makeGetOverseeingsLink(page + 1, perPage)),
+            last = makeGetOverseeingsLink(lastPage, perPage)))))
+        overseeings ++ metadata
+      }
+    }
+
+    """do not return a "previous" link if page is 0 """ in {
+      val seqChatOverseeingDTO = genSeqChatOverseeingDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = Page(0)
+      val lastPage = page + choose(1, 5).sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseeings(*, *, *)
+        .returns(Future.successful(Some((seqChatOverseeingDTO, totalCount, lastPage))))
+
+      val result: Future[Result] = chatController.getOverseeings(page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val overseeings = Json.obj("overseeings" -> Json.toJson(seqChatOverseeingDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseeingsLink(page, perPage),
+            first = makeGetOverseeingsLink(Page(0), perPage),
+            previous = None,
+            next = Some(makeGetOverseeingsLink(page + 1, perPage)),
+            last = makeGetOverseeingsLink(lastPage, perPage)))))
+        overseeings ++ metadata
+      }
+    }
+
+    """do not return a "next" link if page is equal or greater than lastPage """ in {
+      val seqChatOverseeingDTO = genSeqChatOverseeingDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val lastPage = genPage.sample.value
+      val page = lastPage + choose(0, 5).sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseeings(*, *, *)
+        .returns(Future.successful(Some((seqChatOverseeingDTO, totalCount, lastPage))))
+
+      val result: Future[Result] = chatController.getOverseeings(page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val overseeings = Json.obj("overseeings" -> Json.toJson(seqChatOverseeingDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseeingsLink(page, perPage),
+            first = makeGetOverseeingsLink(Page(0), perPage),
+            previous = Some(makeGetOverseeingsLink(page - 1, perPage)),
+            next = None,
+            last = makeGetOverseeingsLink(lastPage, perPage)))))
+        overseeings ++ metadata
+      }
+    }
+
+    "return InternalServerError if the service returns None" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseeings(*, *, *)
+        .returns(Future.successful(None))
+
+      val result: Future[Result] = chatController.getOverseeings(
+        genPage.sample.value,
+        genPerPage.sample.value).apply(FakeRequest())
+
+      status(result) mustBe INTERNAL_SERVER_ERROR
+      contentAsJson(result) mustBe internalError
     }
   }
 

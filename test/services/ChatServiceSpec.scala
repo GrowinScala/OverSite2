@@ -15,6 +15,7 @@ import Gen._
 import model.types._
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
+import model.dtos.ChatOverseeingDTO._
 
 import scala.concurrent.Future
 import utils.TestGenerators._
@@ -320,6 +321,24 @@ class ChatServiceSpec extends AsyncWordSpec
       val serviceResponse = chatService.getOversights(genUUID.sample.value)
 
       serviceResponse.map(_ mustBe expectedResponse)
+    }
+  }
+
+  "ChatService#getOverseeings" should {
+    "map the repositories optional response" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val optSeqChatOverseeingDTO = Gen.option(genSeqChatOverseeingDTO).sample.value
+      val optSeqChatOverseeing = optSeqChatOverseeingDTO.map(toSeqChatOverseeing)
+      val totalCount = choose(1, 10).sample.value
+      val lastPage = choose(1, 10).sample.value
+
+      mockChatsRep.getOverseeings(*, *, *)
+        .returns(Future.successful(optSeqChatOverseeing.map((_, totalCount, lastPage))))
+
+      val seqChatOverseeingDTO = chatService.getOverseeings(
+        genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+      seqChatOverseeingDTO.map(_ mustBe optSeqChatOverseeingDTO.map((_, totalCount, Page(lastPage))))
     }
   }
 

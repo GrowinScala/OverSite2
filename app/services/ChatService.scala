@@ -7,6 +7,7 @@ import repositories.ChatsRepository
 import PostOverseerDTO._
 import OversightDtoOLD._
 import OversightDTO._
+import ChatOverseeingDTO._
 import ChatPreviewDTO._
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
@@ -83,4 +84,12 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   def getOversights(userId: String): Future[Option[OversightDTO]] =
     chatsRep.getOversights(userId)
       .map(_.map(toOversightDTO))
+
+  def getOverseeings(page: Page, perPage: PerPage,
+    userId: String): Future[Option[(Seq[ChatOverseeingDTO], Int, Page)]] =
+    chatsRep.getOverseeings(page.value, perPage.value, userId)
+      .map(_.map {
+        case (seqChatOverseeing, totalCount, lastPage) =>
+          (toSeqChatOverseeingDTO(seqChatOverseeing), totalCount, Page(lastPage))
+      })
 }

@@ -7,7 +7,7 @@ import model.types.ParticipantType._
 import org.scalacheck.Gen
 import play.api.libs.json._
 import repositories.dtos._
-import repositories.slick.implementations.BasicTestDB
+import repositories.slick.implementations.{ BasicTestDB, OverseeingData, UserChatVisibilityData }
 import repositories.slick.mappings._
 import utils.DateUtils._
 import Gen._
@@ -285,6 +285,9 @@ object TestGenerators {
       overseeings <- genList(1, 3, genOverseeingDTO).map(_.toSet)
     } yield ChatOverseeingDTO(chatId, overseeings)
 
+  val genSeqChatOverseeingDTO: Gen[Seq[ChatOverseeingDTO]] =
+    genList(1, 3, genChatOverseeingDTO)
+
   val genOverseenDTO: Gen[OverseenDTO] =
     for {
       oversightId <- genUUID
@@ -308,5 +311,20 @@ object TestGenerators {
       overseeing <- option(genChatOverseeingDTO)
       overseen <- option(genChatOverseenDTO)
     } yield OversightDTO(overseeing, overseen)
+
+  def genOverseeingData(chatId: String, overseerId: String): Gen[OverseeingData] =
+    for {
+      overseeAddressRow <- genAddressRow
+      overseeUserRow <- genUserRow(overseeAddressRow.addressId)
+      oversightRow <- genOversightRow(chatId, overseerId, overseeUserRow.userId)
+    } yield OverseeingData(overseeAddressRow, overseeUserRow, oversightRow)
+
+  def genUserChatVisibilityData(chatId: String, userId: String,
+    userAddressId: String): Gen[UserChatVisibilityData] =
+    for {
+      emailRow <- genEmailRow(chatId)
+      emailAddressRow <- genEmailAddressRow(emailRow.emailId, chatId, userAddressId, From)
+      userChatRow <- genUserChatRow(userId, chatId)
+    } yield UserChatVisibilityData(emailRow, emailAddressRow, userChatRow)
 
 }

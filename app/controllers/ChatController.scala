@@ -6,6 +6,8 @@ import play.api.mvc._
 import play.api.libs.json._
 import services.ChatService
 import utils.Jsons._
+import model.types.Page._
+import model.types.PerPage._
 
 import scala.concurrent.{ ExecutionContext, Future }
 import model.types.{ Mailbox, Page, PerPage }
@@ -186,8 +188,8 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
             val metadata = Json.obj("_metadata" ->
               Json.obj("links" ->
                 Json.obj(
-                  "overseeing" -> routes.ChatController.getOverseeings()
-                  .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request),
+                  "overseeing" -> routes.ChatController.getOverseeings(DEFAULT_PAGE, DEFAULT_PER_PAGE)
+                    .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request),
                   "overseen" -> routes.ChatController.getOverseens()
                     .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request))))
             Ok(oversightsPreview ++ metadata)
@@ -195,8 +197,25 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
         }
   }
 
-  def getOverseeings: Action[AnyContent] = authenticatedUserAction.async {
-    authenticatedRequest => ???
+  def getOverseeings(page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.getOverseeings(page, perPage, authenticatedRequest.userId).map {
+        case Some((seqChatOverseeingDTO, totalCount, lastPage)) =>
+          val overseeings = Json.obj("overseeings" -> Json.toJson(seqChatOverseeingDTO))
+
+          val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+            totalCount,
+            PageLinksDTO(
+              self = makeGetOverseeingsLink(page, perPage, authenticatedRequest),
+              first = makeGetOverseeingsLink(Page(0), perPage, authenticatedRequest),
+              previous = if (page == 0) None
+              else Some(makeGetOverseeingsLink(page - 1, perPage, authenticatedRequest)),
+              next = if (page >= lastPage) None
+              else Some(makeGetOverseeingsLink(page + 1, perPage, authenticatedRequest)),
+              last = makeGetOverseeingsLink(lastPage, perPage, authenticatedRequest)))))
+          Ok(overseeings ++ metadata)
+        case None => InternalServerError(internalError)
+      }
   }
 
   def getOverseens: Action[AnyContent] = authenticatedUserAction.async {
@@ -209,6 +228,9 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
   def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getOverseers(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
+
+  def makeGetOverseeingsLink(page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getOverseeings(page, perPage).absoluteURL(auth.secure)(auth.request)
   //endregion
 
 }

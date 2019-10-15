@@ -14,7 +14,7 @@ GET     /chats/oversightsOLD                controllers.ChatController.getOversi
 
 GET     /chats/oversights                   controllers.ChatController.getOversights
 
-GET     /chats/oversights/overseeings       controllers.ChatController.getOverseeings
+GET     /chats/oversights/overseeings       controllers.ChatController.getOverseeings(page: Page, perPage: PerPage)
 
 GET     /chats/oversights/overseens         controllers.ChatController.getOverseens
 

@@ -37,4 +37,6 @@ trait ChatsRepository {
   def getOversightsOLD(userId: String): Future[OversightOLD]
 
   def getOversights(userId: String): Future[Option[Oversight]]
+
+  def getOverseeings(page: Int, perPage: Int, user: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]]
 }
