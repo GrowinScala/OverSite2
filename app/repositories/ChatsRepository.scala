@@ -1,6 +1,5 @@
 package repositories
 
-import model.dtos._
 import model.types.Mailbox
 import repositories.dtos._
 
@@ -33,4 +32,6 @@ trait ChatsRepository {
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean]
 
   def getOversights(userId: String): Future[Oversight]
+
+  def postAttachment(chatId: String, emailId: String, userId: String, attachmentPath: String): Future[Option[String]]
 }

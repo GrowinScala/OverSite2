@@ -165,12 +165,11 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
         } match {
           case None => Future.successful(BadRequest(missingAttachment))
           case Some(attachmentPath) =>
-            chatService.postAttachment(chatId, emailId, attachmentPath).map {
+            chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, attachmentPath).map {
               case Some(attachmentId) => Ok(Json.toJson(attachmentId))
               case None => NotFound
             }
         }
-      //Future.successful(Ok(s"file size = ${fileOption.getOrElse("no file")}"))
     }
 
 /********** Auxiliary Methods *************/

@@ -394,6 +394,19 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getOverseers(chatId: String, userId: String): Future[Option[Set[PostOverseer]]] =
     db.run(getOverseersAction(chatId, userId).transactionally)
 
+  private def postAttachmentAction(chatId: String, emailId: String, userId: String, attachmentPath: String): DBIO[Option[String]] = {
+    for {
+      optionVerifiedFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
+      optionAttachmentId <- DBIO.sequenceOption(optionVerifiedFromAddress.map { _ =>
+        val attachmentId = newUUID
+        DBIO.seq(AttachmentsTable.all += AttachmentRow(attachmentId, emailId, attachmentPath)).andThen(DBIO.successful(attachmentId))
+      })
+    } yield optionAttachmentId
+  }
+
+  def postAttachment(chatId: String, emailId: String, userId: String, attachmentPath: String): Future[Option[String]] =
+    db.run(postAttachmentAction(chatId, emailId, userId, attachmentPath).transactionally)
+
   //region Auxiliary Methods
 
   private def getOverseersQuery(chatId: String, userId: String) =

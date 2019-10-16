@@ -64,7 +64,6 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getOversights(userId)
       .map(toOversightDTO)
 
-  def postAttachment(chatId: String, emailId: String, attachmentPath: String): Future[Option[String]] = {
-    Future.successful(Some(attachmentPath))
-  }
+  def postAttachment(chatId: String, emailId: String, userId: String, attachmentPath: String): Future[Option[String]] =
+    chatsRep.postAttachment(chatId, emailId, userId, attachmentPath)
 }
