@@ -1,14 +1,16 @@
 package utils
 
 import model.dtos._
-import model.types.ParticipantType
+import model.types._
+import Mailbox._
 import model.types.ParticipantType._
 import org.scalacheck.Gen
 import play.api.libs.json._
 import repositories.dtos._
-import repositories.slick.implementations.BasicTestDB
+import repositories.slick.implementations.{ BasicTestDB, OverseeingData, OverseenData, UserChatVisibilityData }
 import repositories.slick.mappings._
 import utils.DateUtils._
+import Gen._
 
 object TestGenerators {
 
@@ -244,6 +246,9 @@ object TestGenerators {
       optOversightId <- Gen.option(genUUID)
     } yield PostOverseerDTO(address, optOversightId)
 
+  val genSeqPostOverseerDTO: Gen[Seq[PostOverseerDTO]] =
+    genList(1, 4, genPostOverseerDTO)
+
   val genSetPostOverseerDTO: Gen[Set[PostOverseerDTO]] =
     genList(1, 4, genPostOverseerDTO).map(_.toSet)
 
@@ -253,8 +258,20 @@ object TestGenerators {
       optOversightId <- Gen.option(genUUID)
     } yield PostOverseer(address, optOversightId)
 
+  val genSeqPostOverseer: Gen[Seq[PostOverseer]] =
+    genList(1, 4, genPostOverseer)
+
   val genSetPostOverseer: Gen[Set[PostOverseer]] =
     genList(1, 4, genPostOverseer).map(_.toSet)
+
+  val genPage: Gen[Page] =
+    choose(1, 10).map(Page(_))
+
+  val genPerPage: Gen[PerPage] =
+    choose(1, 10).map(PerPage(_))
+
+  val genMailbox: Gen[Mailbox] =
+    oneOf(Inbox, Sent, Drafts, Trash)
 
   val genOverseeingDTO: Gen[OverseeingDTO] =
     for {
@@ -268,6 +285,9 @@ object TestGenerators {
       overseeings <- genList(1, 3, genOverseeingDTO).map(_.toSet)
     } yield ChatOverseeingDTO(chatId, overseeings)
 
+  val genSeqChatOverseeingDTO: Gen[Seq[ChatOverseeingDTO]] =
+    genList(1, 3, genChatOverseeingDTO)
+
   val genOverseenDTO: Gen[OverseenDTO] =
     for {
       oversightId <- genUUID
@@ -280,10 +300,35 @@ object TestGenerators {
       overseens <- genList(1, 3, genOverseenDTO).map(_.toSet)
     } yield ChatOverseenDTO(chatId, overseens)
 
+  val genSeqChatOverseenDTO: Gen[Seq[ChatOverseenDTO]] =
+    genList(1, 3, genChatOverseenDTO)
+
   val genOversightDTO: Gen[OversightDTO] =
     for {
-      overseeing <- genList(1, 3, genChatOverseeingDTO).map(_.toSet)
-      overseen <- genList(1, 3, genChatOverseenDTO).map(_.toSet)
+      overseeing <- option(genChatOverseeingDTO)
+      overseen <- option(genChatOverseenDTO)
     } yield OversightDTO(overseeing, overseen)
+
+  def genOverseeingData(chatId: String, overseerId: String): Gen[OverseeingData] =
+    for {
+      overseeAddressRow <- genAddressRow
+      overseeUserRow <- genUserRow(overseeAddressRow.addressId)
+      oversightRow <- genOversightRow(chatId, overseerId, overseeUserRow.userId)
+    } yield OverseeingData(overseeAddressRow, overseeUserRow, oversightRow)
+
+  def genOverseenData(chatId: String, overseeId: String): Gen[OverseenData] =
+    for {
+      overseerAddressRow <- genAddressRow
+      overseerUserRow <- genUserRow(overseerAddressRow.addressId)
+      oversightRow <- genOversightRow(chatId, overseerUserRow.userId, overseeId)
+    } yield OverseenData(overseerAddressRow, overseerUserRow, oversightRow)
+
+  def genUserChatVisibilityData(chatId: String, userId: String,
+    userAddressId: String): Gen[UserChatVisibilityData] =
+    for {
+      emailRow <- genEmailRow(chatId)
+      emailAddressRow <- genEmailAddressRow(emailRow.emailId, chatId, userAddressId, From)
+      userChatRow <- genUserChatRow(userId, chatId)
+    } yield UserChatVisibilityData(emailRow, emailAddressRow, userChatRow)
 
 }

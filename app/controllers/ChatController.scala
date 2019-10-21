@@ -3,12 +3,14 @@ package controllers
 import javax.inject._
 import model.dtos._
 import play.api.mvc._
-import play.api.libs.json.{ JsError, JsValue, Json }
+import play.api.libs.json._
 import services.ChatService
 import utils.Jsons._
+import model.types.Page._
+import model.types.PerPage._
 
 import scala.concurrent.{ ExecutionContext, Future }
-import model.types.Mailbox
+import model.types.{ Mailbox, Page, PerPage }
 
 @Singleton
 class ChatController @Inject() (implicit val ec: ExecutionContext, cc: ControllerComponents, chatService: ChatService,
@@ -24,9 +26,55 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       }
   }
 
-  def getChats(mailbox: Mailbox): Action[AnyContent] = authenticatedUserAction.async {
+  def getChats(mailbox: Mailbox, page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      chatService.getChats(mailbox, authenticatedRequest.userId).map(seq => Ok(Json.toJson(seq)))
+
+      chatService.getChats(mailbox, page, perPage, authenticatedRequest.userId)
+        .map {
+          case Some((chatsPreviewDTO, totalCount, lastPage)) =>
+            val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
+
+            val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+              totalCount,
+              PageLinksDTO(
+                self = makeGetChatsLink(mailbox, page, perPage, authenticatedRequest),
+                first = makeGetChatsLink(mailbox, Page(0), perPage, authenticatedRequest),
+                previous = if (page == 0) None
+                else Some(makeGetChatsLink(mailbox, page - 1, perPage, authenticatedRequest)),
+                next = if (page >= lastPage) None
+                else Some(makeGetChatsLink(mailbox, page + 1, perPage, authenticatedRequest)),
+                last = makeGetChatsLink(mailbox, lastPage, perPage, authenticatedRequest)))))
+            Ok(chats ++ metadata)
+          case None => InternalServerError(internalError)
+        }
+  }
+
+  /**
+   * Gets the user's overseers for the given chat
+   * @param chatId The chat's Id
+   * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
+   */
+  def getOverseers(chatId: String, page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+
+      chatService.getOverseers(chatId, page, perPage, authenticatedRequest.userId).map {
+        case Right((postOverseerDTO, totalCount, lastPage)) =>
+          val chats = Json.obj("overseers" -> Json.toJson(postOverseerDTO))
+
+          val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+            totalCount,
+            PageLinksDTO(
+              self = makeGetOverseersLink(chatId, page, perPage, authenticatedRequest),
+              first = makeGetOverseersLink(chatId, Page(0), perPage, authenticatedRequest),
+              previous = if (page == 0) None
+              else Some(makeGetOverseersLink(chatId, page - 1, perPage, authenticatedRequest)),
+              next = if (page >= lastPage) None
+              else Some(makeGetOverseersLink(chatId, page + 1, perPage, authenticatedRequest)),
+              last = makeGetOverseersLink(chatId, lastPage, perPage, authenticatedRequest)))))
+          Ok(chats ++ metadata)
+        case Left(`chatNotFound`) => BadRequest(chatNotFound)
+        case Left(_) => InternalServerError(internalError)
+      }
   }
 
   def postChat: Action[JsValue] = {
@@ -125,24 +173,78 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
     }
   }
 
-  /**
-   * Gets the user's overseers for the given chat
-   * @param chatId The chat's Id
-   * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
-   */
-  def getOverseers(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
-    authenticatedRequest =>
-
-      chatService.getOverseers(chatId, authenticatedRequest.userId).map {
-        case Some(postOverseersDTO) => Ok(Json.toJson(postOverseersDTO))
-        case None => NotFound(chatNotFound)
-      }
-  }
-
   def getOversights: Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
       chatService.getOversights(authenticatedRequest.userId)
-        .map(oversightDTO => Ok(Json.toJson(oversightDTO)))
+        .map {
+          case Some(oversightDTO) =>
+            val oversightsPreview = Json.obj("oversightsPreview" -> Json.toJson(oversightDTO))
+            val metadata = Json.obj("_metadata" ->
+              Json.obj("links" ->
+                Json.obj(
+                  "overseeing" -> routes.ChatController.getOverseeings(DEFAULT_PAGE, DEFAULT_PER_PAGE)
+                    .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request),
+                  "overseen" -> routes.ChatController.getOverseens(DEFAULT_PAGE, DEFAULT_PER_PAGE)
+                    .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request))))
+            Ok(oversightsPreview ++ metadata)
+          case None => NotFound(oversightsNotFound)
+        }
   }
+
+  def getOverseeings(page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.getOverseeings(page, perPage, authenticatedRequest.userId).map {
+        case Some((seqChatOverseeingDTO, totalCount, lastPage)) =>
+          val overseeings = Json.obj("overseeings" -> Json.toJson(seqChatOverseeingDTO))
+
+          val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+            totalCount,
+            PageLinksDTO(
+              self = makeGetOverseeingsLink(page, perPage, authenticatedRequest),
+              first = makeGetOverseeingsLink(Page(0), perPage, authenticatedRequest),
+              previous = if (page == 0) None
+              else Some(makeGetOverseeingsLink(page - 1, perPage, authenticatedRequest)),
+              next = if (page >= lastPage) None
+              else Some(makeGetOverseeingsLink(page + 1, perPage, authenticatedRequest)),
+              last = makeGetOverseeingsLink(lastPage, perPage, authenticatedRequest)))))
+          Ok(overseeings ++ metadata)
+        case None => InternalServerError(internalError)
+      }
+  }
+
+  def getOverseens(page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.getOverseens(page, perPage, authenticatedRequest.userId).map {
+        case Some((seqChatOverseenDTO, totalCount, lastPage)) =>
+          val overseens = Json.obj("overseens" -> Json.toJson(seqChatOverseenDTO))
+
+          val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+            totalCount,
+            PageLinksDTO(
+              self = makeGetOverseensLink(page, perPage, authenticatedRequest),
+              first = makeGetOverseensLink(Page(0), perPage, authenticatedRequest),
+              previous = if (page == 0) None
+              else Some(makeGetOverseensLink(page - 1, perPage, authenticatedRequest)),
+              next = if (page >= lastPage) None
+              else Some(makeGetOverseensLink(page + 1, perPage, authenticatedRequest)),
+              last = makeGetOverseensLink(lastPage, perPage, authenticatedRequest)))))
+          Ok(overseens ++ metadata)
+        case None => InternalServerError(internalError)
+      }
+  }
+
+  //region Auxiliary Methods
+  def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getChats(mailbox, page, perPage).absoluteURL(auth.secure)(auth.request)
+
+  def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getOverseers(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
+
+  def makeGetOverseeingsLink(page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getOverseeings(page, perPage).absoluteURL(auth.secure)(auth.request)
+
+  def makeGetOverseensLink(page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getOverseens(page, perPage).absoluteURL(auth.secure)(auth.request)
+  //endregion
 
 }

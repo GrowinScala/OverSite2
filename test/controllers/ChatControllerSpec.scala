@@ -2,7 +2,9 @@ package controllers
 
 import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
-import model.types.Mailbox._
+import model.types._
+import model.types.Page._
+import model.types.PerPage._
 import org.scalatestplus.play._
 import play.api.libs.json._
 import play.api.mvc._
@@ -15,6 +17,7 @@ import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
 import utils.Jsons._
 import utils.TestGenerators._
+import org.scalacheck.Gen._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -37,49 +40,113 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   }
 
   "ChatController#getChats" should {
-    "return Json for inbox" in {
-      val chatPreviewDTO = genChatPreviewDTO.sample.value
+    def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage): String =
+      "http://localhost/chats?mailbox=" + mailbox.value + "&page=" + page.value.toString + "&perPage=" +
+        perPage.value.toString
+
+    "return the data provided by the service along with the corresponding metadata" in {
+      val chatsPreviewDTO = genChatPreviewDTOSeq.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = genPage.sample.value
+      val lastPage = page + choose(1, 5).sample.value
+      val mailbox = genMailbox.sample.value
+      val perPage = genPerPage.sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(Inbox, *)
-        .returns(Future.successful(Seq(chatPreviewDTO)))
+      mockChatService.getChats(*, *, *, *)
+        .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
-      val result: Future[Result] = chatController.getChats(Inbox).apply(FakeRequest())
+      val result: Future[Result] = chatController.getChats(mailbox, page, perPage)
+        .apply(FakeRequest())
       status(result) mustBe OK
-      contentAsJson(result) mustBe Json.toJson(Seq(chatPreviewDTO))
+      contentAsJson(result) mustBe {
+
+        val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetChatsLink(mailbox, page, perPage),
+            first = makeGetChatsLink(mailbox, Page(0), perPage),
+            previous = Some(makeGetChatsLink(mailbox, page - 1, perPage)),
+            next = Some(makeGetChatsLink(mailbox, page + 1, perPage)),
+            last = makeGetChatsLink(mailbox, lastPage, perPage)))))
+        chats ++ metadata
+      }
     }
 
-    "return Json for sent" in {
-      val chatPreviewDTO = genChatPreviewDTO.sample.value
-      val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(Sent, *)
-        .returns(Future.successful(Seq(chatPreviewDTO)))
+    """do not return a "previous" link if page is 0 """ in {
+      val chatsPreviewDTO = genChatPreviewDTOSeq.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = Page(0)
+      val lastPage = page + choose(1, 5).sample.value
+      val mailbox = genMailbox.sample.value
+      val perPage = genPerPage.sample.value
 
-      val result: Future[Result] = chatController.getChats(Sent).apply(FakeRequest())
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getChats(*, *, *, *)
+        .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
+
+      val result: Future[Result] = chatController.getChats(mailbox, page, perPage)
+        .apply(FakeRequest())
       status(result) mustBe OK
-      contentAsJson(result) mustBe Json.toJson(Seq(chatPreviewDTO))
+      contentAsJson(result) mustBe {
+
+        val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetChatsLink(mailbox, page, perPage),
+            first = makeGetChatsLink(mailbox, Page(0), perPage),
+            previous = None,
+            next = Some(makeGetChatsLink(mailbox, page + 1, perPage)),
+            last = makeGetChatsLink(mailbox, lastPage, perPage)))))
+        chats ++ metadata
+      }
     }
 
-    "return Json for trash" in {
-      val chatPreviewDTO = genChatPreviewDTO.sample.value
-      val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(Trash, *)
-        .returns(Future.successful(Seq(chatPreviewDTO)))
+    """do not return a "next" link if page is equal or greater than lastPage """ in {
+      val chatsPreviewDTO = genChatPreviewDTOSeq.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val lastPage = genPage.sample.value
+      val page = lastPage + choose(0, 5).sample.value
+      val mailbox = genMailbox.sample.value
+      val perPage = genPerPage.sample.value
 
-      val result: Future[Result] = chatController.getChats(Trash).apply(FakeRequest())
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getChats(*, *, *, *)
+        .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
+
+      val result: Future[Result] = chatController.getChats(mailbox, page, perPage)
+        .apply(FakeRequest())
       status(result) mustBe OK
-      contentAsJson(result) mustBe Json.toJson(Seq(chatPreviewDTO))
+      contentAsJson(result) mustBe {
+
+        val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetChatsLink(mailbox, page, perPage),
+            first = makeGetChatsLink(mailbox, Page(0), perPage),
+            previous = Some(makeGetChatsLink(mailbox, page - 1, perPage)),
+            next = None,
+            last = makeGetChatsLink(mailbox, lastPage, perPage)))))
+        chats ++ metadata
+      }
     }
 
-    "return Json for drafts" in {
-      val chatPreviewDTO = genChatPreviewDTO.sample.value
+    "return InternalError if the service returns None" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(Drafts, *)
-        .returns(Future.successful(Seq(chatPreviewDTO)))
+      mockChatService.getChats(*, *, *, *)
+        .returns(Future.successful(None))
 
-      val result: Future[Result] = chatController.getChats(Drafts).apply(FakeRequest())
-      status(result) mustBe OK
-      contentAsJson(result) mustBe Json.toJson(Seq(chatPreviewDTO))
+      val result: Future[Result] = chatController.getChats(genMailbox.sample.value, genPage.sample.value,
+        genPerPage.sample.value)
+        .apply(FakeRequest())
+      status(result) mustBe INTERNAL_SERVER_ERROR
+      contentAsJson(result) mustBe internalError
     }
 
   }
@@ -506,27 +573,124 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   }
 
   "ChatController#getOverseers" should {
-    "return the DTO sent by the service" in {
+    def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage): String =
+      s"http://localhost/chats/$chatId/overseers?page=" + page.value.toString + "&perPage=" + perPage.value.toString
+
+    "return the data provided by the service along with the corresponding metadata" in {
+      val postOverseersDTO = genSeqPostOverseerDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = genPage.sample.value
+      val lastPage = page + choose(1, 5).sample.value
+      val chatId = genUUID.sample.value
+      val perPage = genPerPage.sample.value
+
       val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseers(*, *, *, *)
+        .returns(Future.successful(Right(postOverseersDTO, totalCount, lastPage)))
 
-      val setPostOverseerDTO = genSetPostOverseerDTO.sample.value
-
-      mockChatService.getOverseers(*, *)
-        .returns(Future.successful(Some(setPostOverseerDTO)))
-
-      val result: Future[Result] = chatController.getOverseers(genUUID.sample.value).apply(FakeRequest())
+      val result: Future[Result] = chatController.getOverseers(chatId, page, perPage)
+        .apply(FakeRequest())
       status(result) mustBe OK
-      contentAsJson(result) mustBe Json.toJson(setPostOverseerDTO)
+      contentAsJson(result) mustBe {
+
+        val chats = Json.obj("overseers" -> Json.toJson(postOverseersDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseersLink(chatId, page, perPage),
+            first = makeGetOverseersLink(chatId, Page(0), perPage),
+            previous = Some(makeGetOverseersLink(chatId, page - 1, perPage)),
+            next = Some(makeGetOverseersLink(chatId, page + 1, perPage)),
+            last = makeGetOverseersLink(chatId, lastPage, perPage)))))
+        chats ++ metadata
+      }
     }
 
-    "return NotFound if service response is None" in {
+    """do not return a "previous" link if page is 0 """ in {
+      val postOverseersDTO = genSeqPostOverseerDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = Page(0)
+      val lastPage = page + choose(1, 5).sample.value
+      val chatId = genUUID.sample.value
+      val perPage = genPerPage.sample.value
+
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getOverseers(*, *)
-        .returns(Future.successful(None))
+      mockChatService.getOverseers(*, *, *, *)
+        .returns(Future.successful(Right(postOverseersDTO, totalCount, lastPage)))
 
-      val result: Future[Result] = chatController.getOverseers(genUUID.sample.value).apply(FakeRequest())
+      val result: Future[Result] = chatController.getOverseers(chatId, page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
 
-      status(result) mustBe NOT_FOUND
+        val chats = Json.obj("overseers" -> Json.toJson(postOverseersDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseersLink(chatId, page, perPage),
+            first = makeGetOverseersLink(chatId, Page(0), perPage),
+            previous = None,
+            next = Some(makeGetOverseersLink(chatId, page + 1, perPage)),
+            last = makeGetOverseersLink(chatId, lastPage, perPage)))))
+        chats ++ metadata
+      }
+    }
+
+    """do not return a "next" link if page is equal or greater than lastPage """ in {
+      val postOverseersDTO = genSeqPostOverseerDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val lastPage = genPage.sample.value
+      val page = lastPage + choose(0, 5).sample.value
+      val chatId = genUUID.sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseers(*, *, *, *)
+        .returns(Future.successful(Right(postOverseersDTO, totalCount, lastPage)))
+
+      val result: Future[Result] = chatController.getOverseers(chatId, page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val chats = Json.obj("overseers" -> Json.toJson(postOverseersDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseersLink(chatId, page, perPage),
+            first = makeGetOverseersLink(chatId, Page(0), perPage),
+            previous = Some(makeGetOverseersLink(chatId, page - 1, perPage)),
+            next = None,
+            last = makeGetOverseersLink(chatId, lastPage, perPage)))))
+        chats ++ metadata
+      }
+    }
+
+    "return BadRequest if that is the service's message" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseers(*, *, *, *)
+        .returns(Future.successful(Left(chatNotFound)))
+
+      val result: Future[Result] = chatController.getOverseers(genUUID.sample.value, genPage.sample.value,
+        genPerPage.sample.value).apply(FakeRequest())
+
+      status(result) mustBe BAD_REQUEST
+      contentAsJson(result) mustBe chatNotFound
+    }
+
+    "return InternalServerError if the service returns an error message other than chatNotFound" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseers(*, *, *, *)
+        .returns(Future.successful(Left(genSimpleJsObj.sample.value)))
+
+      val result: Future[Result] = chatController.getOverseers(genUUID.sample.value, genPage.sample.value,
+        genPerPage.sample.value).apply(FakeRequest())
+
+      status(result) mustBe INTERNAL_SERVER_ERROR
+      contentAsJson(result) mustBe internalError
     }
   }
 
@@ -555,17 +719,260 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   }
 
   "ChatController#getOversights" should {
-    "return the DTO sent by the service" in {
+    "return the DTO sent by the service along with the metadata" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
+      val defaultPage = DEFAULT_PAGE.value
+      val defaultPerPage = DEFAULT_PER_PAGE.value
 
       val oversightDTO = genOversightDTO.sample.value
 
       mockChatService.getOversights(*)
-        .returns(Future.successful(oversightDTO))
+        .returns(Future.successful(Some(oversightDTO)))
 
       val result: Future[Result] = chatController.getOversights.apply(FakeRequest())
       status(result) mustBe OK
-      contentAsJson(result) mustBe Json.toJson(oversightDTO)
+      contentAsJson(result) mustBe {
+        val oversightsPreview = Json.obj("oversightsPreview" -> Json.toJson(oversightDTO))
+        val metadata = Json.obj("_metadata" ->
+          Json.obj("links" ->
+            Json.obj(
+              "overseeing" ->
+                s"http://localhost/chats/oversights/overseeings?page=$defaultPage&perPage=$defaultPerPage",
+              "overseen" ->
+                s"http://localhost/chats/oversights/overseens?page=$defaultPage&perPage=$defaultPerPage")))
+        oversightsPreview ++ metadata
+      }
+    }
+
+    "return NotFound when the service returns None" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+
+      mockChatService.getOversights(*)
+        .returns(Future.successful(None))
+
+      val result: Future[Result] = chatController.getOversights.apply(FakeRequest())
+      status(result) mustBe NOT_FOUND
+      contentAsJson(result) mustBe oversightsNotFound
+    }
+  }
+
+  "ChatController#getOverseeings" should {
+    def makeGetOverseeingsLink(page: Page, perPage: PerPage): String =
+      s"http://localhost/chats/oversights/overseeings?page=" + page.value.toString + "&perPage=" +
+        perPage.value.toString
+
+    "return the DTO sent by the service along with the metadata" in {
+      val seqChatOverseeingDTO = genSeqChatOverseeingDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = genPage.sample.value
+      val lastPage = page + choose(1, 5).sample.value
+      val chatId = genUUID.sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseeings(*, *, *)
+        .returns(Future.successful(Some((seqChatOverseeingDTO, totalCount, lastPage))))
+
+      val result: Future[Result] = chatController.getOverseeings(page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val overseeings = Json.obj("overseeings" -> Json.toJson(seqChatOverseeingDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseeingsLink(page, perPage),
+            first = makeGetOverseeingsLink(Page(0), perPage),
+            previous = Some(makeGetOverseeingsLink(page - 1, perPage)),
+            next = Some(makeGetOverseeingsLink(page + 1, perPage)),
+            last = makeGetOverseeingsLink(lastPage, perPage)))))
+        overseeings ++ metadata
+      }
+    }
+
+    """do not return a "previous" link if page is 0 """ in {
+      val seqChatOverseeingDTO = genSeqChatOverseeingDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = Page(0)
+      val lastPage = page + choose(1, 5).sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseeings(*, *, *)
+        .returns(Future.successful(Some((seqChatOverseeingDTO, totalCount, lastPage))))
+
+      val result: Future[Result] = chatController.getOverseeings(page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val overseeings = Json.obj("overseeings" -> Json.toJson(seqChatOverseeingDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseeingsLink(page, perPage),
+            first = makeGetOverseeingsLink(Page(0), perPage),
+            previous = None,
+            next = Some(makeGetOverseeingsLink(page + 1, perPage)),
+            last = makeGetOverseeingsLink(lastPage, perPage)))))
+        overseeings ++ metadata
+      }
+    }
+
+    """do not return a "next" link if page is equal or greater than lastPage """ in {
+      val seqChatOverseeingDTO = genSeqChatOverseeingDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val lastPage = genPage.sample.value
+      val page = lastPage + choose(0, 5).sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseeings(*, *, *)
+        .returns(Future.successful(Some((seqChatOverseeingDTO, totalCount, lastPage))))
+
+      val result: Future[Result] = chatController.getOverseeings(page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val overseeings = Json.obj("overseeings" -> Json.toJson(seqChatOverseeingDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseeingsLink(page, perPage),
+            first = makeGetOverseeingsLink(Page(0), perPage),
+            previous = Some(makeGetOverseeingsLink(page - 1, perPage)),
+            next = None,
+            last = makeGetOverseeingsLink(lastPage, perPage)))))
+        overseeings ++ metadata
+      }
+    }
+
+    "return InternalServerError if the service returns None" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseeings(*, *, *)
+        .returns(Future.successful(None))
+
+      val result: Future[Result] = chatController.getOverseeings(
+        genPage.sample.value,
+        genPerPage.sample.value).apply(FakeRequest())
+
+      status(result) mustBe INTERNAL_SERVER_ERROR
+      contentAsJson(result) mustBe internalError
+    }
+  }
+
+  "ChatController#getOverseens" should {
+    def makeGetOverseensLink(page: Page, perPage: PerPage): String =
+      s"http://localhost/chats/oversights/overseens?page=" + page.value.toString + "&perPage=" +
+        perPage.value.toString
+
+    "return the DTO sent by the service along with the metadata" in {
+      val seqChatOverseenDTO = genSeqChatOverseenDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = genPage.sample.value
+      val lastPage = page + choose(1, 5).sample.value
+      val chatId = genUUID.sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseens(*, *, *)
+        .returns(Future.successful(Some((seqChatOverseenDTO, totalCount, lastPage))))
+
+      val result: Future[Result] = chatController.getOverseens(page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val overseens = Json.obj("overseens" -> Json.toJson(seqChatOverseenDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseensLink(page, perPage),
+            first = makeGetOverseensLink(Page(0), perPage),
+            previous = Some(makeGetOverseensLink(page - 1, perPage)),
+            next = Some(makeGetOverseensLink(page + 1, perPage)),
+            last = makeGetOverseensLink(lastPage, perPage)))))
+        overseens ++ metadata
+      }
+    }
+
+    """do not return a "previous" link if page is 0 """ in {
+      val seqChatOverseenDTO = genSeqChatOverseenDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val page = Page(0)
+      val lastPage = page + choose(1, 5).sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseens(*, *, *)
+        .returns(Future.successful(Some((seqChatOverseenDTO, totalCount, lastPage))))
+
+      val result: Future[Result] = chatController.getOverseens(page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val overseens = Json.obj("overseens" -> Json.toJson(seqChatOverseenDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseensLink(page, perPage),
+            first = makeGetOverseensLink(Page(0), perPage),
+            previous = None,
+            next = Some(makeGetOverseensLink(page + 1, perPage)),
+            last = makeGetOverseensLink(lastPage, perPage)))))
+        overseens ++ metadata
+      }
+    }
+
+    """do not return a "next" link if page is equal or greater than lastPage """ in {
+      val seqChatOverseenDTO = genSeqChatOverseenDTO.sample.value
+      val totalCount = choose(0, 10).sample.value
+      val lastPage = genPage.sample.value
+      val page = lastPage + choose(0, 5).sample.value
+      val perPage = genPerPage.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseens(*, *, *)
+        .returns(Future.successful(Some((seqChatOverseenDTO, totalCount, lastPage))))
+
+      val result: Future[Result] = chatController.getOverseens(page, perPage)
+        .apply(FakeRequest())
+      status(result) mustBe OK
+      contentAsJson(result) mustBe {
+
+        val overseens = Json.obj("overseens" -> Json.toJson(seqChatOverseenDTO))
+
+        val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+          totalCount,
+          PageLinksDTO(
+            self = makeGetOverseensLink(page, perPage),
+            first = makeGetOverseensLink(Page(0), perPage),
+            previous = Some(makeGetOverseensLink(page - 1, perPage)),
+            next = None,
+            last = makeGetOverseensLink(lastPage, perPage)))))
+        overseens ++ metadata
+      }
+    }
+
+    "return InternalServerError if the service returns None" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getOverseens(*, *, *)
+        .returns(Future.successful(None))
+
+      val result: Future[Result] = chatController.getOverseens(
+        genPage.sample.value,
+        genPerPage.sample.value).apply(FakeRequest())
+
+      status(result) mustBe INTERNAL_SERVER_ERROR
+      contentAsJson(result) mustBe internalError
     }
   }
 
