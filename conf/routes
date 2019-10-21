@@ -10,8 +10,6 @@ GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(
 
 GET     /chats/:id/overseers                controllers.ChatController.getOverseers(id : String, page: Page, perPage: PerPage)
 
-GET     /chats/oversightsOLD                controllers.ChatController.getOversightsOLD
-
 GET     /chats/oversights                   controllers.ChatController.getOversights
 
 GET     /chats/oversights/overseeings       controllers.ChatController.getOverseeings(page: Page, perPage: PerPage)

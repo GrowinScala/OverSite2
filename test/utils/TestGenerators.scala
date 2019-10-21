@@ -303,12 +303,6 @@ object TestGenerators {
   val genSeqChatOverseenDTO: Gen[Seq[ChatOverseenDTO]] =
     genList(1, 3, genChatOverseenDTO)
 
-  val genOversightDtoOLD: Gen[OversightDtoOLD] =
-    for {
-      overseeing <- genList(1, 3, genChatOverseeingDTO).map(_.toSet)
-      overseen <- genList(1, 3, genChatOverseenDTO).map(_.toSet)
-    } yield OversightDtoOLD(overseeing, overseen)
-
   val genOversightDTO: Gen[OversightDTO] =
     for {
       overseeing <- option(genChatOverseeingDTO)

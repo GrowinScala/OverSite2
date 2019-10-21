@@ -8,7 +8,6 @@ import org.scalacheck.Gen
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
 import repositories.dtos.PatchChat
-import OversightDtoOLD._
 import OversightDTO._
 import ChatPreviewDTO._
 import Gen._
@@ -292,21 +291,6 @@ class ChatServiceSpec extends AsyncWordSpec
       val deleteOverseerService = chatService.deleteOverseer(
         genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
       deleteOverseerService.map(_ mustBe false)
-    }
-  }
-
-  "ChatService#getOversightsOLD" should {
-    "turn the received Oversight to OversightDTO" in {
-
-      val expectedResponse = genOversightDtoOLD.sample.value
-
-      val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getOversightsOLD(*)
-        .returns(Future.successful(toOversightOLD(expectedResponse)))
-
-      val serviceResponse = chatService.getOversightsOLD(genUUID.sample.value)
-
-      serviceResponse.map(_ mustBe expectedResponse)
     }
   }
 

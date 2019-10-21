@@ -173,12 +173,6 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
     }
   }
 
-  def getOversightsOLD: Action[AnyContent] = authenticatedUserAction.async {
-    authenticatedRequest =>
-      chatService.getOversightsOLD(authenticatedRequest.userId)
-        .map(oversightDTO => Ok(Json.toJson(oversightDTO)))
-  }
-
   def getOversights: Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
       chatService.getOversights(authenticatedRequest.userId)

@@ -718,21 +718,6 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     }
   }
 
-  "ChatController#getOversightsOLD" should {
-    "return the DTO sent by the service" in {
-      val (chatController, mockChatService) = getControllerAndServiceMock
-
-      val oversightDtoOLD = genOversightDtoOLD.sample.value
-
-      mockChatService.getOversightsOLD(*)
-        .returns(Future.successful(oversightDtoOLD))
-
-      val result: Future[Result] = chatController.getOversightsOLD.apply(FakeRequest())
-      status(result) mustBe OK
-      contentAsJson(result) mustBe Json.toJson(oversightDtoOLD)
-    }
-  }
-
   "ChatController#getOversights" should {
     "return the DTO sent by the service along with the metadata" in {
       val (chatController, mockChatService) = getControllerAndServiceMock

@@ -5,7 +5,6 @@ import model.dtos._
 import model.types.{ Mailbox, Page, PerPage }
 import repositories.ChatsRepository
 import PostOverseerDTO._
-import OversightDtoOLD._
 import OversightDTO._
 import ChatOverseeingDTO._
 import ChatOverseenDTO._
@@ -77,10 +76,6 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
 
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean] =
     chatsRep.deleteOverseer(chatId, oversightId, userId)
-
-  def getOversightsOLD(userId: String): Future[OversightDtoOLD] =
-    chatsRep.getOversightsOLD(userId)
-      .map(toOversightDtoOLD)
 
   def getOversights(userId: String): Future[Option[OversightDTO]] =
     chatsRep.getOversights(userId)
