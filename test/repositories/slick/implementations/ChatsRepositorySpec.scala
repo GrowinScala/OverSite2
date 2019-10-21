@@ -81,9 +81,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   //endregion
 
-  def fillDB(addressRows: List[AddressRow] = Nil, chatRows: List[ChatRow] = Nil, userRows: List[UserRow] = Nil,
-    userChatRows: List[UserChatRow] = Nil, emailRows: List[EmailRow] = Nil,
-    emailAddressRows: List[EmailAddressRow] = Nil, oversightRows: List[OversightRow] = Nil): Future[Unit] =
+  def fillDB(addressRows: Seq[AddressRow] = Nil, chatRows: Seq[ChatRow] = Nil, userRows: Seq[UserRow] = Nil,
+    userChatRows: Seq[UserChatRow] = Nil, emailRows: Seq[EmailRow] = Nil,
+    emailAddressRows: Seq[EmailAddressRow] = Nil, oversightRows: Seq[OversightRow] = Nil): Future[Unit] =
     db.run(DBIO.seq(
       AddressesTable.all ++= addressRows,
       ChatsTable.all ++= chatRows,
@@ -103,7 +103,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       email.bcc.getOrElse(Set.empty[String])
   }
 
-  /* "SlickChatsRepository#getChatsPreview" should {
+  "SlickChatsRepository#getChatsPreview" should {
 
     "return None if page is less than zero" in {
       for {
@@ -674,7 +674,145 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       } yield chatsPreview.value._1 mustBe empty
     }
 
-    "sample the chats according to the given page and perPage values" in {
+    "return the correct totalCount and lastPage values" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val chatList = genList(1, 20, genChatRow).sample.value
+      val userChatList = chatList.map(chatRow =>
+        genUserChatRow(basicTestDB.userRow.userId, chatRow.chatId).sample.value)
+      val emailList = chatList.map(chatRow => genEmailRow(chatRow.chatId).sample.value)
+      val emailAddressList = emailList.map(emailRow => genEmailAddressRow(emailRow.emailId, emailRow.chatId,
+        basicTestDB.addressRow.addressId, from).sample.value)
+      val page = choose(0, 20).sample.value
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(chatList.size, perPage, RoundingMode.CEILING) - 1
+
+      for {
+        _ <- fillDB(
+          addressRows = List(basicTestDB.addressRow),
+          chatRows = chatList,
+          userRows = List(basicTestDB.userRow),
+          userChatRows = userChatList,
+          emailRows = emailList,
+          emailAddressRows = emailAddressList)
+
+        optChatsPreview <- chatsRep.getChatsPreview(Inbox, page, perPage, basicTestDB.userRow.userId)
+      } yield {
+
+        val chatsPreview = optChatsPreview.value
+        val chats = chatsPreview._1
+        val totalCount = chatsPreview._2
+        val lastPage = chatsPreview._3
+        val sortedEmailList = emailList.sortBy(emailrow => (emailrow.date, emailrow.body))(
+          Ordering.Tuple2(Ordering.String.reverse, Ordering.String))
+        totalCount mustBe chatList.size withClue "The totalCount is wrong"
+        assert(sortedEmailList.isDefinedAt(lastPage * perPage) &&
+          !sortedEmailList.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
+        lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
+      }
+    }
+
+    "sample the chats according to the given intermediary page and perPage values" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val chatList = genList(1, 20, genChatRow).sample.value
+      val userChatList = chatList.map(chatRow =>
+        genUserChatRow(basicTestDB.userRow.userId, chatRow.chatId).sample.value)
+      val emailList = chatList.map(chatRow => genEmailRow(chatRow.chatId).sample.value)
+      val emailAddressList = emailList.map(emailRow => genEmailAddressRow(emailRow.emailId, emailRow.chatId,
+        basicTestDB.addressRow.addressId, from).sample.value)
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(chatList.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, max(expectedLastPage - 1, 0)).sample.value
+
+      for {
+        _ <- fillDB(
+          addressRows = List(basicTestDB.addressRow),
+          chatRows = chatList,
+          userRows = List(basicTestDB.userRow),
+          userChatRows = userChatList,
+          emailRows = emailList,
+          emailAddressRows = emailAddressList)
+
+        optChatsPreview <- chatsRep.getChatsPreview(Inbox, page, perPage, basicTestDB.userRow.userId)
+      } yield {
+        val chats = optChatsPreview.value._1
+        val sortedEmailList = emailList.sortBy(emailrow => (emailrow.date, emailrow.body))(
+          Ordering.Tuple2(Ordering.String.reverse, Ordering.String))
+        chats.size mustBe min(perPage, chatList.size) withClue "The size of the sliced sequence is wrong"
+        chats.headOption.value.contentPreview mustBe sortedEmailList(perPage * page).body withClue "The first element" +
+          " of the sliced sequence is wrong"
+      }
+    }
+
+    "correctly sample the last page of the chats" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val chatList = genList(1, 20, genChatRow).sample.value
+      val userChatList = chatList.map(chatRow =>
+        genUserChatRow(basicTestDB.userRow.userId, chatRow.chatId).sample.value)
+      val emailList = chatList.map(chatRow => genEmailRow(chatRow.chatId).sample.value)
+      val emailAddressList = emailList.map(emailRow => genEmailAddressRow(emailRow.emailId, emailRow.chatId,
+        basicTestDB.addressRow.addressId, from).sample.value)
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(chatList.size, perPage, RoundingMode.CEILING) - 1
+
+      for {
+        _ <- fillDB(
+          addressRows = List(basicTestDB.addressRow),
+          chatRows = chatList,
+          userRows = List(basicTestDB.userRow),
+          userChatRows = userChatList,
+          emailRows = emailList,
+          emailAddressRows = emailAddressList)
+
+        optChatsPreview <- chatsRep.getChatsPreview(Inbox, expectedLastPage, perPage, basicTestDB.userRow.userId)
+      } yield {
+        val chatsPreview = optChatsPreview.value
+        val chats = chatsPreview._1
+        val totalCount = chatsPreview._2
+        val sortedEmailList = emailList.sortBy(emailrow => (emailrow.date, emailrow.body))(
+          Ordering.Tuple2(Ordering.String.reverse, Ordering.String))
+        chats.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
+          " sliced sequence is wrong"
+        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+         of the last element of the penultimate page (perPage * expectedLastPage - 1).*/
+
+        chats.headOption.value.contentPreview mustBe sortedEmailList(perPage * expectedLastPage).body withClue "The" +
+          " first element of the sliced sequence is wrong"
+      }
+    }
+
+    "return an empty sequence if the page is greater than the last page" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val chatList = genList(1, 20, genChatRow).sample.value
+      val userChatList = chatList.map(chatRow =>
+        genUserChatRow(basicTestDB.userRow.userId, chatRow.chatId).sample.value)
+      val emailList = chatList.map(chatRow => genEmailRow(chatRow.chatId).sample.value)
+      val emailAddressList = emailList.map(emailRow => genEmailAddressRow(emailRow.emailId, emailRow.chatId,
+        basicTestDB.addressRow.addressId, from).sample.value)
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(chatList.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(expectedLastPage + 1, expectedLastPage + 3).sample.value
+
+      for {
+        _ <- fillDB(
+          addressRows = List(basicTestDB.addressRow),
+          chatRows = chatList,
+          userRows = List(basicTestDB.userRow),
+          userChatRows = userChatList,
+          emailRows = emailList,
+          emailAddressRows = emailAddressList)
+
+        optChatsPreview <- chatsRep.getChatsPreview(Inbox, page, perPage, basicTestDB.userRow.userId)
+      } yield {
+        val chatsPreview = optChatsPreview.value
+        val chats = chatsPreview._1
+        val totalCount = chatsPreview._2
+        totalCount must be > 0
+        chats mustBe empty
+      }
+
+    }
+
+    "OLD FULL TEST" in {
       val basicTestDB = genBasicTestDB.sample.value
       val chatList = genList(1, 20, genChatRow).sample.value
       val userChatList = chatList.map(chatRow =>
@@ -704,10 +842,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val sortedEmailList = emailList.sortBy(emailrow => (emailrow.date, emailrow.body))(
           Ordering.Tuple2(Ordering.String.reverse, Ordering.String))
         if (chats.isEmpty) {
-        page must be > (divide(totalCount, perPage, RoundingMode.CEILING) - 1)
-        totalCount must be > 0
-        }
-        else {
+          page must be > (divide(totalCount, perPage, RoundingMode.CEILING) - 1)
+          totalCount must be > 0
+        } else {
           val firstEmail = sortedEmailList(perPage * page).body
           chats.size mustBe min(perPage, chatList.size) withClue "The size of the sliced sequence is wrong"
           totalCount mustBe chatList.size withClue "The totalCount is wrong"
@@ -2296,13 +2433,133 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     }
 
-    "sample the overseers according to the given page and perPage values" in {
+    "return the correct totalCount and lastPage values" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseerAddressList = genList(1, 20, genAddressRow).sample.value
       val overseerUserList = overseerAddressList.map(addressRow => genUserRow(addressRow.addressId).sample.value)
       val seqPostOverseer = overseerAddressList.map(addressRow => PostOverseer(addressRow.address, None))
-      val page = choose(0, 20).sample.value
       val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(overseerAddressList.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, expectedLastPage + 1).sample.value
+
+      for {
+        _ <- fillDB(
+          addressRows = List(basicTestDB.addressRow) ++ overseerAddressList,
+          userRows = List(basicTestDB.userRow) ++ overseerUserList)
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+
+        postedOverseers <- chatsRep.postOverseers(seqPostOverseer.toSet, createdChatDTO.value.chatId.value,
+          basicTestDB.userRow.userId)
+
+        eitherResult <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, page, perPage,
+          basicTestDB.userRow.userId)
+
+      } yield {
+        val result = eitherResult.toOption.value
+        val totalCount = result._2
+        val lastPage = result._3
+        val sortedOverseers = postedOverseers.value.toSeq.sortBy {
+          case PostOverseer(address, optOversightId) =>
+            (address, optOversightId.value)
+        }
+        totalCount mustBe overseerAddressList.size withClue "The totalCount is wrong"
+        assert(sortedOverseers.isDefinedAt(lastPage * perPage) &&
+          !sortedOverseers.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
+        lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
+      }
+    }
+
+    "sample the overseers according to the given intermediary page and perPage values" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressList = genList(1, 20, genAddressRow).sample.value
+      val overseerUserList = overseerAddressList.map(addressRow => genUserRow(addressRow.addressId).sample.value)
+      val seqPostOverseer = overseerAddressList.map(addressRow => PostOverseer(addressRow.address, None))
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(overseerAddressList.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, max(expectedLastPage - 1, 0)).sample.value
+
+      for {
+        _ <- fillDB(
+          addressRows = List(basicTestDB.addressRow) ++ overseerAddressList,
+          userRows = List(basicTestDB.userRow) ++ overseerUserList)
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+
+        postedOverseers <- chatsRep.postOverseers(seqPostOverseer.toSet, createdChatDTO.value.chatId.value,
+          basicTestDB.userRow.userId)
+
+        eitherResult <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, page, perPage,
+          basicTestDB.userRow.userId)
+
+      } yield {
+        val overseers = eitherResult.toOption.value._1
+        val sortedOverseers = postedOverseers.value.toSeq.sortBy {
+          case PostOverseer(address, optOversightId) =>
+            (address, optOversightId.value)
+        }
+        val result = eitherResult.toOption.value
+        val totalCount = result._2
+        val lastPage = result._3
+        println("THIS IS THE SORTED_OVERSEEINGS", sortedOverseers)
+        println("THIS IS THE TOTAL_COUNT", totalCount)
+        println("THIS IS THE PAGE", page)
+        println("THIS IS THE PER_PAGE", perPage)
+        println("THIS IS THE LAST_PAGE", lastPage)
+        println("THIS IS THE SLICED SEQUENCE", overseers)
+        overseers.size mustBe min(perPage, seqPostOverseer.size) withClue "The size of the slice sequence is wrong"
+        overseers.headOption.value mustBe sortedOverseers(perPage * page) withClue ("The first element" +
+          " of the sliced sequence is wrong")
+      }
+    }
+
+    "correctly sample the last page of the overseers" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressList = genList(1, 20, genAddressRow).sample.value
+      val overseerUserList = overseerAddressList.map(addressRow => genUserRow(addressRow.addressId).sample.value)
+      val seqPostOverseer = overseerAddressList.map(addressRow => PostOverseer(addressRow.address, None))
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(overseerAddressList.size, perPage, RoundingMode.CEILING) - 1
+
+      for {
+        _ <- fillDB(
+          addressRows = List(basicTestDB.addressRow) ++ overseerAddressList,
+          userRows = List(basicTestDB.userRow) ++ overseerUserList)
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+
+        postedOverseers <- chatsRep.postOverseers(seqPostOverseer.toSet, createdChatDTO.value.chatId.value,
+          basicTestDB.userRow.userId)
+
+        eitherResult <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, expectedLastPage, perPage,
+          basicTestDB.userRow.userId)
+
+      } yield {
+        val result = eitherResult.toOption.value
+        val overseers = result._1
+        val totalCount = result._2
+        val sortedOverseers = postedOverseers.value.toSeq.sortBy {
+          case PostOverseer(address, optOversightId) =>
+            (address, optOversightId.value)
+        }
+        overseers.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
+          " sliced sequence is wrong"
+        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+					 of the last element of the penultimate page (perPage * expectedLastPage - 1).*/
+
+        overseers.headOption.value mustBe sortedOverseers(perPage * expectedLastPage) withClue "The first" +
+          " element of the sliced sequence is wrong"
+      }
+    }
+
+    "return an empty sequence if the page is greater than the last page" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerAddressList = genList(1, 20, genAddressRow).sample.value
+      val overseerUserList = overseerAddressList.map(addressRow => genUserRow(addressRow.addressId).sample.value)
+      val seqPostOverseer = overseerAddressList.map(addressRow => PostOverseer(addressRow.address, None))
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(overseerAddressList.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(expectedLastPage + 1, expectedLastPage + 3).sample.value
 
       for {
         _ <- fillDB(
@@ -2321,22 +2578,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val result = eitherResult.toOption.value
         val overseers = result._1
         val totalCount = result._2
-        val lastPage = result._3
-        val sortedOverseers = postedOverseers.value.toSeq.sortBy {
-          case PostOverseer(address, optOversightId) =>
-            (address, optOversightId.value)
-        }
-        if (overseers.isEmpty) {
-        page must be > (divide(totalCount, perPage, RoundingMode.CEILING) - 1)
         totalCount must be > 0
-        }
-        else {
-          overseers.size mustBe min(perPage, seqPostOverseer.size) withClue "The size of the slice sequence is wrong"
-          totalCount mustBe seqPostOverseer.size withClue "The totalCount is wrong"
-           seqChatOverseeing.headOption.value mustBe sortedOverseers(perPage * expectedlastPage)
-            .withClue("The first element of the sliced sequence is wrong")
-          (lastPage + 1) * perPage must be > seqPostOverseer.size - 1 withClue "The value for the lastPage is wrong"
-        }
+        overseers mustBe empty
       }
     }
 
@@ -2460,7 +2703,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     }
 
-  }*/
+  }
 
   "SlickChatsRepository#getOversightsOLD" should {
 
@@ -2802,6 +3045,44 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   "SlickChatsRepository#getOverseeings" should {
 
+    def makeOverseeingsDB(userId: String, userAddressId: String): (FullTestDB, Int, List[ChatOverseeing]) = {
+      val chats = genList(1, 20, genChatRow).sample.value
+      val overseeingsDataList = chats.map(chatRow => OverseeingsData(
+        chatRow,
+        genList(1, 3, genOverseeingData(chatRow.chatId, userId)).sample.value,
+        genUserChatVisibilityData(chatRow.chatId, userId, userAddressId)
+          .sample.value))
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(chats.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, expectedLastPage + 1).sample.value
+
+      val dbAndResult = for {
+        overseeingsData <- overseeingsDataList
+        chatRow = overseeingsData.chatRow
+        userChatVisibilityData = overseeingsData.userChatVisibilityData
+        overseeingData <- overseeingsData.seqOverseeingData
+      } yield ((overseeingData.overseeAddressRow, overseeingData.overseeUserRow, chatRow,
+        userChatVisibilityData.userChatRow, userChatVisibilityData.emailRow, userChatVisibilityData.emailAddressRow,
+        overseeingData.oversightRow),
+        (
+          userChatVisibilityData.emailRow.date,
+          userChatVisibilityData.emailRow.body,
+          ChatOverseeing(chatRow.chatId, overseeingsData.seqOverseeingData.map(overseeingData =>
+            Overseeing(overseeingData.oversightRow.oversightId, overseeingData.overseeAddressRow.address)).toSet)))
+
+      val (populateDBList, sortedOverseeings) = (
+        dbAndResult.map(_._1).distinct,
+        dbAndResult.map(_._2).distinct.sortBy { case (date, body, chatOverseeing) => (date, body) }(Ordering
+          .Tuple2(Ordering.String.reverse, Ordering.String)).map(_._3))
+
+      (
+        FullTestDB(populateDBList.map(_._1).distinct, populateDBList.map(_._2).distinct,
+          populateDBList.map(_._3).distinct, populateDBList.map(_._4).distinct, populateDBList.map(_._5).distinct,
+          populateDBList.map(_._6).distinct, populateDBList.map(_._7).distinct),
+          chats.size,
+          sortedOverseeings)
+    }
+
     "return None if page is less than zero" in {
       for {
         optOverseeings <- chatsRep.getOverseeings(
@@ -2843,44 +3124,18 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     "return the correct totalCount and lastPage values" in {
       val basicTestDB = genBasicTestDB.sample.value
-      val chats = genList(1, 20, genChatRow).sample.value
-      val overseeingsDataList = chats.map(chatRow => OverseeingsData(
-        chatRow,
-        genList(1, 3, genOverseeingData(chatRow.chatId, basicTestDB.userRow.userId)).sample.value,
-        genUserChatVisibilityData(chatRow.chatId, basicTestDB.userRow.userId, basicTestDB.addressRow.addressId)
-          .sample.value))
+      val (fullTestDB, expectedTotalCount, sortedOverseeings) = makeOverseeingsDB(
+        basicTestDB.userRow.userId,
+        basicTestDB.addressRow.addressId)
       val perPage = choose(1, 20).sample.value
-      val expectedlastPage = divide(chats.size, perPage, RoundingMode.CEILING) - 1
-      val page = choose(0, expectedlastPage + 1).sample.value
-
-      val dbAndResult = for {
-        overseeingsData <- overseeingsDataList
-        chatRow = overseeingsData.chatRow
-        userChatVisibilityData = overseeingsData.userChatVisibilityData
-        overseeingData <- overseeingsData.seqOverseeingData
-      } yield ((overseeingData.overseeAddressRow, overseeingData.overseeUserRow, chatRow,
-        userChatVisibilityData.userChatRow, userChatVisibilityData.emailRow, userChatVisibilityData.emailAddressRow,
-        overseeingData.oversightRow),
-        (
-          userChatVisibilityData.emailRow.date,
-          userChatVisibilityData.emailRow.body,
-          ChatOverseeing(chatRow.chatId, overseeingsData.seqOverseeingData.map(overseeingData =>
-            Overseeing(overseeingData.oversightRow.oversightId, overseeingData.overseeAddressRow.address)).toSet)))
-
-      val (populateDBList, sortedOverseeings) = (
-        dbAndResult.map(_._1).distinct,
-        dbAndResult.map(_._2).distinct.sortBy { case (date, body, chatOverseeing) => (date, body) }(Ordering
-          .Tuple2(Ordering.String.reverse, Ordering.String)).map(_._3))
-
-      val (addressRows, userRows, chatRows, userChatRows, emailRows, emailAddressRows, oversightRows) =
-        (populateDBList.map(_._1).distinct, populateDBList.map(_._2).distinct, populateDBList.map(_._3).distinct,
-          populateDBList.map(_._4).distinct,
-          populateDBList.map(_._5).distinct, populateDBList.map(_._6).distinct, populateDBList.map(_._7).distinct)
+      val expectedLastPage = divide(expectedTotalCount, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, expectedLastPage + 1).sample.value
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow) ++ addressRows, chatRows, List(basicTestDB.userRow) ++ userRows, userChatRows,
-          emailRows, emailAddressRows, oversightRows)
+          List(basicTestDB.addressRow) ++ fullTestDB.addressRows, fullTestDB.chatRows,
+          List(basicTestDB.userRow) ++ fullTestDB.userRows, fullTestDB.userChatRows,
+          fullTestDB.emailRows, fullTestDB.emailAddressRows, fullTestDB.oversightRows)
 
         optResult <- chatsRep.getOverseeings(page, perPage, basicTestDB.userRow.userId)
 
@@ -2888,57 +3143,27 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val result = optResult.value
         val totalCount = result._2
         val lastPage = result._3
-        totalCount mustBe chats.size withClue "The totalCount is wrong"
+        totalCount mustBe expectedTotalCount withClue "The totalCount is wrong"
         assert(sortedOverseeings.isDefinedAt(lastPage * perPage) &&
           !sortedOverseeings.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
-        lastPage mustBe expectedlastPage withClue "The value for the lastPage did not equal it's expected value"
+        lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
       }
     }
 
     "sample the overseeings according to the given intermediary page and perPage values" in {
       val basicTestDB = genBasicTestDB.sample.value
-      val chats = genList(1, 20, genChatRow).sample.value
-      val overseeingsDataList = chats.map(chatRow => OverseeingsData(
-        chatRow,
-        genList(1, 3, genOverseeingData(chatRow.chatId, basicTestDB.userRow.userId)).sample.value,
-        genUserChatVisibilityData(chatRow.chatId, basicTestDB.userRow.userId, basicTestDB.addressRow.addressId)
-          .sample.value))
+      val (fullTestDB, expectedTotalCount, sortedOverseeings) = makeOverseeingsDB(
+        basicTestDB.userRow.userId,
+        basicTestDB.addressRow.addressId)
       val perPage = choose(1, 20).sample.value
-      val expectedlastPage = divide(chats.size, perPage, RoundingMode.CEILING) - 1
-      val page = choose(0, max(expectedlastPage - 1, 0)).sample.value
-
-      val dbAndResult = for {
-        overseeingsData <- overseeingsDataList
-        chatRow = overseeingsData.chatRow
-        userChatVisibilityData = overseeingsData.userChatVisibilityData
-        overseeingData <- overseeingsData.seqOverseeingData
-      } yield ((overseeingData.overseeAddressRow, overseeingData.overseeUserRow, chatRow,
-        userChatVisibilityData.userChatRow, userChatVisibilityData.emailRow, userChatVisibilityData.emailAddressRow,
-        overseeingData.oversightRow),
-        (
-          userChatVisibilityData.emailRow.date,
-          userChatVisibilityData.emailRow.body,
-          ChatOverseeing(chatRow.chatId, overseeingsData.seqOverseeingData.map(overseeingData =>
-            Overseeing(overseeingData.oversightRow.oversightId, overseeingData.overseeAddressRow.address)).toSet)))
-
-      val sortedOverseeingsWithDate = dbAndResult
-        .map(_._2).distinct.sortBy { case (date, body, chatOverseeing) => (date, body) }(Ordering
-          .Tuple2(Ordering.String.reverse, Ordering.String))
-
-      val (populateDBList, sortedOverseeings) = (
-        dbAndResult.map(_._1).distinct,
-        dbAndResult.map(_._2).distinct.sortBy { case (date, body, chatOverseeing) => (date, body) }(Ordering
-          .Tuple2(Ordering.String.reverse, Ordering.String)).map(_._3))
-
-      val (addressRows, userRows, chatRows, userChatRows, emailRows, emailAddressRows, oversightRows) =
-        (populateDBList.map(_._1).distinct, populateDBList.map(_._2).distinct, populateDBList.map(_._3).distinct,
-          populateDBList.map(_._4).distinct,
-          populateDBList.map(_._5).distinct, populateDBList.map(_._6).distinct, populateDBList.map(_._7).distinct)
+      val expectedLastPage = divide(expectedTotalCount, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, max(expectedLastPage - 1, 0)).sample.value
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow) ++ addressRows, chatRows, List(basicTestDB.userRow) ++ userRows, userChatRows,
-          emailRows, emailAddressRows, oversightRows)
+          List(basicTestDB.addressRow) ++ fullTestDB.addressRows, fullTestDB.chatRows,
+          List(basicTestDB.userRow) ++ fullTestDB.userRows, fullTestDB.userChatRows,
+          fullTestDB.emailRows, fullTestDB.emailAddressRows, fullTestDB.oversightRows)
 
         optResult <- chatsRep.getOverseeings(page, perPage, basicTestDB.userRow.userId)
 
@@ -2953,7 +3178,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         println("THIS IS THE PER_PAGE", perPage)
         println("THIS IS THE LAST_PAGE", lastPage)
         println("THIS IS THE SLICED SEQUENCE", seqChatOverseeing)
-        seqChatOverseeing.size mustBe min(perPage, chats.size) withClue "The size of the sliced sequence is wrong"
+        seqChatOverseeing.size mustBe min(perPage, expectedTotalCount) withClue "The size of the sliced sequence" +
+          " is wrong"
         seqChatOverseeing.headOption.value mustBe sortedOverseeings(perPage * page) withClue "The first element of" +
           " the sliced sequence is wrong"
       }
@@ -2961,90 +3187,48 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
     "correctly sample the last page of the overseeings" in {
       val basicTestDB = genBasicTestDB.sample.value
-      val chats = genList(1, 20, genChatRow).sample.value
-      val overseeingsDataList = chats.map(chatRow => OverseeingsData(
-        chatRow,
-        genList(1, 3, genOverseeingData(chatRow.chatId, basicTestDB.userRow.userId)).sample.value,
-        genUserChatVisibilityData(chatRow.chatId, basicTestDB.userRow.userId, basicTestDB.addressRow.addressId)
-          .sample.value))
+      val (fullTestDB, expectedTotalCount, sortedOverseeings) = makeOverseeingsDB(
+        basicTestDB.userRow.userId,
+        basicTestDB.addressRow.addressId)
       val perPage = choose(1, 20).sample.value
-      val expectedlastPage = divide(chats.size, perPage, RoundingMode.CEILING) - 1
-
-      val dbAndResult = for {
-        overseeingsData <- overseeingsDataList
-        chatRow = overseeingsData.chatRow
-        userChatVisibilityData = overseeingsData.userChatVisibilityData
-        overseeingData <- overseeingsData.seqOverseeingData
-      } yield ((overseeingData.overseeAddressRow, overseeingData.overseeUserRow, chatRow,
-        userChatVisibilityData.userChatRow, userChatVisibilityData.emailRow, userChatVisibilityData.emailAddressRow,
-        overseeingData.oversightRow),
-        (
-          userChatVisibilityData.emailRow.date,
-          userChatVisibilityData.emailRow.body,
-          ChatOverseeing(chatRow.chatId, overseeingsData.seqOverseeingData.map(overseeingData =>
-            Overseeing(overseeingData.oversightRow.oversightId, overseeingData.overseeAddressRow.address)).toSet)))
-
-      val (populateDBList, sortedOverseeings) = (
-        dbAndResult.map(_._1).distinct,
-        dbAndResult.map(_._2).distinct.sortBy { case (date, body, chatOverseeing) => (date, body) }(Ordering
-          .Tuple2(Ordering.String.reverse, Ordering.String)).map(_._3))
-
-      val (addressRows, userRows, chatRows, userChatRows, emailRows, emailAddressRows, oversightRows) =
-        (populateDBList.map(_._1).distinct, populateDBList.map(_._2).distinct, populateDBList.map(_._3).distinct,
-          populateDBList.map(_._4).distinct,
-          populateDBList.map(_._5).distinct, populateDBList.map(_._6).distinct, populateDBList.map(_._7).distinct)
+      val expectedLastPage = divide(expectedTotalCount, perPage, RoundingMode.CEILING) - 1
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow) ++ addressRows, chatRows, List(basicTestDB.userRow) ++ userRows, userChatRows,
-          emailRows, emailAddressRows, oversightRows)
+          List(basicTestDB.addressRow) ++ fullTestDB.addressRows, fullTestDB.chatRows,
+          List(basicTestDB.userRow) ++ fullTestDB.userRows, fullTestDB.userChatRows,
+          fullTestDB.emailRows, fullTestDB.emailAddressRows, fullTestDB.oversightRows)
 
-        optResult <- chatsRep.getOverseeings(expectedlastPage, perPage, basicTestDB.userRow.userId)
+        optResult <- chatsRep.getOverseeings(expectedLastPage, perPage, basicTestDB.userRow.userId)
 
       } yield {
         val result = optResult.value
         val seqChatOverseeing = result._1
         val totalCount = result._2
-        seqChatOverseeing.size mustBe (totalCount - 1) - (perPage * expectedlastPage - 1) withClue "The size of the" +
+        seqChatOverseeing.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
         /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-         of the last element of the penultimate page (perPage * expectedlastPage - 1).*/
+         of the last element of the penultimate page (perPage * expectedLastPage - 1).*/
 
-        seqChatOverseeing.headOption.value mustBe sortedOverseeings(perPage * expectedlastPage) withClue "The first" +
+        seqChatOverseeing.headOption.value mustBe sortedOverseeings(perPage * expectedLastPage) withClue "The first" +
           " element of the sliced sequence is wrong"
       }
     }
 
     "return an empty sequence if the page is greater than the last page" in {
       val basicTestDB = genBasicTestDB.sample.value
-      val chats = genList(1, 20, genChatRow).sample.value
-      val overseeingsDataList = chats.map(chatRow => OverseeingsData(
-        chatRow,
-        genList(1, 3, genOverseeingData(chatRow.chatId, basicTestDB.userRow.userId)).sample.value,
-        genUserChatVisibilityData(chatRow.chatId, basicTestDB.userRow.userId, basicTestDB.addressRow.addressId)
-          .sample.value))
+      val (fullTestDB, expectedTotalCount, _) = makeOverseeingsDB(
+        basicTestDB.userRow.userId,
+        basicTestDB.addressRow.addressId)
       val perPage = choose(1, 20).sample.value
-      val expectedlastPage = divide(chats.size, perPage, RoundingMode.CEILING) - 1
-      val page = choose(expectedlastPage + 1, expectedlastPage + 3).sample.value
-
-      val populateDBList = for {
-        overseeingsData <- overseeingsDataList
-        chatRow = overseeingsData.chatRow
-        userChatVisibilityData = overseeingsData.userChatVisibilityData
-        overseeingData <- overseeingsData.seqOverseeingData
-      } yield (overseeingData.overseeAddressRow, overseeingData.overseeUserRow, chatRow,
-        userChatVisibilityData.userChatRow, userChatVisibilityData.emailRow, userChatVisibilityData.emailAddressRow,
-        overseeingData.oversightRow)
-
-      val (addressRows, userRows, chatRows, userChatRows, emailRows, emailAddressRows, oversightRows) =
-        (populateDBList.map(_._1).distinct, populateDBList.map(_._2).distinct, populateDBList.map(_._3).distinct,
-          populateDBList.map(_._4).distinct,
-          populateDBList.map(_._5).distinct, populateDBList.map(_._6).distinct, populateDBList.map(_._7).distinct)
+      val expectedLastPage = divide(expectedTotalCount, perPage, RoundingMode.CEILING) - 1
+      val page = choose(expectedLastPage + 1, expectedLastPage + 3).sample.value
 
       for {
         _ <- fillDB(
-          List(basicTestDB.addressRow) ++ addressRows, chatRows, List(basicTestDB.userRow) ++ userRows, userChatRows,
-          emailRows, emailAddressRows, oversightRows)
+          List(basicTestDB.addressRow) ++ fullTestDB.addressRows, fullTestDB.chatRows,
+          List(basicTestDB.userRow) ++ fullTestDB.userRows, fullTestDB.userChatRows,
+          fullTestDB.emailRows, fullTestDB.emailAddressRows, fullTestDB.oversightRows)
 
         optResult <- chatsRep.getOverseeings(page, perPage, basicTestDB.userRow.userId)
 
@@ -3066,8 +3250,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         genUserChatVisibilityData(chatRow.chatId, basicTestDB.userRow.userId, basicTestDB.addressRow.addressId)
           .sample.value))
       val perPage = choose(1, 20).sample.value
-      val expectedlastPage = divide(chats.size, perPage, RoundingMode.CEILING) - 1
-      val page = choose(0, expectedlastPage + 1).sample.value
+      val expectedLastPage = divide(chats.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, expectedLastPage + 1).sample.value
 
       val dbAndResult = for {
         overseeingsData <- overseeingsDataList
@@ -3118,19 +3302,296 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         println("THIS IS THE LAST_PAGE", lastPage)
         println("THIS IS THE SLICED SEQUENCE", seqChatOverseeing)
         if (seqChatOverseeing.isEmpty) {
-          page mustBe expectedlastPage + 1
+          page mustBe expectedLastPage + 1
           totalCount must be > 0
         } else {
           totalCount mustBe chats.size withClue "The totalCount is wrong"
           assert(seqChatOverseeing.size === min(perPage, totalCount) ||
-            (page === expectedlastPage &&
-              seqChatOverseeing.size === ((totalCount - 1) - ((perPage * expectedlastPage) - 1)))) withClue "The size" +
+            (page === expectedLastPage &&
+              seqChatOverseeing.size === ((totalCount - 1) - ((perPage * expectedLastPage) - 1)))) withClue "The size" +
             " of the sliced sequence is wrong"
           seqChatOverseeing.headOption.value mustBe sortedOverseeings(perPage * page) withClue "The first" +
             "element of the sliced sequence is wrong"
           assert(sortedOverseeings.isDefinedAt(lastPage * perPage) &&
             !sortedOverseeings.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
-          lastPage mustBe expectedlastPage withClue "The value for the lastPage did not equal it's expected value"
+          lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
+        }
+      }
+    }
+  }
+
+  "SlickChatsRepository#getOverseens" should {
+
+    def makeOverseensDB(userId: String, userAddressId: String): (FullTestDB, Int, List[ChatOverseen]) = {
+      val chats = genList(1, 20, genChatRow).sample.value
+      val overseensDataList = chats.map(chatRow => OverseensData(
+        chatRow,
+        genList(1, 3, genOverseenData(chatRow.chatId, userId)).sample.value,
+        genUserChatVisibilityData(chatRow.chatId, userId, userAddressId)
+          .sample.value))
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(chats.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, expectedLastPage + 1).sample.value
+
+      val dbAndResult = for {
+        overseensData <- overseensDataList
+        chatRow = overseensData.chatRow
+        userChatVisibilityData = overseensData.userChatVisibilityData
+        overseenData <- overseensData.seqOverseenData
+      } yield ((overseenData.overseerAddressRow, overseenData.overseerUserRow, chatRow,
+        userChatVisibilityData.userChatRow, userChatVisibilityData.emailRow, userChatVisibilityData.emailAddressRow,
+        overseenData.oversightRow),
+        (
+          userChatVisibilityData.emailRow.date,
+          userChatVisibilityData.emailRow.body,
+          ChatOverseen(chatRow.chatId, overseensData.seqOverseenData.map(overseenData =>
+            Overseen(overseenData.oversightRow.oversightId, overseenData.overseerAddressRow.address)).toSet)))
+
+      val (populateDBList, sortedOverseens) = (
+        dbAndResult.map(_._1).distinct,
+        dbAndResult.map(_._2).distinct.sortBy { case (date, body, chatOverseen) => (date, body) }(Ordering
+          .Tuple2(Ordering.String.reverse, Ordering.String)).map(_._3))
+
+      (
+        FullTestDB(populateDBList.map(_._1).distinct, populateDBList.map(_._2).distinct,
+          populateDBList.map(_._3).distinct, populateDBList.map(_._4).distinct, populateDBList.map(_._5).distinct,
+          populateDBList.map(_._6).distinct, populateDBList.map(_._7).distinct),
+          chats.size,
+          sortedOverseens)
+    }
+
+    "return None if page is less than zero" in {
+      for {
+        optOverseens <- chatsRep.getOverseens(
+          choose(-10, -1).sample.value,
+          choose(1, 10).sample.value, genUUID.sample.value)
+      } yield optOverseens mustBe None
+    }
+
+    "return None if perPage is not greater than zero" in {
+      for {
+        optOverseens <- chatsRep.getOverseens(
+          choose(1, 10).sample.value.sample.value,
+          choose(-10, 0).sample.value, genUUID.sample.value)
+      } yield optOverseens mustBe None
+    }
+
+    "return an empty sequence if there are no overseens" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow),
+          List(basicTestDB.emailRow),
+          List(basicTestDB.emailAddressRow))
+
+        optResult <- chatsRep.getOverseens(0, 1, basicTestDB.userRow.userId)
+
+      } yield {
+        val result = optResult.value
+        val seqChatOverseen = result._1
+        val totalCount = result._2
+        totalCount mustBe 0 withClue "The totalCount is wrong"
+        seqChatOverseen mustBe empty
+      }
+    }
+
+    "return the correct totalCount and lastPage values" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val (fullTestDB, expectedTotalCount, sortedOverseens) = makeOverseensDB(
+        basicTestDB.userRow.userId,
+        basicTestDB.addressRow.addressId)
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(expectedTotalCount, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, expectedLastPage + 1).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow) ++ fullTestDB.addressRows, fullTestDB.chatRows,
+          List(basicTestDB.userRow) ++ fullTestDB.userRows, fullTestDB.userChatRows,
+          fullTestDB.emailRows, fullTestDB.emailAddressRows, fullTestDB.oversightRows)
+
+        optResult <- chatsRep.getOverseens(page, perPage, basicTestDB.userRow.userId)
+
+      } yield {
+        val result = optResult.value
+        val totalCount = result._2
+        val lastPage = result._3
+        totalCount mustBe expectedTotalCount withClue "The totalCount is wrong"
+        assert(sortedOverseens.isDefinedAt(lastPage * perPage) &&
+          !sortedOverseens.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
+        lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
+      }
+    }
+
+    "sample the overseens according to the given intermediary page and perPage values" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val (fullTestDB, expectedTotalCount, sortedOverseens) = makeOverseensDB(
+        basicTestDB.userRow.userId,
+        basicTestDB.addressRow.addressId)
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(expectedTotalCount, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, max(expectedLastPage - 1, 0)).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow) ++ fullTestDB.addressRows, fullTestDB.chatRows,
+          List(basicTestDB.userRow) ++ fullTestDB.userRows, fullTestDB.userChatRows,
+          fullTestDB.emailRows, fullTestDB.emailAddressRows, fullTestDB.oversightRows)
+
+        optResult <- chatsRep.getOverseens(page, perPage, basicTestDB.userRow.userId)
+
+      } yield {
+        val result = optResult.value
+        val seqChatOverseen = optResult.value._1
+        val totalCount = result._2
+        val lastPage = result._3
+        println("THIS IS THE SORTED_OVERSEENS", sortedOverseens)
+        println("THIS IS THE TOTAL_COUNT", totalCount)
+        println("THIS IS THE PAGE", page)
+        println("THIS IS THE PER_PAGE", perPage)
+        println("THIS IS THE LAST_PAGE", lastPage)
+        println("THIS IS THE SLICED SEQUENCE", seqChatOverseen)
+        seqChatOverseen.size mustBe min(perPage, expectedTotalCount) withClue "The size of the sliced sequence" +
+          " is wrong"
+        seqChatOverseen.headOption.value mustBe sortedOverseens(perPage * page) withClue "The first element of" +
+          " the sliced sequence is wrong"
+      }
+    }
+
+    "correctly sample the last page of the overseens" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val (fullTestDB, expectedTotalCount, sortedOverseens) = makeOverseensDB(
+        basicTestDB.userRow.userId,
+        basicTestDB.addressRow.addressId)
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(expectedTotalCount, perPage, RoundingMode.CEILING) - 1
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow) ++ fullTestDB.addressRows, fullTestDB.chatRows,
+          List(basicTestDB.userRow) ++ fullTestDB.userRows, fullTestDB.userChatRows,
+          fullTestDB.emailRows, fullTestDB.emailAddressRows, fullTestDB.oversightRows)
+
+        optResult <- chatsRep.getOverseens(expectedLastPage, perPage, basicTestDB.userRow.userId)
+
+      } yield {
+        val result = optResult.value
+        val seqChatOverseen = result._1
+        val totalCount = result._2
+        seqChatOverseen.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
+          " sliced sequence is wrong"
+        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+         of the last element of the penultimate page (perPage * expectedLastPage - 1). */
+
+        seqChatOverseen.headOption.value mustBe sortedOverseens(perPage * expectedLastPage) withClue "The first" +
+          " element of the sliced sequence is wrong"
+      }
+    }
+
+    "return an empty sequence if the page is greater than the last page" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val (fullTestDB, expectedTotalCount, _) = makeOverseensDB(
+        basicTestDB.userRow.userId,
+        basicTestDB.addressRow.addressId)
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(expectedTotalCount, perPage, RoundingMode.CEILING) - 1
+      val page = choose(expectedLastPage + 1, expectedLastPage + 3).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow) ++ fullTestDB.addressRows, fullTestDB.chatRows,
+          List(basicTestDB.userRow) ++ fullTestDB.userRows, fullTestDB.userChatRows,
+          fullTestDB.emailRows, fullTestDB.emailAddressRows, fullTestDB.oversightRows)
+
+        optResult <- chatsRep.getOverseens(page, perPage, basicTestDB.userRow.userId)
+
+      } yield {
+        val result = optResult.value
+        val seqChatOverseen = result._1
+        val totalCount = result._2
+        totalCount must be > 0
+        seqChatOverseen mustBe empty
+      }
+    }
+
+    "OLD FULL TEST" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val chats = genList(1, 20, genChatRow).sample.value
+      val overseensDataList = chats.map(chatRow => OverseensData(
+        chatRow,
+        genList(1, 3, genOverseenData(chatRow.chatId, basicTestDB.userRow.userId)).sample.value,
+        genUserChatVisibilityData(chatRow.chatId, basicTestDB.userRow.userId, basicTestDB.addressRow.addressId)
+          .sample.value))
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(chats.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, expectedLastPage + 1).sample.value
+
+      val dbAndResult = for {
+        overseensData <- overseensDataList
+        chatRow = overseensData.chatRow
+        userChatVisibilityData = overseensData.userChatVisibilityData
+        overseenData <- overseensData.seqOverseenData
+      } yield ((overseenData.overseerAddressRow, overseenData.overseerUserRow, chatRow,
+        userChatVisibilityData.userChatRow, userChatVisibilityData.emailRow, userChatVisibilityData.emailAddressRow,
+        overseenData.oversightRow),
+        (
+          userChatVisibilityData.emailRow.date,
+          userChatVisibilityData.emailRow.body,
+          ChatOverseen(chatRow.chatId, overseensData.seqOverseenData.map(overseenData =>
+            Overseen(overseenData.oversightRow.oversightId, overseenData.overseerAddressRow.address)).toSet)))
+
+      val sortedOverseensWithDate = dbAndResult
+        .map(_._2).distinct.sortBy { case (date, body, chatOverseen) => (date, body) }(Ordering
+          .Tuple2(Ordering.String.reverse, Ordering.String))
+
+      println("THIS IS THE SORTED_OVERSEENS WITH THE DATE", sortedOverseensWithDate)
+
+      val (populateDBList, sortedOverseens) = (
+        dbAndResult.map(_._1).distinct,
+        dbAndResult.map(_._2).distinct.sortBy { case (date, body, chatOverseen) => (date, body) }(Ordering
+          .Tuple2(Ordering.String.reverse, Ordering.String)).map(_._3))
+
+      val (addressRows, userRows, chatRows, userChatRows, emailRows, emailAddressRows, oversightRows) =
+        (populateDBList.map(_._1).distinct, populateDBList.map(_._2).distinct, populateDBList.map(_._3).distinct,
+          populateDBList.map(_._4).distinct,
+          populateDBList.map(_._5).distinct, populateDBList.map(_._6).distinct, populateDBList.map(_._7).distinct)
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow) ++ addressRows, chatRows, List(basicTestDB.userRow) ++ userRows, userChatRows,
+          emailRows, emailAddressRows, oversightRows)
+
+        optResult <- chatsRep.getOverseens(page, perPage, basicTestDB.userRow.userId)
+
+      } yield {
+        val result = optResult.value
+        val seqChatOverseen = result._1
+        val totalCount = result._2
+        val lastPage = result._3
+        println("THIS IS THE SORTED_OVERSEENS", sortedOverseens)
+        println("THIS IS THE TOTAL_COUNT", totalCount)
+        println("THIS IS THE PAGE", page)
+        println("THIS IS THE PER_PAGE", perPage)
+        println("THIS IS THE LAST_PAGE", lastPage)
+        println("THIS IS THE SLICED SEQUENCE", seqChatOverseen)
+        if (seqChatOverseen.isEmpty) {
+          page mustBe expectedLastPage + 1
+          totalCount must be > 0
+        } else {
+          totalCount mustBe chats.size withClue "The totalCount is wrong"
+          assert(seqChatOverseen.size === min(perPage, totalCount) ||
+            (page === expectedLastPage &&
+              seqChatOverseen.size === ((totalCount - 1) - ((perPage * expectedLastPage) - 1)))) withClue "The size" +
+            " of the sliced sequence is wrong"
+          seqChatOverseen.headOption.value mustBe sortedOverseens(perPage * page) withClue "The first" +
+            "element of the sliced sequence is wrong"
+          assert(sortedOverseens.isDefinedAt(lastPage * perPage) &&
+            !sortedOverseens.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
+          lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
         }
       }
     }
@@ -3145,4 +3606,13 @@ case class OverseeingsData(chatRow: ChatRow, seqOverseeingData: Seq[OverseeingDa
 
 case class OverseeingData(overseeAddressRow: AddressRow, overseeUserRow: UserRow, oversightRow: OversightRow)
 
+case class OverseensData(chatRow: ChatRow, seqOverseenData: Seq[OverseenData],
+  userChatVisibilityData: UserChatVisibilityData)
+
+case class OverseenData(overseerAddressRow: AddressRow, overseerUserRow: UserRow, oversightRow: OversightRow)
+
 case class UserChatVisibilityData(emailRow: EmailRow, emailAddressRow: EmailAddressRow, userChatRow: UserChatRow)
+
+case class FullTestDB(addressRows: Seq[AddressRow], userRows: Seq[UserRow], chatRows: Seq[ChatRow],
+  userChatRows: Seq[UserChatRow], emailRows: Seq[EmailRow], emailAddressRows: Seq[EmailAddressRow],
+  oversightRows: Seq[OversightRow])

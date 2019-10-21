@@ -204,11 +204,15 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       for {
         optChatData <- getChatDataAction(chatId, userId)
         result <- optChatData match {
-          case Some(_) => getOverseersQuery(chatId, userId).result
-            .map(SeqOverseers => Right(SeqOverseers.map {
-              case (address, oversightId) =>
-                PostOverseer(address, Some(oversightId))
-            }))
+          case Some(_) =>
+            println(
+              "THIS IS THE GET_OVERSEERS_QUERY RESULT",
+              Await.result(db.run(getOverseersQuery(chatId, userId).result), Duration.Inf))
+            getOverseersQuery(chatId, userId).result
+              .map(SeqOverseers => Right(SeqOverseers.map {
+                case (address, oversightId) =>
+                  PostOverseer(address, Some(oversightId))
+              }))
 
           case None => DBIO.successful(Left(CHAT_NOT_FOUND))
         }
@@ -402,7 +406,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield optSeqPostOverseer.map(_.toSet)
 
-  def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String): Future[Option[Set[PostOverseer]]] =
+  def postOverseers(postOverseers: Set[PostOverseer], chatId: String,
+    userId: String): Future[Option[Set[PostOverseer]]] =
     db.run(postOverseersAction(postOverseers, chatId, userId).transactionally)
 
   //region Auxiliary Methods
@@ -425,7 +430,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield (address, oversightId)).sortBy { case (address, oversightId) => (address.asc, oversightId.asc) }
 
-  private def createNewOverseerAction(overseerId: String, overseerAddress: String, chatId: String, userId: String): DBIO[PostOverseer] =
+  private def createNewOverseerAction(overseerId: String, overseerAddress: String, chatId: String,
+    userId: String): DBIO[PostOverseer] =
     for {
       optOverseerUserChatId <- UserChatsTable.all.filter(_.userId === overseerId).map(_.userChatId).result.headOption
       _ <- optOverseerUserChatId match {
@@ -511,7 +517,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     else
       getOverseeing(userId)
         .map(overseeingData => {
-          println("THIS IS THE TOTAL SEQUENCE", overseeingData)
+          println("THIS IS THE TOTAL OVERSEEING_DATA SEQUENCE", overseeingData)
           val totalCount = overseeingData.size
           Some((sliceSequence(overseeingData, perPage, page), totalCount,
             divide(totalCount, perPage, RoundingMode.CEILING) - 1))
@@ -519,6 +525,23 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def getOverseeings(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]] =
     db.run(getOverseeingsAction(page, perPage, userId).transactionally)
+
+  private[implementations] def getOverseensAction(page: Int, perPage: Int,
+    userId: String): DBIO[Option[(Seq[ChatOverseen], Int, Int)]] =
+
+    if (page < 0 || perPage <= 0) DBIO.successful(None)
+
+    else
+      getOverseen(userId)
+        .map(overseenData => {
+          println("THIS IS THE TOTAL OVERSEEN_DATA SEQUENCE", overseenData)
+          val totalCount = overseenData.size
+          Some((sliceSequence(overseenData, perPage, page), totalCount,
+            divide(totalCount, perPage, RoundingMode.CEILING) - 1))
+        })
+
+  def getOverseens(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]] =
+    db.run(getOverseensAction(page, perPage, userId).transactionally)
 
   //region Auxiliary Methods
 
@@ -613,44 +636,39 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private def getOverseen(userId: String): DBIO[Seq[ChatOverseen]] =
     (for {
-      (chatId, emailId) <- groupedVisibleEmailsQuery(userId)
+      (chatId, optEmailId) <- groupedVisibleEmailsQuery(userId)
 
-      date <- EmailsTable.all.filter(emailRow =>
-        emailRow.chatId === chatId && emailRow.emailId === emailId).map(_.date)
+      (date, body) <- EmailsTable.all.filter(emailRow =>
+        emailRow.chatId === chatId && emailRow.emailId === optEmailId)
+        .map(emailRow => (emailRow.date, emailRow.body))
 
       (oversightId, overseerId) <- OversightsTable.all.filter(oversightRow =>
         oversightRow.overseeId === userId && oversightRow.chatId === chatId)
         .map(oversightRow => (oversightRow.oversightId, oversightRow.overseerId))
       overseerAddressId <- UsersTable.all.filter(_.userId === overseerId).map(_.addressId)
       overseerAddress <- AddressesTable.all.filter(_.addressId === overseerAddressId).map(_.address)
-    } yield (chatId, date, oversightId, overseerAddress)).result
-      .map(_.groupBy { case (chatId, date, _, _) => (chatId, date) }.toSeq
-        .map { chatOverseenData: ((String, String), Seq[(String, String, String, String)]) =>
-          (chatOverseenData._1._2, ChatOverseenDatatoDTO(chatOverseenData._1._1, chatOverseenData._2))
+    } yield (chatId, date, body, oversightId, overseerAddress)).result
+      .map(_.groupBy { case (chatId, date, body, _, _) => (chatId, date, body) }.toSeq
+        .map { chatOverseenData: ((String, String, String), Seq[(String, String, String, String, String)]) =>
+          (chatOverseenData._1._2, chatOverseenData._1._3,
+            ChatOverseenDatatoDTO(chatOverseenData._1._1, chatOverseenData._2))
         }
-        .sortBy { case (date, chatOverseeing) => date }(Ordering.String.reverse)
-        .map(_._2))
-
-  /*(for {
-      (chatId, oversightId, overseerId) <- OversightsTable.all.filter(_.overseeId === userId)
-        .map(oversightRow => (oversightRow.chatId, oversightRow.oversightId, oversightRow.overseerId))
-      overseerAddressId <- UsersTable.all.filter(_.userId === overseerId).map(_.addressId)
-      overseerAddress <- AddressesTable.all.filter(_.addressId === overseerAddressId).map(_.address)
-    } yield (chatId, oversightId, overseerAddress)).result
-      .map(_.groupBy { case (chatId, _, _) => chatId }.toSet
-        .map { chatOverseenData: (String, Seq[(String, String, String)]) =>
-          ChatOverseenDatatoDTO(chatOverseenData._1, chatOverseenData._2)
-        })*/
+        .sortBy { case (date, body, chatOverseen) => (date, body) }(Ordering.Tuple2(
+          Ordering.String.reverse,
+          Ordering.String))
+        .map(_._3))
 
   private def ChatOverseenDatatoDtoOLD(chatId: String, dataSeq: Seq[(String, String, String)]): ChatOverseen =
     ChatOverseen(
       chatId,
       dataSeq.map { case (_, oversightId, overseeAddress) => Overseen(oversightId, overseeAddress) }.toSet)
 
-  private def ChatOverseenDatatoDTO(chatId: String, dataSeq: Seq[(String, String, String, String)]): ChatOverseen =
+  private def ChatOverseenDatatoDTO(
+    chatId: String,
+    dataSeq: Seq[(String, String, String, String, String)]): ChatOverseen =
     ChatOverseen(
       chatId,
-      dataSeq.map { case (_, _, oversightId, overseeAddress) => Overseen(oversightId, overseeAddress) }.toSet)
+      dataSeq.map { case (_, _, _, oversightId, overseeAddress) => Overseen(oversightId, overseeAddress) }.toSet)
 
   private def deleteOversightRow(chatId: String, oversightId: String, userId: String): DBIO[Boolean] =
     OversightsTable.all.filter(oversightRow => oversightRow.chatId === chatId &&
@@ -1059,7 +1077,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param emailId     ID of the email
    * @return the action that updates the email row and the emailAddress rows
    */
-  private def updateEmailAction(upsertEmail: UpsertEmail, chatId: String, emailId: String, userId: String): DBIO[Option[Set[String]]] = {
+  private def updateEmailAction(upsertEmail: UpsertEmail, chatId: String, emailId: String,
+    userId: String): DBIO[Option[Set[String]]] = {
     for {
       optionVerifiedFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
 
@@ -1165,7 +1184,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         userChatRow.userId === userId &&
         (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft >= 1 || userChatRow.trash === 1))
         .map(_.chatId)
-      __ <- ChatsTable.all.filter(_.chatId === chatId)
+      _ <- ChatsTable.all.filter(_.chatId === chatId)
       participantType <- EmailAddressesTable.all.filter(_.addressId === addressId).map(_.participantType)
     } yield participantType).exists.result
 
@@ -1212,7 +1231,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param userId The user's id
    * @return A DBIOAction that returns the chat's id, it's subject and the user's address
    */
-  private[implementations] def getChatDataAction(chatId: String, userId: String): DBIO[Option[(String, String, String)]] =
+  private[implementations] def getChatDataAction(
+    chatId: String,
+    userId: String): DBIO[Option[(String, String, String)]] =
     (for {
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
       _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId &&

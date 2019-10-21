@@ -190,7 +190,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
                 Json.obj(
                   "overseeing" -> routes.ChatController.getOverseeings(DEFAULT_PAGE, DEFAULT_PER_PAGE)
                     .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request),
-                  "overseen" -> routes.ChatController.getOverseens()
+                  "overseen" -> routes.ChatController.getOverseens(DEFAULT_PAGE, DEFAULT_PER_PAGE)
                     .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request))))
             Ok(oversightsPreview ++ metadata)
           case None => NotFound(oversightsNotFound)
@@ -218,8 +218,25 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       }
   }
 
-  def getOverseens: Action[AnyContent] = authenticatedUserAction.async {
-    authenticatedRequest => ???
+  def getOverseens(page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.getOverseens(page, perPage, authenticatedRequest.userId).map {
+        case Some((seqChatOverseenDTO, totalCount, lastPage)) =>
+          val overseens = Json.obj("overseens" -> Json.toJson(seqChatOverseenDTO))
+
+          val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+            totalCount,
+            PageLinksDTO(
+              self = makeGetOverseensLink(page, perPage, authenticatedRequest),
+              first = makeGetOverseensLink(Page(0), perPage, authenticatedRequest),
+              previous = if (page == 0) None
+              else Some(makeGetOverseensLink(page - 1, perPage, authenticatedRequest)),
+              next = if (page >= lastPage) None
+              else Some(makeGetOverseensLink(page + 1, perPage, authenticatedRequest)),
+              last = makeGetOverseensLink(lastPage, perPage, authenticatedRequest)))))
+          Ok(overseens ++ metadata)
+        case None => InternalServerError(internalError)
+      }
   }
 
   //region Auxiliary Methods
@@ -231,6 +248,9 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
   def makeGetOverseeingsLink(page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getOverseeings(page, perPage).absoluteURL(auth.secure)(auth.request)
+
+  def makeGetOverseensLink(page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getOverseens(page, perPage).absoluteURL(auth.secure)(auth.request)
   //endregion
 
 }
