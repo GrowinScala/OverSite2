@@ -1,54 +1,268 @@
 package services
 
-import model.dtos.{ ChatDTO, ChatPreviewDTO, EmailDTO, OverseersDTO }
+import model.dtos._
+import model.dtos.PostOverseerDTO._
 import model.types.Mailbox.Inbox
-import org.mockito.ArgumentMatchersSugar._
-import org.mockito.Mockito.when
-import org.scalatest.{ AsyncWordSpec, MustMatchers }
-import org.scalatest.mockito.MockitoSugar._
+import org.mockito.scalatest.AsyncIdiomaticMockito
+import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
-import repositories.dtos._
+import repositories.dtos.PatchChat
+import OversightDTO._
 
-import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
+import scala.concurrent.Future
+import utils.TestGenerators._
 
-class ChatServiceSpec extends AsyncWordSpec with MustMatchers {
+class ChatServiceSpec extends AsyncWordSpec
+  with AsyncIdiomaticMockito with MustMatchers with OptionValues {
 
-  implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+  def getServiceAndRepMock: (ChatService, ChatsRepository) = {
+    implicit val mockChatsRep: ChatsRepository = mock[ChatsRepository]
+    val chatServiceImpl = new ChatService()
+    (chatServiceImpl, mockChatsRep)
+  }
 
   "ChatService#getChats" should {
     "map ChatPreview DTO" in {
-      val mockChatsRep = mock[ChatsRepository]
-      when(mockChatsRep.getChatsPreview(any, any))
-        .thenReturn(Future.successful(Seq(ChatPreview("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok"))))
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val testChatsPreviewDTO = genChatPreviewDTOSeq.sample.value
+      val chatsPreview = ChatPreviewDTO.toSeqChatPreview(testChatsPreviewDTO)
 
-      val chatServiceImpl = new ChatService(mockChatsRep)
-      val chatsPreviewDTO = chatServiceImpl.getChats(Inbox, "00000000-0000-0000-0000-000000000000")
-      chatsPreviewDTO.map(_ mustBe Seq(ChatPreviewDTO("00000000-0000-0000-0000-000000000000", "Ok", "Ok", "Ok", "Ok")))
+      mockChatsRep.getChatsPreview(*, *)
+        .returns(Future.successful(chatsPreview))
+
+      val chatsPreviewDTO = chatService.getChats(Inbox, chatsPreview.headOption.value.chatId)
+      chatsPreviewDTO.map(_ mustBe testChatsPreviewDTO)
     }
   }
 
   "ChatService#getChat" should {
     "map Chat DTO" in {
-      val mockChatsRep = mock[ChatsRepository]
-      when(mockChatsRep.getChat(any, any))
-        .thenReturn(Future.successful(
-          Some(
-            Chat(
-              "6c664490-eee9-4820-9eda-3110d794a998", "Subject", Set("address1", "address2"),
-              Set(Overseers("address1", Set("address3"))),
-              Seq(Email("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(),
-                "This is the body", "2019-07-19 10:00:00", 1, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0")))))))
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val testchatDTO = genChatDTO.sample.value
+      mockChatsRep.getChat(*, *)
+        .returns(Future.successful(
+          Some(ChatDTO.toChat(testchatDTO))))
 
-      val chatService = new ChatService(mockChatsRep)
-      val chatDTO = chatService.getChat(chatId = "6c664490-eee9-4820-9eda-3110d794a998", userId = "685c9120-6616-47ab-b1a7-c5bd9b11c32b")
+      val chatDTO = chatService.getChat(genUUID.sample.value, genUUID.sample.value)
       val expectedServiceResponse =
-        Some(
-          ChatDTO(
-            "6c664490-eee9-4820-9eda-3110d794a998", "Subject", Set("address1", "address2"),
-            Set(OverseersDTO("address1", Set("address3"))),
-            Seq(EmailDTO("f15967e6-532c-40a6-9335-064d884d4906", "address1", Set("address2"), Set(), Set(),
-              "This is the body", "2019-07-19 10:00:00", true, Set("65aeedbf-aedf-4b1e-b5d8-b348309a14e0")))))
+        Some(testchatDTO)
       chatDTO.map(_ mustBe expectedServiceResponse)
+    }
+  }
+
+  "ChatService#postChat" should {
+    "return a CreateChatDTO equal to the input plus a new chatId and a new emailID" in {
+      val createChatDTO = genCreateChatDTOption.sample.value
+
+      val expectedRepoResponse = CreateChatDTO.toCreateChat(createChatDTO)
+
+      val expectedServiceResponse = CreateChatDTO.toCreateChatDTO(expectedRepoResponse)
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.postChat(*, *)
+        .returns(
+          Future.successful(Some(expectedRepoResponse)))
+
+      val serviceResponse = chatService.postChat(createChatDTO, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe Some(expectedServiceResponse))
+    }
+
+  }
+
+  "ChatService#postEmail" should {
+    "return a CreateChatDTO that contains the input emailDTO plus the chatId and a new emailID" in {
+      val upsertEmailDTO = genUpsertEmailDTOption.sample.value
+
+      val expectedResponse = CreateChatDTO.toCreateChat(genCreateChatDTOption.sample.value)
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.postEmail(*, *, *)
+        .returns(Future.successful(Some(expectedResponse)))
+
+      val serviceResponse = chatService.postEmail(upsertEmailDTO, genUUID.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe Some(CreateChatDTO.toCreateChatDTO(expectedResponse)))
+    }
+  }
+
+  "ChatService#patchChat" should {
+    "return some MoveToTrash DTO if the ChatsRepository returns some MoveToTrash DTO" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.patchChat(PatchChat.MoveToTrash, *, *)
+        .returns(Future.successful(Some(PatchChat.MoveToTrash)))
+
+      val moveChatToTrashService = chatService
+        .patchChat(PatchChatDTO.MoveToTrash, genUUID.sample.value, genUUID.sample.value)
+      moveChatToTrashService.map(_ mustBe Some(PatchChatDTO.MoveToTrash))
+    }
+    "return some Restore DTO if the ChatsRepository returns some Restore DTO" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.patchChat(PatchChat.Restore, *, *)
+        .returns(Future.successful(Some(PatchChat.Restore)))
+
+      val moveChatToTrashService = chatService
+        .patchChat(PatchChatDTO.Restore, genUUID.sample.value, genUUID.sample.value)
+      moveChatToTrashService.map(_ mustBe Some(PatchChatDTO.Restore))
+    }
+    "return some ChangeSubject DTO if the ChatsRepository returns some ChangeSubject DTO" in {
+      val newSubject = "New Subject"
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.patchChat(PatchChat.ChangeSubject(newSubject), *, *)
+        .returns(Future.successful(Some(PatchChat.ChangeSubject(newSubject))))
+
+      val moveChatToTrashService = chatService
+        .patchChat(PatchChatDTO.ChangeSubject(newSubject), genUUID.sample.value, genUUID.sample.value)
+      moveChatToTrashService.map(_ mustBe Some(PatchChatDTO.ChangeSubject(newSubject)))
+    }
+    "return None if the ChatsRepository returns None" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.patchChat(*, *, *)
+        .returns(Future.successful(None))
+
+      val moveChatToTrashService = chatService
+        .patchChat(PatchChatDTO.MoveToTrash, genUUID.sample.value, genUUID.sample.value)
+      moveChatToTrashService.map(_ mustBe None)
+    }
+  }
+
+  "ChatService#patchEmail" should {
+    "return an EmailDTO that contains the email with the updated/patched fields" in {
+      val returnedEmail = genEmail.sample.value
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.patchEmail(*, *, *, *)
+        .returns(Future.successful(Some(returnedEmail)))
+
+      val serviceResponse = chatService.patchEmail(
+        genUpsertEmailDTOption.sample.value,
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe EmailDTO.toEmailDTO(Some(returnedEmail)))
+    }
+  }
+
+  "ChatService#getEmail" should {
+    "return a ChatDTO with the requested email" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+
+      val repositoryChatResponse = genChat.sample.value
+
+      mockChatsRep.getEmail(*, *, *)
+        .returns(Future.successful(Some(repositoryChatResponse)))
+
+      val expectedServiceResponse = Some(ChatDTO.toChatDTO(repositoryChatResponse))
+
+      chatService.getEmail(genUUID.sample.value, genUUID.sample.value, genUUID.sample.value).map(
+        serviceResponse => serviceResponse.value mustBe expectedServiceResponse.value)
+    }
+  }
+
+  "ChatService#deleteChat" should {
+    "return true if the ChatsRepository returns true" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.deleteChat(*, *)
+        .returns(Future.successful(true))
+
+      val deleteChatService = chatService.deleteChat(genUUID.sample.value, genUUID.sample.value)
+      deleteChatService.map(_ mustBe true)
+    }
+    "return false if the ChatsRepository returns false" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.deleteChat(*, *)
+        .returns(Future.successful(false))
+
+      val deleteChatService = chatService.deleteChat(genUUID.sample.value, genUUID.sample.value)
+      deleteChatService.map(_ mustBe false)
+    }
+  }
+
+  "ChatService#deleteDraft" should {
+    "return true if the ChatsRepository returns true" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.deleteDraft(*, *, *)
+        .returns(Future.successful(true))
+
+      val deleteDraftService = chatService.deleteDraft(
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
+      deleteDraftService.map(_ mustBe true)
+    }
+    "return false if the ChatsRepository returns false" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.deleteDraft(*, *, *)
+        .returns(Future.successful(false))
+
+      val deleteDraftService = chatService.deleteDraft(
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
+      deleteDraftService.map(_ mustBe false)
+    }
+  }
+
+  "ChatService#postOverseers" should {
+    "turn the received optional Set of PostOverseer to one of PostOverseerDTO" in {
+
+      val expectedResponse = genSetPostOverseerDTO.sample
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.postOverseers(*, *, *)
+        .returns(Future.successful(expectedResponse.map(_.map(toPostOverseer))))
+
+      val serviceResponse = chatService.postOverseers(
+        genSetPostOverseerDTO.sample.value,
+        genUUID.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe expectedResponse)
+    }
+  }
+
+  "ChatService#getOverseers" should {
+    "turn the received optional Set of PostOverseer to one of PostOverseerDTO" in {
+
+      val expectedResponse = genSetPostOverseerDTO.sample
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.getOverseers(*, *)
+        .returns(Future.successful(expectedResponse.map(_.map(toPostOverseer))))
+
+      val serviceResponse = chatService.getOverseers(genUUID.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe expectedResponse)
+    }
+  }
+
+  "ChatService#deleteOverseer" should {
+    "return true if the ChatsRepository returns true" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.deleteOverseer(*, *, *)
+        .returns(Future.successful(true))
+
+      val deleteOverseerService = chatService.deleteOverseer(
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
+      deleteOverseerService.map(_ mustBe true)
+    }
+    "return false if the ChatsRepository returns false" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.deleteOverseer(*, *, *)
+        .returns(Future.successful(false))
+
+      val deleteOverseerService = chatService.deleteOverseer(
+        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
+      deleteOverseerService.map(_ mustBe false)
+    }
+  }
+
+  "ChatService#getOversights" should {
+    "turn the received Oversight to OversightDTO" in {
+
+      val expectedResponse = genOversightDTO.sample.value
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.getOversights(*)
+        .returns(Future.successful(toOversight(expectedResponse)))
+
+      val serviceResponse = chatService.getOversights(genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe expectedResponse)
     }
   }
 

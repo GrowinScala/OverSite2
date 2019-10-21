@@ -4,14 +4,43 @@
 # ~~~~
 
 # Chats
-GET     /chats                   controllers.ChatController.getChats(mailbox: String ?= "inbox")
+GET     /chats                              controllers.ChatController.getChats(mailbox: Mailbox)
 
-GET     /chats/:id               controllers.ChatController.getChat(id : String)
+GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
+
+GET     /chats/:id/overseers                controllers.ChatController.getOverseers(id : String)
+
+GET     /chats/oversights                   controllers.ChatController.getOversights
+
+GET     /chats/:id                          controllers.ChatController.getChat(id : String)
+
+POST    /chats                              controllers.ChatController.postChat
+
+POST    /chats/:id/emails                   controllers.ChatController.postEmail(id : String)
+
+POST    /chats/:id/overseers                controllers.ChatController.postOverseers(id : String)
+
+PATCH   /chats/:chatId/emails/:emailId      controllers.ChatController.patchEmail(chatId : String, emailId : String)
+
+PATCH   /chats/:id                          controllers.ChatController.patchChat(id : String)
+
+DELETE  /chats/:id                          controllers.ChatController.deleteChat(id : String)
+
+DELETE  /chats/:chatId/emails/:emailId      controllers.ChatController.deleteDraft(chatId : String, emailId : String)
+
+DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteOverseer(chatId : String, oversightId : String)
+
+DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
 
 # Authentication
 
-# POST    /user                    controllers.AuthenticationController.insertUser
+POST    /signup                  controllers.AuthenticationController.signUpUser
+
+POST    /signin                  controllers.AuthenticationController.signInUser
+
+
+
 
 
 

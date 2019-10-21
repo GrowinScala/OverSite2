@@ -20,4 +20,7 @@ class ChatsTable(tag: Tag) extends Table[ChatRow](tag, "chats") {
 object ChatsTable {
   val all = TableQuery[ChatsTable]
 
+  def changeSubject(chatId: String, newSubject: String): DBIO[Int] =
+    all.filter(_.chatId === chatId).map(_.subject).update(newSubject)
+
 }

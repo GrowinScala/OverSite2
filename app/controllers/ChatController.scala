@@ -1,71 +1,148 @@
 package controllers
 
 import javax.inject._
+import model.dtos._
 import play.api.mvc._
-import play.api.libs.json.Json
+import play.api.libs.json.{ JsError, JsValue, Json }
 import services.ChatService
+import utils.Jsons._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ ExecutionContext, Future }
 import model.types.Mailbox
-import validations.CategoryNames
 
 @Singleton
-class ChatController @Inject() (cc: ControllerComponents, chatService: ChatService)
+class ChatController @Inject() (implicit val ec: ExecutionContext, cc: ControllerComponents, chatService: ChatService,
+  authenticatedUserAction: AuthenticatedUserAction)
   extends AbstractController(cc) {
 
-  //val userId = "148a3b1b-8326-466d-8c27-1bd09b8378f3" //user 1 Beatriz
-  val userId = "adcd6348-658a-4866-93c5-7e6d32271d8d" //user 2 João
-  //val userId = "25689204-5a8e-453d-bfbc-4180ff0f97b9" //user 3 Valter
-  //val userId = "ef63108c-8128-4294-8346-bd9b5143ff22" //user 4 Pedro L
-  //val userId = "e598ee8e-b459-499f-94d1-d4f66d583264" //user 5 Pedro C
-  //val userId = "261c9094-6261-4704-bfd0-02821c235eff" //user 6 Rui
+  def getChat(id: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
 
-  //val userId = "12345678-1234-5678-9012-123456789100" //Non existing user
-
-  def getChat(id: String): Action[AnyContent] =
-    Action.async {
-      chatService.getChat(id, userId).map {
+      chatService.getChat(id, authenticatedRequest.userId).map {
         case Some(chatDTO) => Ok(Json.toJson(chatDTO))
-        case None => NotFound
+        case None => NotFound(chatNotFound)
       }
-    }
+  }
 
-  def getChats(mailboxString: String): Action[AnyContent] = {
-    Action.async {
-      if (CategoryNames.validMailboxes.contains(mailboxString)) {
-        val mailbox = Mailbox(mailboxString)
-        //val user = "148a3b1b-8326-466d-8c27-1bd09b8378f3"
-        chatService.getChats(mailbox, userId).map(seq => Ok(Json.toJson(seq)))
-      } else Future.successful(NotFound)
+  def getChats(mailbox: Mailbox): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.getChats(mailbox, authenticatedRequest.userId).map(seq => Ok(Json.toJson(seq)))
+  }
+
+  def postChat: Action[JsValue] = {
+    authenticatedUserAction.async(parse.json) { authenticatedRequest =>
+      val jsonValue = authenticatedRequest.request.body
+
+      jsonValue.validate[CreateChatDTO].fold(
+        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        createChatDTO => chatService.postChat(createChatDTO, authenticatedRequest.userId)
+          .map {
+            case Some(crChatDTO) => Ok(Json.toJson(crChatDTO))
+            case None => InternalServerError(internalError)
+          })
     }
   }
-}
 
-//region Old
-/*def getAddress(id: String): Action[AnyContent] =
-Action.async {
-  addressService.getAddress(id).map {
-  case Some(addressDTO: AddressDTO) => Ok(Json.toJson(addressDTO))
-  case None => NotFound
-}
-}
+  // Note that this method will return NotFound if the chatId exists but the user does not have access to it
+  def postEmail(chatId: String): Action[JsValue] = {
+    authenticatedUserAction.async(parse.json) { authenticatedRequest =>
+      val jsonValue = authenticatedRequest.request.body
 
-  def postAddress(): Action[JsValue] =
-  Action.async(parse.json) { implicit request: Request[JsValue] =>
-  val jsonValue = request.body
-  jsonValue.validate[AddressDTO].fold(
-  errors => Future.successful(BadRequest(JsError.toJson(errors))),
-  addressDTO => addressService.postAddress(addressDTO.address).map(result =>
-  Ok(Json.toJson(result))))
-}
+      jsonValue.validate[UpsertEmailDTO].fold(
+        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        upsertEmailDTO => chatService.postEmail(upsertEmailDTO, chatId, authenticatedRequest.userId)
+          .map {
+            case Some(result) => Ok(Json.toJson(result))
+            case None => NotFound(chatNotFound)
+          })
+    }
+  }
 
-  def deleteAddress(id: String): Action[AnyContent] =
-  Action.async {
-  addressService.deleteAddress(id).map {
-  case true => NoContent
-  case _ => NotFound
-}
-}*/
-//endregion
+  def patchEmail(chatId: String, emailId: String): Action[JsValue] = {
+    authenticatedUserAction.async(parse.json) { authenticatedRequest =>
+      val jsonValue = authenticatedRequest.request.body
 
+      jsonValue.validate[UpsertEmailDTO].fold(
+        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        upsertEmailDTO => chatService.patchEmail(upsertEmailDTO, chatId, emailId, authenticatedRequest.userId)
+          .map {
+            case Some(result) => Ok(Json.toJson(result))
+            case None => NotFound(emailNotFound)
+          })
+    }
+  }
+
+  def patchChat(chatId: String): Action[JsValue] = {
+    authenticatedUserAction.async(parse.json) { authenticatedRequest =>
+      val jsonValue = authenticatedRequest.request.body
+
+      jsonValue.validate[PatchChatDTO].fold(
+        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        patchChatDTO => chatService.patchChat(patchChatDTO, chatId, authenticatedRequest.userId).map {
+          case Some(result) => Ok(Json.toJson(result))
+          case None => NotFound(chatNotFound)
+        })
+    }
+  }
+
+  def getEmail(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+
+      chatService.getEmail(chatId, emailId, authenticatedRequest.userId).map {
+        case Some(chatDTO) => Ok(Json.toJson(chatDTO))
+        case None => NotFound(emailNotFound)
+      }
+  }
+
+  def deleteChat(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.deleteChat(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound(chatNotFound))
+  }
+
+  def deleteDraft(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.deleteDraft(chatId, emailId, authenticatedRequest.userId).map(if (_) NoContent
+      else NotFound(emailNotFound))
+  }
+
+  def deleteOverseer(chatId: String, oversightId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.deleteOverseer(chatId, oversightId, authenticatedRequest.userId)
+        .map(if (_) NoContent else NotFound(overseerNotFound))
+  }
+
+  def postOverseers(chatId: String): Action[JsValue] = {
+    authenticatedUserAction.async(parse.json) { authenticatedRequest =>
+      val jsonValue = authenticatedRequest.request.body
+
+      jsonValue.validate[Set[PostOverseerDTO]].fold(
+        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        postOverseersDTO => chatService.postOverseers(postOverseersDTO, chatId, authenticatedRequest.userId)
+          .map {
+            case Some(result) => Ok(Json.toJson(result))
+            case None => NotFound(chatNotFound)
+          })
+    }
+  }
+
+  /**
+   * Gets the user's overseers for the given chat
+   * @param chatId The chat's Id
+   * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
+   */
+  def getOverseers(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+
+      chatService.getOverseers(chatId, authenticatedRequest.userId).map {
+        case Some(postOverseersDTO) => Ok(Json.toJson(postOverseersDTO))
+        case None => NotFound(chatNotFound)
+      }
+  }
+
+  def getOversights: Action[AnyContent] = authenticatedUserAction.async {
+    authenticatedRequest =>
+      chatService.getOversights(authenticatedRequest.userId)
+        .map(oversightDTO => Ok(Json.toJson(oversightDTO)))
+  }
+
+}

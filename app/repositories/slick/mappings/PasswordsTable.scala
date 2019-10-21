@@ -2,9 +2,9 @@ package repositories.slick.mappings
 
 import slick.jdbc.MySQLProfile.api._
 
-case class PasswordsRow(passwordId: String, userId: String, password: String, tokenId: String)
+case class PasswordRow(passwordId: String, userId: String, password: String, tokenId: String)
 
-class PasswordsTable(tag: Tag) extends Table[PasswordsRow](tag, "passwords") {
+class PasswordsTable(tag: Tag) extends Table[PasswordRow](tag, "passwords") {
   // Columns
   def passwordId = column[String]("password_id", O.PrimaryKey)
   def userId = column[String]("user_id")
@@ -15,7 +15,7 @@ class PasswordsTable(tag: Tag) extends Table[PasswordsRow](tag, "passwords") {
 
   // Table mapping
   override def * =
-    (passwordId, userId, password, tokenId) <> (PasswordsRow.tupled, PasswordsRow.unapply)
+    (passwordId, userId, password, tokenId) <> (PasswordRow.tupled, PasswordRow.unapply)
 
 }
 

@@ -22,6 +22,7 @@ class EmailsTable(tag: Tag) extends Table[EmailRow](tag, "emails") {
 
 object EmailsTable {
   val all = TableQuery[EmailsTable]
+  //val insert = (all.returning(all.map(_.emailId)))
 
   def getChatEmails(chatId: String): Query[EmailsTable, EmailsTable#TableElementType, scala.Seq] =
     all.filter(email => email.chatId === chatId)
