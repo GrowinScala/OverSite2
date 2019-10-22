@@ -2,7 +2,7 @@ package services
 
 import model.dtos._
 import model.dtos.PostOverseerDTO._
-import model.types.Mailbox.Inbox
+import model.dtos.ChatDTO._
 import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalacheck.Gen
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
@@ -47,18 +47,44 @@ class ChatServiceSpec extends AsyncWordSpec
   }
 
   "ChatService#getChat" should {
-    "map Chat DTO" in {
-      val (chatService, mockChatsRep) = getServiceAndRepMock
-      val testchatDTO = genChatDTO.sample.value
-      mockChatsRep.getChat(*, *)
-        .returns(Future.successful(
-          Some(ChatDTO.toChat(testchatDTO))))
+    "map the repositorie's Right result" in {
 
-      val chatDTO = chatService.getChat(genUUID.sample.value, genUUID.sample.value)
-      val expectedServiceResponse =
-        Some(testchatDTO)
-      chatDTO.map(_ mustBe expectedServiceResponse)
+      val testchatDTO = genChatDTO.sample.value
+      val totalCount = choose(1, 10).sample.value
+      val lastPage = choose(1, 10).sample.value
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.getChat(*, *, *, *)
+        .returns(Future.successful(Right(toChat(testchatDTO), totalCount, lastPage)))
+
+      val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe Right(testchatDTO, totalCount, Page(lastPage)))
     }
+
+    "return chatNotFound according to the repositories response" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.getChat(*, *, *, *)
+        .returns(Future.successful(Left(CHAT_NOT_FOUND)))
+
+      val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe Left(chatNotFound))
+    }
+
+    "return InternalServerError if the repository returns an error message other than chatNotFound" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.getChat(*, *, *, *)
+        .returns(Future.successful(Left(genString.sample.value)))
+
+      val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe Left(internalError))
+    }
+
   }
 
   "ChatService#postChat" should {
@@ -244,10 +270,6 @@ class ChatServiceSpec extends AsyncWordSpec
     }
 
     "return chatNotFound according to the repositories response" in {
-      val postOverseersDTO = genSeqPostOverseerDTO.sample.value
-      val totalCount = choose(1, 10).sample.value
-      val lastPage = choose(1, 10).sample.value
-
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.getOverseers(*, *, *, *)
         .returns(Future.successful(Left(CHAT_NOT_FOUND)))

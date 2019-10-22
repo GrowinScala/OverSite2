@@ -17,11 +17,15 @@ import scala.math._
 import scala.concurrent.duration.Duration
 import scala.concurrent._
 import model.types.Mailbox._
+import model.types.Page._
+import model.types.PerPage._
 import model.types.ParticipantType._
 import repositories.dtos._
 import repositories.slick.mappings._
 import repositories.RepUtils.RepMessages._
 import utils.TestGenerators._
+
+import scala.concurrent._
 
 import scala.concurrent._
 
@@ -131,7 +135,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        chatsPreview <- chatsRep.getChatsPreview(Drafts, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Drafts, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some((Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         basicTestDB.addressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body)), 1, 0))
     }
@@ -152,7 +157,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
               senderAddressRow.addressId, From).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body)), 1, 0)
 
@@ -174,7 +180,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
               senderAddressRow.addressId, From).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body)), 1, 0)
     }
@@ -195,7 +202,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
               senderAddressRow.addressId, From).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         senderAddressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body)), 1, 0)
     }
@@ -216,7 +224,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
               senderAddressRow.addressId, From).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -236,7 +245,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
               senderAddressRow.addressId, From).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -256,7 +266,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(basicTestDB.emailRow.emailId, basicTestDB.chatRow.chatId,
               senderAddressRow.addressId, From).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -272,7 +283,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         basicTestDB.addressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body)), 1, 0)
     }
@@ -289,7 +301,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        chatsPreview <- chatsRep.getChatsPreview(Sent, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Sent, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         basicTestDB.addressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body)), 1, 0)
     }
@@ -306,7 +319,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        chatsPreview <- chatsRep.getChatsPreview(Drafts, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Drafts, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         basicTestDB.addressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body)), 1, 0)
     }
@@ -323,7 +337,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        chatsPreview <- chatsRep.getChatsPreview(Trash, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Trash, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         basicTestDB.addressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body)), 1, 0)
     }
@@ -340,7 +355,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -356,7 +372,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        chatsPreview <- chatsRep.getChatsPreview(Sent, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Sent, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -372,7 +389,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        chatsPreview <- chatsRep.getChatsPreview(Drafts, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Drafts, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -388,7 +406,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        chatsPreview <- chatsRep.getChatsPreview(Trash, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Trash, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -408,7 +427,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(oldEmailRow.emailId, basicTestDB.chatRow.chatId,
               basicTestDB.addressRow.addressId, From).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         basicTestDB.addressRow.address, "2019", basicTestDB.emailRow.body)), 1, 0)
     }
@@ -429,7 +449,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(otherEmailRow.emailId, basicTestDB.chatRow.chatId,
               basicTestDB.addressRow.addressId, From).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         basicTestDB.addressRow.address, "2019", List(basicTestDB.emailRow, otherEmailRow).minBy(_.emailId).body)), 1, 0)
 
@@ -456,7 +477,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(otherEmailRow.emailId, otherChatRow.chatId,
               basicTestDB.addressRow.addressId, From).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(List(
         ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
           basicTestDB.addressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body),
@@ -485,7 +507,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         overseeAddressRow.address, overseeEmailRow.date, overseeEmailRow.body)), 1, 0)
 
@@ -509,7 +532,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -535,7 +559,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body)), 1, 0)
 
@@ -563,7 +588,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body)), 1, 0)
     }
@@ -590,7 +616,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview mustBe Some(Seq(ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         senderAddressRow.address, overseeEmailRow.date, overseeEmailRow.body)), 1, 0)
 
@@ -618,7 +645,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -644,7 +672,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -670,7 +699,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        chatsPreview <- chatsRep.getChatsPreview(Inbox, 0, 5, basicTestDB.userRow.userId)
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield chatsPreview.value._1 mustBe empty
     }
 
@@ -772,8 +802,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           Ordering.Tuple2(Ordering.String.reverse, Ordering.String))
         chats.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-         of the last element of the penultimate page (perPage * expectedLastPage - 1).*/
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+        //         of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         chats.headOption.value.contentPreview mustBe sortedEmailList(perPage * expectedLastPage).body withClue "The" +
           " first element of the sliced sequence is wrong"
@@ -816,23 +846,21 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
   "SlickChatsRepository#getChat" should {
 
-    "Not detect a non existing chat" in {
-      val basicTestDB = genBasicTestDB.sample.value
-
+    "return INVALID_PAGINATION if page is less than zero" in {
       for {
-        _ <- fillDB(
-          List(basicTestDB.addressRow),
-          List(basicTestDB.chatRow),
-          List(basicTestDB.userRow),
-          List(basicTestDB.userChatRow),
-          List(basicTestDB.emailRow.copy(sent = 0)),
-          List(basicTestDB.emailAddressRow))
-
-        optChat <- chatsRep.getChat(genUUID.sample.value, basicTestDB.userRow.userId)
-      } yield optChat mustBe None
+        eitherResult <- chatsRep.getChat(genUUID.sample.value, choose(-10, -1).sample.value,
+          choose(1, 10).sample.value, genUUID.sample.value)
+      } yield eitherResult mustBe Left(INVALID_PAGINATION)
     }
 
-    "Not detect a chat the user does not have access to" in {
+    "return INVALID_PAGINATION if perPage is not greater than zero" in {
+      for {
+        eitherResult <- chatsRep.getChat(genUUID.sample.value, choose(1, 10).sample.value.sample.value,
+          choose(-10, 0).sample.value, genUUID.sample.value)
+      } yield eitherResult mustBe Left(INVALID_PAGINATION)
+    }
+
+    "return CHAT_NOT_FOUND if the chat does not exist" in {
       val basicTestDB = genBasicTestDB.sample.value
 
       for {
@@ -840,12 +868,27 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow),
           List(basicTestDB.chatRow),
           List(basicTestDB.userRow),
-          List(),
-          List(basicTestDB.emailRow.copy(sent = 0)),
-          List(basicTestDB.emailAddressRow))
+          List(basicTestDB.userChatRow))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe None
+        eitherResult <- chatsRep.getChat(genUUID.sample.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Left(CHAT_NOT_FOUND)
+
+    }
+
+    "return CHAT_NOT_FOUND if the chat exists but the User does not have access to it" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow))
+
+        eitherResult <- chatsRep.getChat(genUUID.sample.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Left(CHAT_NOT_FOUND)
+
     }
 
     "detect a draft made by the viewer " in {
@@ -860,11 +903,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Right((Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         Set(basicTestDB.addressRow.address), Set(),
         Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.addressRow.address, Set(), Set(), Set(),
-          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 0, Set()))))
+          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 0, Set()))), 1, 0))
     }
 
     "detect only emails addressed to the viewer that were sent [To]" in {
@@ -888,12 +932,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.addressRow.addressId,
               To).sample.value))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Right((Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         Set(basicTestDB.addressRow.address, senderAddressRow.address), Set(),
         Seq(Email(basicTestDB.emailRow.emailId, senderAddressRow.address,
           Set(basicTestDB.addressRow.address), Set(), Set(),
-          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))), 1, 0))
 
     }
 
@@ -918,12 +963,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.addressRow.addressId,
               Cc).sample.value))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Right((Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         Set(basicTestDB.addressRow.address, senderAddressRow.address), Set(),
         Seq(Email(basicTestDB.emailRow.emailId, senderAddressRow.address,
           Set(), Set(), Set(basicTestDB.addressRow.address),
-          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))), 1, 0))
     }
 
     "detect only emails addressed to the viewer that were sent [BCC]" in {
@@ -947,12 +993,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(notSentEmail.emailId, basicTestDB.chatRow.chatId, basicTestDB.addressRow.addressId,
               Bcc).sample.value))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Right((Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         Set(basicTestDB.addressRow.address, senderAddressRow.address), Set(),
         Seq(Email(basicTestDB.emailRow.emailId, senderAddressRow.address,
           Set(), Set(basicTestDB.addressRow.address), Set(),
-          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+          basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))), 1, 0))
     }
 
     "show the emails ordered by date" in {
@@ -971,14 +1018,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             genEmailAddressRow(oldEmailRow.emailId, basicTestDB.chatRow.chatId,
               basicTestDB.addressRow.addressId, From).sample.value))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Right((Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         Set(basicTestDB.addressRow.address), Set(),
         Seq(
           Email(oldEmailRow.emailId, basicTestDB.addressRow.address, Set(), Set(), Set(),
             oldEmailRow.body, oldEmailRow.date, oldEmailRow.sent, Set()),
           Email(basicTestDB.emailRow.emailId, basicTestDB.addressRow.address, Set(), Set(), Set(),
-            basicTestDB.emailRow.body, "2019", basicTestDB.emailRow.sent, Set()))))
+            basicTestDB.emailRow.body, "2019", basicTestDB.emailRow.sent, Set()))), 2, 0))
     }
 
     "detect only emails made by the oversee if they were sent" in {
@@ -1003,12 +1051,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Right((Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         Set(overseeAddressRow.address),
         Set(Overseers(overseeAddressRow.address, Set(basicTestDB.addressRow.address))),
         Seq(Email(sentEmail.emailId, overseeAddressRow.address, Set(), Set(), Set(),
-          sentEmail.body, sentEmail.date, sent = 1, Set()))))
+          sentEmail.body, sentEmail.date, sent = 1, Set()))), 1, 0))
 
     }
 
@@ -1039,12 +1088,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Right((Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         Set(overseeAddressRow.address, senderAddressRow.address),
         Set(Overseers(overseeAddressRow.address, Set(basicTestDB.addressRow.address))),
         Seq(Email(sentEmail.emailId, senderAddressRow.address, Set(overseeAddressRow.address), Set(), Set(),
-          sentEmail.body, sentEmail.date, sent = 1, Set()))))
+          sentEmail.body, sentEmail.date, sent = 1, Set()))), 1, 0))
 
     }
 
@@ -1075,12 +1125,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Right((Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         Set(overseeAddressRow.address, senderAddressRow.address),
         Set(Overseers(overseeAddressRow.address, Set(basicTestDB.addressRow.address))),
         Seq(Email(sentEmail.emailId, senderAddressRow.address, Set(), Set(), Set(overseeAddressRow.address),
-          sentEmail.body, sentEmail.date, sent = 1, Set()))))
+          sentEmail.body, sentEmail.date, sent = 1, Set()))), 1, 0))
 
     }
 
@@ -1111,12 +1162,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(genOversightRow(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId,
             overseeUserRow.userId).sample.value))
 
-        optChat <- chatsRep.getChat(basicTestDB.chatRow.chatId, basicTestDB.userRow.userId)
-      } yield optChat mustBe Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield eitherResult mustBe Right((Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
         Set(overseeAddressRow.address, senderAddressRow.address),
         Set(Overseers(overseeAddressRow.address, Set(basicTestDB.addressRow.address))),
         Seq(Email(sentEmail.emailId, senderAddressRow.address, Set(), Set(overseeAddressRow.address), Set(),
-          sentEmail.body, sentEmail.date, sent = 1, Set()))))
+          sentEmail.body, sentEmail.date, sent = 1, Set()))), 1, 0))
 
     }
 
@@ -1138,7 +1190,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val ccOverseerUserRow = genUserRow(ccOverseerAddressRow.addressId).sample.value
         val bccOverseerUserRow = genUserRow(bccOverseerAddressRow.addressId).sample.value
 
-        val visibleBCCOptChat = Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        val visibleBccChat = Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
           Set(basicTestDB.addressRow.address, toAddressRow.address, ccAddressRow.address, bccAddressRow.address),
           Set(
             Overseers(basicTestDB.addressRow.address, Set(fromOverseerAddressRow.address)),
@@ -1147,9 +1199,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             Overseers(bccAddressRow.address, Set(bccOverseerAddressRow.address))),
           Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.addressRow.address,
             Set(toAddressRow.address), Set(bccAddressRow.address), Set(ccAddressRow.address),
-            basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+            basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set())))
 
-        val notVisibleBCCOptChat = Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+        val notVisibleBccChat = Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
           Set(basicTestDB.addressRow.address, toAddressRow.address, ccAddressRow.address),
           Set(
             Overseers(basicTestDB.addressRow.address, Set(fromOverseerAddressRow.address)),
@@ -1158,7 +1210,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             Overseers(bccAddressRow.address, Set(bccOverseerAddressRow.address))),
           Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.addressRow.address,
             Set(toAddressRow.address), Set(), Set(ccAddressRow.address),
-            basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+            basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set())))
 
         for {
           _ <- fillDB(
@@ -1193,16 +1245,20 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
               genOversightRow(basicTestDB.chatRow.chatId, bccOverseerUserRow.userId, bccUserRow.userId)
                 .sample.value))
 
-          optChatOverFrom <- chatsRep.getChat(basicTestDB.chatRow.chatId, fromOverseerUserRow.userId)
-          optChatOverTo <- chatsRep.getChat(basicTestDB.chatRow.chatId, toOverseerUserRow.userId)
-          optChatOverCC <- chatsRep.getChat(basicTestDB.chatRow.chatId, ccOverseerUserRow.userId)
-          optChatOverBCC <- chatsRep.getChat(basicTestDB.chatRow.chatId, bccOverseerUserRow.userId)
+          resultOverFrom <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            fromOverseerUserRow.userId)
+          resultOverTo <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            toOverseerUserRow.userId)
+          resultOverCC <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            ccOverseerUserRow.userId)
+          resultOverBCC <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            bccOverseerUserRow.userId)
 
         } yield assert(
-          optChatOverFrom === visibleBCCOptChat &
-            optChatOverTo === notVisibleBCCOptChat &
-            optChatOverCC === notVisibleBCCOptChat &
-            optChatOverBCC === visibleBCCOptChat)
+          resultOverFrom.toOption.value._1 === visibleBccChat &
+            resultOverTo.toOption.value._1 === notVisibleBccChat &
+            resultOverCC.toOption.value._1 === notVisibleBccChat &
+            resultOverBCC.toOption.value._1 === visibleBccChat)
 
       }
 
@@ -1248,12 +1304,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
               genOversightRow(basicTestDB.chatRow.chatId, bccTwoOverseerUserRow.userId, bccTwoUserRow.userId)
                 .sample.value))
 
-          optChatOverFrom <- chatsRep.getChat(basicTestDB.chatRow.chatId, fromOverseerUserRow.userId)
-          optChatOverBCCOne <- chatsRep.getChat(basicTestDB.chatRow.chatId, bccOneOverseerUserRow.userId)
-          optChatOverBCCTwo <- chatsRep.getChat(basicTestDB.chatRow.chatId, bccTwoOverseerUserRow.userId)
+          resultOverFrom <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            fromOverseerUserRow.userId)
+          resultOverBCCOne <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            bccOneOverseerUserRow.userId)
+          resultOverBCCTwo <- chatsRep.getChat(basicTestDB.chatRow.chatId, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            bccTwoOverseerUserRow.userId)
 
         } yield assert(
-          optChatOverFrom === Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+          resultOverFrom.toOption.value._1 === Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
             Set(basicTestDB.addressRow.address, bccOneAddressRow.address, bccTwoAddressRow.address),
             Set(
               Overseers(basicTestDB.addressRow.address, Set(fromOverseerAddressRow.address)),
@@ -1261,9 +1320,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
               Overseers(bccTwoAddressRow.address, Set(bccTwoOverseerAddressRow.address))),
             Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.addressRow.address,
               Set(), Set(bccOneAddressRow.address, bccTwoAddressRow.address), Set(),
-              basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
+              basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set())))
             &
-            optChatOverBCCOne === Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+            resultOverBCCOne.toOption.value._1 === Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
               Set(basicTestDB.addressRow.address, bccOneAddressRow.address),
               Set(
                 Overseers(basicTestDB.addressRow.address, Set(fromOverseerAddressRow.address)),
@@ -1271,19 +1330,156 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
                 Overseers(bccTwoAddressRow.address, Set(bccTwoOverseerAddressRow.address))),
               Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.addressRow.address,
                 Set(), Set(bccOneAddressRow.address), Set(),
-                basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
-            &
-            optChatOverBCCTwo === Some(Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
-              Set(basicTestDB.addressRow.address, bccTwoAddressRow.address),
-              Set(
-                Overseers(basicTestDB.addressRow.address, Set(fromOverseerAddressRow.address)),
-                Overseers(bccOneAddressRow.address, Set(bccOneOverseerAddressRow.address)),
-                Overseers(bccTwoAddressRow.address, Set(bccTwoOverseerAddressRow.address))),
-              Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.addressRow.address,
-                Set(), Set(bccTwoAddressRow.address), Set(),
-                basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set())))))
+                basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set())))
+              &
+              resultOverBCCTwo.toOption.value._1 === Chat(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+                Set(basicTestDB.addressRow.address, bccTwoAddressRow.address),
+                Set(
+                  Overseers(basicTestDB.addressRow.address, Set(fromOverseerAddressRow.address)),
+                  Overseers(bccOneAddressRow.address, Set(bccOneOverseerAddressRow.address)),
+                  Overseers(bccTwoAddressRow.address, Set(bccTwoOverseerAddressRow.address))),
+                Seq(Email(basicTestDB.emailRow.emailId, basicTestDB.addressRow.address,
+                  Set(), Set(bccTwoAddressRow.address), Set(),
+                  basicTestDB.emailRow.body, basicTestDB.emailRow.date, sent = 1, Set()))))
 
       }
+
+    "return the correct totalCount and lastPage values" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val emailRows = genList(1, 20, genEmailRow(basicTestDB.chatRow.chatId)).sample.value
+      val emailAddressRows = emailRows.map(emailRow => genEmailAddressRow(emailRow.emailId, basicTestDB.chatRow.chatId,
+        basicTestDB.addressRow.addressId, From).sample.value)
+      val sortedEmails = emailRows.map(emailRow => Email(emailRow.emailId, basicTestDB.addressRow.address, Set(), Set(),
+        Set(), emailRow.body, emailRow.date, emailRow.sent, Set())).sortBy(email => (email.date, email.body))
+
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(emailRows.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, expectedLastPage + 1).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow),
+          emailRows,
+          emailAddressRows)
+
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, page, perPage, basicTestDB.userRow.userId)
+      } yield {
+        val result = eitherResult.toOption.value
+        val totalCount = result._2
+        val lastPage = result._3
+
+        totalCount mustBe emailRows.size withClue "The totalCount is wrong"
+        assert(sortedEmails.isDefinedAt(lastPage * perPage) &&
+          !sortedEmails.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
+        lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
+      }
+
+    }
+
+    "sample the emails according to the given intermediary page and perPage values" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val emailRows = genList(1, 20, genEmailRow(basicTestDB.chatRow.chatId)).sample.value
+      val emailAddressRows = emailRows.map(emailRow => genEmailAddressRow(emailRow.emailId, basicTestDB.chatRow.chatId,
+        basicTestDB.addressRow.addressId, From).sample.value)
+      val sortedEmails = emailRows.map(emailRow => Email(emailRow.emailId, basicTestDB.addressRow.address, Set(), Set(),
+        Set(), emailRow.body, emailRow.date, emailRow.sent, Set())).sortBy(email => (email.date, email.body))
+
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(emailRows.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(0, max(expectedLastPage - 1, 0)).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow),
+          emailRows,
+          emailAddressRows)
+
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, page, perPage, basicTestDB.userRow.userId)
+      } yield {
+        val emails = eitherResult.toOption.value._1.emails
+
+        emails.size mustBe min(perPage, emailRows.size) withClue "The size of the slice sequence is wrong"
+        emails.headOption.value mustBe sortedEmails(perPage * page) withClue ("The first element" +
+          " of the sliced sequence is wrong")
+      }
+
+    }
+
+    "correctly sample the last page of the emails" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val emailRows = genList(1, 20, genEmailRow(basicTestDB.chatRow.chatId)).sample.value
+      val emailAddressRows = emailRows.map(emailRow => genEmailAddressRow(emailRow.emailId, basicTestDB.chatRow.chatId,
+        basicTestDB.addressRow.addressId, From).sample.value)
+      val sortedEmails = emailRows.map(emailRow => Email(emailRow.emailId, basicTestDB.addressRow.address, Set(), Set(),
+        Set(), emailRow.body, emailRow.date, emailRow.sent, Set())).sortBy(email => (email.date, email.body))
+
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(emailRows.size, perPage, RoundingMode.CEILING) - 1
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow),
+          emailRows,
+          emailAddressRows)
+
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, expectedLastPage, perPage,
+          basicTestDB.userRow.userId)
+      } yield {
+        val result = eitherResult.toOption.value
+        val emails = result._1.emails
+        val totalCount = result._2
+        emails.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
+          " sliced sequence is wrong"
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+        //					 of the last element of the penultimate page (perPage * expectedLastPage - 1).
+
+        emails.headOption.value mustBe sortedEmails(perPage * expectedLastPage) withClue "The first" +
+          " element of the sliced sequence is wrong"
+      }
+
+    }
+
+    "return an empty sequence if the page is greater than the last page" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val emailRows = genList(1, 20, genEmailRow(basicTestDB.chatRow.chatId)).sample.value
+      val emailAddressRows = emailRows.map(emailRow => genEmailAddressRow(emailRow.emailId, basicTestDB.chatRow.chatId,
+        basicTestDB.addressRow.addressId, From).sample.value)
+      val sortedEmails = emailRows.map(emailRow => Email(emailRow.emailId, basicTestDB.addressRow.address, Set(), Set(),
+        Set(), emailRow.body, emailRow.date, emailRow.sent, Set())).sortBy(email => (email.date, email.body))
+
+      val perPage = choose(1, 20).sample.value
+      val expectedLastPage = divide(emailRows.size, perPage, RoundingMode.CEILING) - 1
+      val page = choose(expectedLastPage + 1, expectedLastPage + 3).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow),
+          emailRows,
+          emailAddressRows)
+
+        eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, page, perPage,
+          basicTestDB.userRow.userId)
+      } yield {
+        val result = eitherResult.toOption.value
+        val emails = result._1.emails
+        val totalCount = result._2
+        totalCount must be > 0
+        emails mustBe empty
+      }
+
+    }
 
   }
 
@@ -1308,8 +1504,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postResponse.value.chatId.get, basicTestDB.userRow.userId)
-      } yield getResponse mustBe Some(CreateChat.fromCreateChatToChat(postResponse.value))
+        getResponse <- chatsRep.getChat(postResponse.value.chatId.get, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield getResponse.toOption.value._1 mustBe CreateChat.fromCreateChatToChat(postResponse.value)
 
     }
 
@@ -1326,9 +1523,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             userRows = List(basicTestDB.userRow, receiverUserRow))
           postResponse <- chatsRep.postChat(
             origCreateChatDTO.copy(email = origCreateChatDTO.email.copy(to = Some(Set(receiverAddressRow.address)))),
+            receiverUserRow.userId)
+          getResponse <- chatsRep.getChat(postResponse.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
             basicTestDB.userRow.userId)
-          getResponse <- chatsRep.getChat(postResponse.value.chatId.value, receiverUserRow.userId)
-        } yield getResponse mustBe None
+        } yield getResponse mustBe Left(CHAT_NOT_FOUND)
 
       }
 
@@ -1345,8 +1543,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         postResponse <- chatsRep.postChat(
           origCreateChat.copy(email = origCreateChat.email.copy(cc = Some(Set(receiverAddressRow.address)))),
           basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postResponse.value.chatId.value, receiverUserRow.userId)
-      } yield getResponse mustBe None
+        getResponse <- chatsRep.getChat(postResponse.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          receiverUserRow.userId)
+      } yield getResponse mustBe Left(CHAT_NOT_FOUND)
 
     }
 
@@ -1363,8 +1562,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         postResponse <- chatsRep.postChat(
           origCreateChatDTO.copy(email = origCreateChatDTO.email.copy(bcc = Some(Set(receiverAddressRow.address)))),
           basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postResponse.value.chatId.value, receiverUserRow.userId)
-      } yield getResponse mustBe None
+        getResponse <- chatsRep.getChat(postResponse.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          receiverUserRow.userId)
+      } yield getResponse mustBe Left(CHAT_NOT_FOUND)
 
     }
 
@@ -1390,8 +1590,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.addressRow),
           userRows = List(basicTestDB.userRow))
         postResponse <- chatsRep.postChat(chatWithEmptyDraft, basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postResponse.value.chatId.get, basicTestDB.userRow.userId)
-      } yield getResponse mustBe Some(CreateChat.fromCreateChatToChat(postResponse.value))
+        getResponse <- chatsRep.getChat(postResponse.value.chatId.get, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
+      } yield getResponse.toOption.value._1 mustBe CreateChat.fromCreateChatToChat(postResponse.value)
 
     }
 
@@ -1409,15 +1610,16 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         postChatResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
         postEmailResponse <- chatsRep.postEmail(genUpsertEmailOption.sample.value, postChatResponse.value.chatId.value,
           basicTestDB.userRow.userId)
-        getResponse <- chatsRep.getChat(postChatResponse.value.chatId.value, basicTestDB.userRow.userId)
+        getResponse <- chatsRep.getChat(postChatResponse.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
         nrDrafts <- db.run(UserChatsTable.all.filter(_.userId === basicTestDB.userRow.userId).map(_.draft)
           .result.headOption)
 
-      } yield assert(getResponse.value === {
+      } yield assert(getResponse.toOption.value._1 === {
         val originalChat = CreateChat.fromCreateChatToChat(postChatResponse.value)
         originalChat.copy(
           emails = (UpsertEmail.fromUpsertEmailToEmail(postEmailResponse.value.email) +: originalChat.emails)
-            .sortBy(email => (email.date, email.emailId)),
+            .sortBy(email => (email.date, email.body)),
           addresses = addressesFromUpsertEmail(postEmailResponse.value.email) ++ originalChat.addresses)
       } & nrDrafts.value === 2)
 
@@ -1469,17 +1671,26 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             postChat.value.chatId.value, postChat.value.email.emailId.value,
             basicTestDB.userRow.userId)
 
-          fromUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, basicTestDB.userRow.userId)
-          toUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, toUserRow.userId)
-          ccUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, ccUserRow.userId)
-          bccUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, bccUserRow.userId)
+          fromUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            basicTestDB.userRow.userId).map(_.toOption.value._1)
+          toUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            toUserRow.userId).map(_.toOption.value._1)
+          ccUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            ccUserRow.userId).map(_.toOption.value._1)
+          bccUserGetChat <- chatsRep.getChat(postChat.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            bccUserRow.userId).map(_.toOption.value._1)
 
-          senderChatsPreviewSent <- chatsRep.getChatsPreview(Sent, 0, 5, basicTestDB.userRow.userId).map(_.value._1)
-          senderChatsPreviewDrafts <- chatsRep.getChatsPreview(Drafts, 0, 5, basicTestDB.userRow.userId).map(_.value._1)
+          senderChatsPreviewSent <- chatsRep.getChatsPreview(Sent, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            basicTestDB.userRow.userId).map(_.value._1)
+          senderChatsPreviewDrafts <- chatsRep.getChatsPreview(Drafts, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            basicTestDB.userRow.userId).map(_.value._1)
 
-          toReceiverChatsPreviewInbox <- chatsRep.getChatsPreview(Inbox, 0, 5, toUserRow.userId).map(_.value._1)
-          ccReceiverChatsPreviewInbox <- chatsRep.getChatsPreview(Inbox, 0, 5, ccUserRow.userId).map(_.value._1)
-          bccReceiverChatsPreviewInbox <- chatsRep.getChatsPreview(Inbox, 0, 5, bccUserRow.userId).map(_.value._1)
+          toReceiverChatsPreviewInbox <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            toUserRow.userId).map(_.value._1)
+          ccReceiverChatsPreviewInbox <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            ccUserRow.userId).map(_.value._1)
+          bccReceiverChatsPreviewInbox <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+            bccUserRow.userId).map(_.value._1)
           invisibleBccExpectedEmailAfterPatch = getPostedEmail.copy(
             to = Set(toAddressRow.address),
             cc = Set(ccAddressRow.address), bcc = Set(), sent = 1, date = patchEmail.value.date)
@@ -1500,10 +1711,10 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         } yield assert(
           patchEmail.value === visibleBccExpectedEmailAfterPatch &
-            fromUserGetChat.value === visibleBccExpectedChatAfterPatch &
-            toUserGetChat.value === invisibleBccExpectedChatAfterPatch &
-            ccUserGetChat.value === invisibleBccExpectedChatAfterPatch &
-            bccUserGetChat.value === visibleBccExpectedChatAfterPatch &
+            fromUserGetChat === visibleBccExpectedChatAfterPatch &
+            toUserGetChat === invisibleBccExpectedChatAfterPatch &
+            ccUserGetChat === invisibleBccExpectedChatAfterPatch &
+            bccUserGetChat === visibleBccExpectedChatAfterPatch &
 
             senderChatsPreviewSent.contains(expectedChatPreview) &
             !senderChatsPreviewDrafts.contains(expectedChatPreview) &
@@ -1711,11 +1922,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         newSubject = genString.sample.value
         result <- chatsRep.patchChat(ChangeSubject(newSubject), createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
-        getPatchedChat <- chatsRep.getChat(createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
+        getPatchedChat <- chatsRep.getChat(createdChatDTO.value.chatId.value, DEFAULT_PAGE.value,
+          DEFAULT_PER_PAGE.value, basicTestDB.userRow.userId)
 
       } yield assert(
         result === Some(ChangeSubject(newSubject)) &
-          getPatchedChat.value.subject === newSubject)
+          getPatchedChat.toOption.value._1.subject === newSubject)
     }
 
     "NOT change the chat's subject if the chat has more than one sent emails and return None" in {
@@ -1737,10 +1949,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         oldSubject = createdChatDTO.value.subject.getOrElse("")
         result <- chatsRep.patchChat(ChangeSubject(genString.sample.value), createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
-        getChat <- chatsRep.getChat(createdChatDTO.value.chatId.value, basicTestDB.userRow.userId)
+        getChat <- chatsRep.getChat(createdChatDTO.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
 
       } yield assert(result === None &
-        getChat.value.subject === oldSubject)
+        getChat.toOption.value._1.subject === oldSubject)
     }
   }
 
@@ -2343,7 +2556,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userRow),
           List(basicTestDB.userChatRow))
 
-        result <- chatsRep.getOverseers(genUUID.sample.value, 0, 5, basicTestDB.userRow.userId)
+        result <- chatsRep.getOverseers(genUUID.sample.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield result mustBe Left(CHAT_NOT_FOUND)
 
     }
@@ -2357,7 +2571,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.chatRow),
           List(basicTestDB.userRow))
 
-        result <- chatsRep.getOverseers(genUUID.sample.value, 0, 5, basicTestDB.userRow.userId)
+        result <- chatsRep.getOverseers(genUUID.sample.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
       } yield result mustBe Left(CHAT_NOT_FOUND)
 
     }
@@ -2382,7 +2597,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         postedOverseers <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
           basicTestDB.userRow.userId)
 
-        result <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, 0, 5, basicTestDB.userRow.userId)
+        result <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          basicTestDB.userRow.userId)
 
       } yield result mustBe Right((postedOverseers.value.toSeq.sortBy {
         case PostOverseer(address, optOversightId) =>
@@ -2493,8 +2709,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         }
         overseers.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-					 of the last element of the penultimate page (perPage * expectedLastPage - 1).*/
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+        //					 of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         overseers.headOption.value mustBe sortedOverseers(perPage * expectedLastPage) withClue "The first" +
           " element of the sliced sequence is wrong"
@@ -2996,8 +3212,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val totalCount = result._2
         seqChatOverseeing.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-         of the last element of the penultimate page (perPage * expectedLastPage - 1).*/
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+        //         of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         seqChatOverseeing.headOption.value mustBe sortedOverseeings(perPage * expectedLastPage) withClue "The first" +
           " element of the sliced sequence is wrong"
@@ -3186,8 +3402,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val totalCount = result._2
         seqChatOverseen.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-         of the last element of the penultimate page (perPage * expectedLastPage - 1). */
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+        //         of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         seqChatOverseen.headOption.value mustBe sortedOverseens(perPage * expectedLastPage) withClue "The first" +
           " element of the sliced sequence is wrong"

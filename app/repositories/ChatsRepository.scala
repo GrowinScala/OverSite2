@@ -11,7 +11,7 @@ trait ChatsRepository {
   def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int,
     user: String): Future[Option[(Seq[ChatPreview], Int, Int)]]
 
-  def getChat(chatId: String, userId: String): Future[Option[Chat]]
+  def getChat(chatId: String, page: Int, perPage: Int, userId: String): Future[Either[String, (Chat, Int, Int)]]
 
   def getOverseers(chatId: String, page: Int, perPage: Int,
     userId: String): Future[Either[String, (Seq[PostOverseer], Int, Int)]]

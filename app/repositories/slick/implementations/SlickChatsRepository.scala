@@ -91,6 +91,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         OR if the user is overseeing another user in the chat (has access to the same emails the oversee has,
    *         excluding the oversee's drafts)
    * - AND if email is draft (sent = 0), only the user with the From address can see it
+   *
+   * (chatId, emailId, body, date, sent)
    */
   private def getVisibleEmailsQuery(userId: String, optBox: Option[Mailbox] = None) =
     (for {
@@ -154,47 +156,61 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(getChatsPreviewAction(mailbox, page, perPage, userId).transactionally)
 
   /**
-   * Creates a DBIOAction to get the emails and other data of a specific chat of a user
-   *
+   * Creates a DBIOAction to get the paginated emails and other data of a specific chat of a user
    * @param chatId ID of the chat requested
+   * @param page The page being seen
+   * @param perPage The number of emails per page
    * @param userId ID of the user who requested the chat
-   * @return A DBIOAction that when run returns a Chat DTO that carries
-   *         the chat's subject,
+   * @param getAll Boolean used to indicate if all emails should be returned. False by default
+   * @return A DBIOAction that when run returns Either a tuple that contains a Chat DTO with a slice of the
+   *         chat's emails, the total number of emails in the full sequence and number of the last page
+   *         containing elements.
+   *
+   *         The Chat DTO carries the chat's subject,
    *         the addresses involved in the chat,
    *         the overseers of the chat
-   *         and the emails of the chat (that the user can see)
+   *         and a slice of the emails of the chat according to the page and perPage values.
+   *
+   *         Or a String indicating what went wrong
    */
-  private[implementations] def getChatAction(chatId: String, userId: String): DBIO[Option[Chat]] = {
+  private[implementations] def getChatAction(chatId: String, page: Int, perPage: Int,
+    userId: String, getAll: Boolean = false): DBIO[Either[String, (Chat, Int, Int)]] =
+    if (page < 0 || perPage <= 0) DBIO.successful(Left(INVALID_PAGINATION))
 
-    for {
-      chatData <- getChatDataAction(chatId, userId)
-      (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
-      overseers <- getOverseersData(chatId)
-    } yield chatData.map {
-      case (id, subject, _) =>
-        Chat(
-          id,
-          subject,
-          addresses,
-          overseers,
-          emails)
+    else {
+      for {
+        chatData <- getChatDataAction(chatId, userId)
+        (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
+        overseers <- getOverseersData(chatId)
+      } yield chatData match {
+        case None => Left(CHAT_NOT_FOUND)
+        case Some((_, subject, _)) =>
+          val totalCount = emails.size
+          if (getAll)
+            Right((Chat(chatId, subject, addresses, overseers, emails), totalCount, 0))
+          else
+            Right((Chat(chatId, subject, addresses, overseers, sliceSequence(emails, perPage, page)), totalCount,
+              divide(totalCount, perPage, RoundingMode.CEILING) - 1))
+      }
     }
 
-  }
-
   /**
-   * Method to get the emails and other data of a specific chat of a user
-   *
+   * Method to get the paginated emails and other data of a specific chat of a user
    * @param chatId ID of the chat requested
+   * @param page The page being seen
+   * @param perPage The number of emails per page
    * @param userId ID of the user who requested the chat
-   * @return a Chat DTO that carries
-   *         the chat's subject,
+   * @return Either a tuple that contains a Chat DTO with a slice of the chat's emails, the total number of emails
+   *         in the full sequence and number of the last page containing elements.
+   *         The Chat DTO carries the chat's subject,
    *         the addresses involved in the chat,
    *         the overseers of the chat
-   *         and the emails of the chat (that the user can see)
+   *         and a slice of the emails of the chat according to the page and perPage values.
+   *
+   *         Or a String indicating what went wrong
    */
-  def getChat(chatId: String, userId: String): Future[Option[Chat]] =
-    db.run(getChatAction(chatId, userId).transactionally)
+  def getChat(chatId: String, page: Int, perPage: Int, userId: String): Future[Either[String, (Chat, Int, Int)]] =
+    db.run(getChatAction(chatId, page, perPage, userId).transactionally)
 
   private def getOverseersAction(chatId: String, page: Int, perPage: Int,
     userId: String): DBIO[Either[String, (Seq[PostOverseer], Int, Int)]] =
@@ -347,13 +363,12 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def patchChat(patchChat: PatchChat, chatId: String, userId: String): Future[Option[PatchChat]] =
     db.run(patchChatAction(patchChat, chatId, userId).transactionally)
 
-  private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String): DBIO[Option[Chat]] = {
-    getChatAction(chatId, userId)
-      .map(optionChat =>
-        optionChat
-          .map(chat => chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
-          .filter(_.emails.nonEmpty))
-  }
+  private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String): DBIO[Option[Chat]] =
+    getChatAction(chatId, 0, 1, userId, getAll = true).map {
+      case Left(_) => None
+      case Right((chat, _, _)) => Some(chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
+        .filter(_.emails.nonEmpty)
+    }
 
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {
     db.run(getEmailAction(chatId, emailId, userId).transactionally)
@@ -1179,6 +1194,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chatId The chat's id
    * @param userId The user's id
    * @return A DBIOAction that returns the chat's id, it's subject and the user's address
+   *         (chatId, subject, address)
    */
   private[implementations] def getChatDataAction(
     chatId: String,
@@ -1207,7 +1223,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .filter(_._1 === chatId)
       .map {
         case (_, emailId, body, date, sent) => (emailId, body, date, sent)
-      }.sortBy { case (emailId, _, date, _) => (date, emailId) }
+      }.sortBy { case (_, body, date, _) => (date.asc, body.asc) }
 
   /**
    * Method that, given the emailIds of the emails that the a user can see, for each participant of an email,
