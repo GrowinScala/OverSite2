@@ -191,59 +191,42 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
         .map(oversightDTO => Ok(Json.toJson(oversightDTO)))
   }
 
+  def postAttachment(chatId: String, emailId: String): Action[MultipartFormData[File]] =
+    authenticatedUserAction.async(parse.multipartFormData(handleFilePartAsFile)) {
+      implicit authenticatedRequest =>
+        authenticatedRequest.body.file("attachment") match {
+          case Some(FilePart(key, filename, contentType, file)) =>
+            chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, file).map {
+              case Some(attachmentId) => Ok(Json.toJson(attachmentId))
+              case None => NotFound
+            }
+          case None => Future.successful(BadRequest(missingAttachment))
+        }
+    }
+
   //region Auxiliary Methods
   def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getChats(mailbox, page, perPage).absoluteURL(auth.secure)(auth.request)
 
   def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getOverseers(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
-  //endregion
-
-  def postAttachment(chatId: String, emailId: String): Action[MultipartFormData[File]] =
-    authenticatedUserAction.async(parse.multipartFormData(handleFilePartAsFile)) {
-      implicit authenticatedRequest =>
-        authenticatedRequest.body.file("attachment").map {
-          case FilePart(key, filename, contentType, file) => uploadAttachment(file)
-        } match {
-          case None => Future.successful(BadRequest(missingAttachment))
-          case Some(attachmentPath) =>
-            chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, attachmentPath).map {
-              case Some(attachmentId) => Ok(Json.toJson(attachmentId))
-              case None => NotFound
-            }
-        }
-    }
-
-/********** Auxiliary Methods *************/
 
   type FilePartHandler[A] = FileInfo => Accumulator[ByteString, FilePart[A]]
 
   /**
-   * Uses a custom FilePartHandler to return a type of "File" rather than using Play's TemporaryFile class.
-   * Deletion must happen explicitly on completion, rather than TemporaryFile
-   * (which uses finalization to delete temporary files).
-   */
+    * Uses a custom FilePartHandler to return a type of "File" rather than using Play's TemporaryFile class.
+    * Deletion must happen explicitly on completion, rather than TemporaryFile
+    * (which uses finalization to delete temporary files).
+    */
   private def handleFilePartAsFile: FilePartHandler[File] = {
     case FileInfo(partName, filename, contentType) =>
       val path: Path = Files.createTempFile("multipartBody", filename)
       val fileSink: Sink[ByteString, Future[IOResult]] = FileIO.toPath(path)
       val accumulator: Accumulator[ByteString, IOResult] = Accumulator(fileSink)
       accumulator.map {
-        case IOResult(count, status) => println(s"count = $count, status = $status"); FilePart(partName, filename, contentType, path.toFile)
+        case IOResult(count, status) => FilePart(partName, filename, contentType, path.toFile)
       }
   }
-
-  private def uploadAttachment(file: File): String = {
-    val filePath = file.toPath
-    val uploadPath = config.get[String]("uploadDirectory") + "\\" + filePath.getFileName
-
-    Files.move(filePath, Paths.get(uploadPath)) //Move file
-
-    println(s"path = $uploadPath")
-
-    Files.deleteIfExists(filePath) //Delete temporary file
-
-    uploadPath
-  }
+  //endregion
 
 }

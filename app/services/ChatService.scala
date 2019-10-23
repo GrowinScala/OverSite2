@@ -1,5 +1,8 @@
 package services
 
+import java.io.File
+import java.nio.file.{ Files, Paths }
+
 import javax.inject.Inject
 import model.dtos._
 import model.types.{ Mailbox, Page, PerPage }
@@ -7,12 +10,13 @@ import repositories.ChatsRepository
 import PostOverseerDTO._
 import OversightDTO._
 import ChatPreviewDTO._
+import play.api.Configuration
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsRepository) {
+class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsRepository, config: Configuration) {
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage,
     userId: String): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] =
@@ -79,6 +83,19 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getOversights(userId)
       .map(toOversightDTO)
 
-  def postAttachment(chatId: String, emailId: String, userId: String, attachmentPath: String): Future[Option[String]] =
+  def postAttachment(chatId: String, emailId: String, userId: String, file: File): Future[Option[String]] = {
+    val attachmentPath = uploadAttachment(file)
     chatsRep.postAttachment(chatId, emailId, userId, attachmentPath)
+  }
+
+  private def uploadAttachment(file: File): String = {
+    val filePath = file.toPath
+    val uploadPath = config.get[String]("uploadDirectory") + "\\" + filePath.getFileName
+
+    Files.move(filePath, Paths.get(uploadPath)) //Move file
+    Files.deleteIfExists(filePath) //Delete temporary file
+    println(s"path = $uploadPath")
+
+    uploadPath
+  }
 }
