@@ -4,10 +4,16 @@ import model.dtos._
 import model.dtos.PostOverseerDTO._
 import model.types.Mailbox.Inbox
 import org.mockito.scalatest.AsyncIdiomaticMockito
+import org.scalacheck.Gen
 import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
 import repositories.ChatsRepository
 import repositories.dtos.PatchChat
 import OversightDTO._
+import ChatPreviewDTO._
+import Gen._
+import model.types._
+import repositories.RepUtils.RepMessages._
+import utils.Jsons._
 
 import scala.concurrent.Future
 import utils.TestGenerators._
@@ -22,16 +28,19 @@ class ChatServiceSpec extends AsyncWordSpec
   }
 
   "ChatService#getChats" should {
-    "map ChatPreview DTO" in {
+    "map the repositorie's result" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      val testChatsPreviewDTO = genChatPreviewDTOSeq.sample.value
-      val chatsPreview = ChatPreviewDTO.toSeqChatPreview(testChatsPreviewDTO)
+      val optTestChatsPreviewDTO = Gen.option(genChatPreviewDTOSeq).sample.value
+      val optChatsPreview = optTestChatsPreviewDTO.map(toSeqChatPreview)
+      val totalCount = choose(1, 10).sample.value
+      val lastPage = choose(1, 10).sample.value
 
-      mockChatsRep.getChatsPreview(*, *)
-        .returns(Future.successful(chatsPreview))
+      mockChatsRep.getChatsPreview(*, *, *, *)
+        .returns(Future.successful(optChatsPreview.map((_, totalCount, lastPage))))
 
-      val chatsPreviewDTO = chatService.getChats(Inbox, chatsPreview.headOption.value.chatId)
-      chatsPreviewDTO.map(_ mustBe testChatsPreviewDTO)
+      val chatsPreviewDTO = chatService.getChats(genMailbox.sample.value, genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+      chatsPreviewDTO.map(_ mustBe optTestChatsPreviewDTO.map((_, totalCount, Page(lastPage))))
     }
   }
 
@@ -205,7 +214,7 @@ class ChatServiceSpec extends AsyncWordSpec
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.postOverseers(*, *, *)
-        .returns(Future.successful(expectedResponse.map(_.map(toPostOverseer))))
+        .returns(Future.successful(expectedResponse.map(toSetPostOverseer)))
 
       val serviceResponse = chatService.postOverseers(
         genSetPostOverseerDTO.sample.value,
@@ -216,18 +225,50 @@ class ChatServiceSpec extends AsyncWordSpec
   }
 
   "ChatService#getOverseers" should {
-    "turn the received optional Set of PostOverseer to one of PostOverseerDTO" in {
+    "map the repositorie's Right result" in {
 
-      val expectedResponse = genSetPostOverseerDTO.sample
+      val postOverseersDTO = genSeqPostOverseerDTO.sample.value
+      val totalCount = choose(1, 10).sample.value
+      val lastPage = choose(1, 10).sample.value
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getOverseers(*, *)
-        .returns(Future.successful(expectedResponse.map(_.map(toPostOverseer))))
+      mockChatsRep.getOverseers(*, *, *, *)
+        .returns(Future.successful(Right(toSeqPostOverseer(postOverseersDTO), totalCount, lastPage)))
 
-      val serviceResponse = chatService.getOverseers(genUUID.sample.value, genUUID.sample.value)
+      val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe expectedResponse)
+      serviceResponse.map(_ mustBe Right(postOverseersDTO, totalCount, Page(lastPage)))
     }
+
+    "return chatNotFound according to the repositories response" in {
+      val postOverseersDTO = genSeqPostOverseerDTO.sample.value
+      val totalCount = choose(1, 10).sample.value
+      val lastPage = choose(1, 10).sample.value
+
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.getOverseers(*, *, *, *)
+        .returns(Future.successful(Left(CHAT_NOT_FOUND)))
+
+      val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe Left(chatNotFound))
+
+    }
+
+    "return InternalServerError if the repository returns an error message other than chatNotFound" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.getOverseers(*, *, *, *)
+        .returns(Future.successful(Left(genString.sample.value)))
+
+      val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe Left(internalError))
+
+    }
+
   }
 
   "ChatService#deleteOverseer" should {

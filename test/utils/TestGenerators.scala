@@ -1,7 +1,8 @@
 package utils
 
 import model.dtos._
-import model.types.ParticipantType
+import model.types._
+import Mailbox._
 import model.types.ParticipantType._
 import org.scalacheck.Gen
 import play.api.libs.json._
@@ -9,6 +10,7 @@ import repositories.dtos._
 import repositories.slick.implementations.BasicTestDB
 import repositories.slick.mappings._
 import utils.DateUtils._
+import Gen._
 
 object TestGenerators {
 
@@ -244,6 +246,9 @@ object TestGenerators {
       optOversightId <- Gen.option(genUUID)
     } yield PostOverseerDTO(address, optOversightId)
 
+  val genSeqPostOverseerDTO: Gen[Seq[PostOverseerDTO]] =
+    genList(1, 4, genPostOverseerDTO)
+
   val genSetPostOverseerDTO: Gen[Set[PostOverseerDTO]] =
     genList(1, 4, genPostOverseerDTO).map(_.toSet)
 
@@ -253,8 +258,20 @@ object TestGenerators {
       optOversightId <- Gen.option(genUUID)
     } yield PostOverseer(address, optOversightId)
 
+  val genSeqPostOverseer: Gen[Seq[PostOverseer]] =
+    genList(1, 4, genPostOverseer)
+
   val genSetPostOverseer: Gen[Set[PostOverseer]] =
     genList(1, 4, genPostOverseer).map(_.toSet)
+
+  val genPage: Gen[Page] =
+    choose(1, 10).map(Page(_))
+
+  val genPerPage: Gen[PerPage] =
+    choose(1, 10).map(PerPage(_))
+
+  val genMailbox: Gen[Mailbox] =
+    oneOf(Inbox, Sent, Drafts, Trash)
 
   val genOverseeingDTO: Gen[OverseeingDTO] =
     for {
