@@ -248,6 +248,14 @@ class ChatServiceSpec extends AsyncWordSpec
       val totalCount = choose(1, 10).sample.value
       val lastPage = choose(1, 10).sample.value
 
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      mockChatsRep.getOverseers(*, *, *, *)
+        .returns(Future.successful(Left(CHAT_NOT_FOUND)))
+
+      val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+
+      serviceResponse.map(_ mustBe Left(chatNotFound))
     }
 
     "return InternalServerError if the repository returns an error message other than chatNotFound" in {
@@ -261,19 +269,6 @@ class ChatServiceSpec extends AsyncWordSpec
       serviceResponse.map(_ mustBe Left(chatNotFound))
 
     }
-
-    "return InternalServerError if the repository returns an error message other than chatNotFound" in {
-      val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getOverseers(*, *, *, *)
-        .returns(Future.successful(Left(genString.sample.value)))
-
-      val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
-
-      serviceResponse.map(_ mustBe Left(internalError))
-
-    }
-
   }
 
   "ChatService#deleteOverseer" should {

@@ -6,8 +6,7 @@ import play.api.mvc._
 import play.api.libs.json._
 import services.ChatService
 import utils.Jsons._
-import model.types.Page._
-import model.types.PerPage._
+import repositories.RepUtils.RepConstants._
 
 import scala.concurrent.{ ExecutionContext, Future }
 import model.types.{ Mailbox, Page, PerPage }
@@ -182,9 +181,9 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
             val metadata = Json.obj("_metadata" ->
               Json.obj("links" ->
                 Json.obj(
-                  "overseeing" -> routes.ChatController.getOverseeings(DEFAULT_PAGE, DEFAULT_PER_PAGE)
+                  "overseeing" -> routes.ChatController.getOverseeings(Page(DEFAULT_PAGE), PerPage(DEFAULT_PER_PAGE))
                     .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request),
-                  "overseen" -> routes.ChatController.getOverseens(DEFAULT_PAGE, DEFAULT_PER_PAGE)
+                  "overseen" -> routes.ChatController.getOverseens(Page(DEFAULT_PAGE), PerPage(DEFAULT_PER_PAGE))
                     .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request))))
             Ok(oversightsPreview ++ metadata)
           case None => NotFound(oversightsNotFound)
@@ -245,14 +244,6 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
   def makeGetOverseensLink(page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getOverseens(page, perPage).absoluteURL(auth.secure)(auth.request)
-  //endregion
-
-  //region Auxiliary Methods
-  def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
-    routes.ChatController.getChats(mailbox, page, perPage).absoluteURL(auth.secure)(auth.request)
-
-  def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
-    routes.ChatController.getOverseers(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
   //endregion
 
 }

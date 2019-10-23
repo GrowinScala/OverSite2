@@ -1,7 +1,7 @@
 package model.types
 
 import play.api.mvc.QueryStringBindable
-import repositories.RepUtils.RepConstants.MAX_PER_PAGE
+import repositories.RepUtils.RepConstants._
 
 case class PerPage(value: Int)
 
