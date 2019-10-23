@@ -21,5 +21,9 @@ libraryDependencies ++= Seq(
   "com.pauldijou" %% "jwt-play-json" % "4.1.0"
 )
 
-routesImport ++= Seq("model.types.Mailbox")
+routesImport ++= Seq(
+  "model.types.Mailbox",
+  "model.types.Page",
+  "model.types.PerPage"
+)
 
