@@ -5,6 +5,7 @@ import java.math._
 import com.google.common.math.IntMath._
 import javax.inject.Inject
 import model.dtos._
+import repositories.RepUtils.RepConstants.MAX_PER_PAGE
 import model.types.{ Mailbox, ParticipantType }
 import model.types.Mailbox._
 import model.types.ParticipantType._
@@ -123,19 +124,55 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private[implementations] def getChatsPreviewAction(mailbox: Mailbox, page: Int, perPage: Int,
     userId: String): DBIO[Option[(Seq[ChatPreview], Int, Int)]] = {
 
-    if (page < 0 || perPage <= 0) DBIO.successful(None)
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
 
     else {
-      getchatPreviewQuery(userId, Some(mailbox))
+      val visibleEmailsQuery = getVisibleEmailsQuery(userId, Some(mailbox))
+
+      val groupedQuery = visibleEmailsQuery
+        .map { case (chatId, emailId, body, date, sent) => (chatId, date) }
+        .groupBy(_._1)
+        .map {
+          case (chatId, chatDateQuery) =>
+            (chatId, chatDateQuery.map { case (chat, date) => date }.max)
+        }
+        .join(visibleEmailsQuery)
+        .on {
+          case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
+            groupedChatId === chatId && maxDate === date
+        }
+        .map {
+          case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
+            (chatId, emailId)
+        }
+        .groupBy(_._1)
+        .map {
+          case (chatId, chatEmailQuery) =>
+            (chatId, chatEmailQuery.map { case (chat, emailId) => emailId }.min)
+        }
+
+      val chatPreviewQuery = (for {
+        (chatId, emailId) <- groupedQuery
+        subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
+        (emailId, body, date) <- EmailsTable.all.filter(emailRow =>
+          emailRow.chatId === chatId && emailRow.emailId === emailId).map(emailRow =>
+          (emailRow.emailId, emailRow.body.take(PREVIEW_BODY_LENGTH), emailRow.date))
+        addressId <- EmailAddressesTable.all.filter(emailAddressRow =>
+          emailAddressRow.emailId === emailId && emailAddressRow.participantType === from)
+          .map(_.addressId)
+        address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
+
+      } yield (chatId, subject, address, date, body))
         .sortBy { case (chatId, subject, address, date, body) => (date.desc, body.asc, address.asc) }
-        .result
-        .map(chatpreviewData => {
-          val fullChatPreview = chatpreviewData.map(ChatPreview.tupled)
-          val totalCount = fullChatPreview.size
-          Some((sliceSequence(fullChatPreview, perPage, page), totalCount,
-            divide(totalCount, perPage, RoundingMode.CEILING) - 1))
-        })
+
+      for {
+        totalCount <- chatPreviewQuery.length.result
+        slicedChats <- chatPreviewQuery.drop(perPage * page).take(perPage).result
+
+      } yield Some(slicedChats.map(ChatPreview.tupled), totalCount,
+        divide(totalCount, perPage, RoundingMode.CEILING) - 1)
     }
+
   }
 
   /**
@@ -198,25 +235,24 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private def getOverseersAction(chatId: String, page: Int, perPage: Int,
     userId: String): DBIO[Either[String, (Seq[PostOverseer], Int, Int)]] =
-    if (page < 0 || perPage <= 0) DBIO.successful(Left(INVALID_PAGINATION))
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(Left(INVALID_PAGINATION))
 
     else {
       for {
         optChatData <- getChatDataAction(chatId, userId)
         result <- optChatData match {
-          case Some(_) => getOverseersQuery(chatId, userId).result
-            .map(SeqOverseers => Right(SeqOverseers.map {
-              case (address, oversightId) =>
-                PostOverseer(address, Some(oversightId))
-            }))
+          case Some(_) => for {
+            totalCount <- getOverseersQuery(chatId, userId).length.result
+            seqOverseers <- getOverseersQuery(chatId, userId).drop(perPage * page).take(perPage).result
+
+          } yield Right((seqOverseers.map {
+            case (address, oversightId) =>
+              PostOverseer(address, Some(oversightId))
+          }, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1))
 
           case None => DBIO.successful(Left(CHAT_NOT_FOUND))
         }
-      } yield result.map(postOverseers => {
-        val totalCount = postOverseers.size
-        (sliceSequence(postOverseers, perPage, page), totalCount,
-          divide(totalCount, perPage, RoundingMode.CEILING) - 1)
-      })
+      } yield result
     }
 
   def getOverseers(chatId: String, page: Int, perPage: Int,

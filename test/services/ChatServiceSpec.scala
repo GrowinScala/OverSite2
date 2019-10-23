@@ -248,6 +248,9 @@ class ChatServiceSpec extends AsyncWordSpec
       val totalCount = choose(1, 10).sample.value
       val lastPage = choose(1, 10).sample.value
 
+    }
+
+    "return InternalServerError if the repository returns an error message other than chatNotFound" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.getOverseers(*, *, *, *)
         .returns(Future.successful(Left(CHAT_NOT_FOUND)))

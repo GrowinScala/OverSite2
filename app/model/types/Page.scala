@@ -32,8 +32,6 @@ case class Page(value: Int) {
 
 object Page {
 
-  val DEFAULT_PAGE = Page(0)
-
   implicit def bindablePage(implicit bindableInt: QueryStringBindable[Int]): QueryStringBindable[Page] {
     def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Page]]
 

@@ -247,4 +247,12 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
     routes.ChatController.getOverseens(page, perPage).absoluteURL(auth.secure)(auth.request)
   //endregion
 
+  //region Auxiliary Methods
+  def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getChats(mailbox, page, perPage).absoluteURL(auth.secure)(auth.request)
+
+  def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getOverseers(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
+  //endregion
+
 }
