@@ -15,6 +15,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent._
 import model.types.Mailbox._
 import model.types.ParticipantType._
+import repositories.RepUtils.RepConstants._
 import repositories.dtos._
 import repositories.slick.mappings._
 import repositories.RepUtils.RepMessages._
@@ -113,6 +114,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       for {
         optChatsPreview <- chatsRep.getChatsPreview(genMailbox.sample.value, choose(1, 10).sample.value.sample.value,
           choose(-10, 0).sample.value, genUUID.sample.value)
+      } yield optChatsPreview mustBe None
+    }
+
+    "return None if perPage is greater than the maximum" in {
+      for {
+        optChatsPreview <- chatsRep.getChatsPreview(genMailbox.sample.value, choose(1, 10).sample.value.sample.value,
+          choose(MAX_PER_PAGE + 1, MAX_PER_PAGE + 3).sample.value, genUUID.sample.value)
       } yield optChatsPreview mustBe None
     }
 
@@ -2229,6 +2237,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       for {
         result <- chatsRep.getOverseers(genUUID.sample.value, choose(1, 10).sample.value.sample.value,
           choose(-10, 0).sample.value, genUUID.sample.value)
+      } yield result mustBe Left(INVALID_PAGINATION)
+    }
+
+    "return INVALID_PAGINATION if perPage is greater than the maximum" in {
+      for {
+        result <- chatsRep.getOverseers(genUUID.sample.value, choose(1, 10).sample.value.sample.value,
+          choose(MAX_PER_PAGE + 1, MAX_PER_PAGE + 3).sample.value, genUUID.sample.value)
       } yield result mustBe Left(INVALID_PAGINATION)
     }
 
