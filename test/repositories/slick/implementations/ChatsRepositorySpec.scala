@@ -908,6 +908,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       } yield eitherResult mustBe Left(INVALID_PAGINATION)
     }
 
+    "return INVALID_PAGINATION if perPage is greater than the maximum" in {
+      for {
+        eitherResult <- chatsRep.getChat(genUUID.sample.value, choose(1, 10).sample.value.sample.value,
+          choose(MAX_PER_PAGE + 1, MAX_PER_PAGE + 3).sample.value, genUUID.sample.value)
+      } yield eitherResult mustBe Left(INVALID_PAGINATION)
+    }
+
     "return CHAT_NOT_FOUND if the chat does not exist" in {
       val basicTestDB = genBasicTestDB.sample.value
 
