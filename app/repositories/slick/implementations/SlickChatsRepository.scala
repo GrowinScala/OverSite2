@@ -415,7 +415,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private[implementations] def deleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
-      allowedToDeleteDraft <- verifyConditionsToDeleteDraftAction(chatId, emailId, userId)
+      allowedToDeleteDraft <- verifyDraftPermissionsAction(chatId, emailId, userId)
 
       deleted <- if (allowedToDeleteDraft) deleteDraftRowsAction(chatId, emailId, userId).transactionally
       else DBIO.successful(false)
@@ -468,6 +468,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   def postAttachment(chatId: String, emailId: String, userId: String, attachmentPath: String): Future[Option[String]] =
     db.run(postAttachmentAction(chatId, emailId, userId, attachmentPath).transactionally)
+
+  def verifyDraftPermissions(chatId: String, emailId: String, userId: String): Future[Boolean] =
+    db.run(verifyDraftPermissionsAction(chatId, emailId, userId).transactionally)
 
   //region Auxiliary Methods
 
@@ -636,7 +639,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield numberOfDeletedRows > 0
   }
 
-  private def verifyConditionsToDeleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
+  private def verifyDraftPermissionsAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
       optionUserChat <- getDraftsUserChat(userId, chatId).result.headOption
       optionDraft <- getDraftEmailQuery(chatId, emailId).result.headOption

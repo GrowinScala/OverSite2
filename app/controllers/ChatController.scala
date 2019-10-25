@@ -198,7 +198,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
           case Some(FilePart(key, filename, contentType, file)) =>
             chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, file).map {
               case Some(attachmentId) => Ok(Json.toJson(attachmentId))
-              case None => NotFound
+              case None => NotFound(chatNotFound)
             }
           case None => Future.successful(BadRequest(missingAttachment))
         }
@@ -214,10 +214,10 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
   type FilePartHandler[A] = FileInfo => Accumulator[ByteString, FilePart[A]]
 
   /**
-    * Uses a custom FilePartHandler to return a type of "File" rather than using Play's TemporaryFile class.
-    * Deletion must happen explicitly on completion, rather than TemporaryFile
-    * (which uses finalization to delete temporary files).
-    */
+   * Uses a custom FilePartHandler to return a type of "File" rather than using Play's TemporaryFile class.
+   * Deletion must happen explicitly on completion, rather than TemporaryFile
+   * (which uses finalization to delete temporary files).
+   */
   private def handleFilePartAsFile: FilePartHandler[File] = {
     case FileInfo(partName, filename, contentType) =>
       val path: Path = Files.createTempFile("multipartBody", filename)

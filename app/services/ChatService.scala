@@ -84,8 +84,12 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
       .map(toOversightDTO)
 
   def postAttachment(chatId: String, emailId: String, userId: String, file: File): Future[Option[String]] = {
-    val attachmentPath = uploadAttachment(file)
-    chatsRep.postAttachment(chatId, emailId, userId, attachmentPath)
+    chatsRep.verifyDraftPermissions(chatId, emailId, userId).flatMap {
+      if (_) {
+        val attachmentPath = uploadAttachment(file)
+        chatsRep.postAttachment(chatId, emailId, userId, attachmentPath)
+      } else Future.successful(None)
+    }
   }
 
   private def uploadAttachment(file: File): String = {
