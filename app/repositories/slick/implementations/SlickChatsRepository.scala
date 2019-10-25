@@ -177,21 +177,20 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    */
   private[implementations] def getChatAction(chatId: String, page: Int, perPage: Int,
     userId: String, getAll: Boolean = false): DBIO[Either[String, (Chat, Int, Int)]] =
-    if (page < 0 || perPage <= 0) DBIO.successful(Left(INVALID_PAGINATION))
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(Left(INVALID_PAGINATION))
 
     else {
       for {
         chatData <- getChatDataAction(chatId, userId)
-        (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
+        (addresses, emails, totalCount) <- getGroupedEmailsAndAddresses(chatId, page, perPage, userId, getAll)
         overseers <- getOverseersData(chatId)
       } yield chatData match {
         case None => Left(CHAT_NOT_FOUND)
         case Some((_, subject, _)) =>
-          val totalCount = emails.size
           if (getAll)
             Right((Chat(chatId, subject, addresses, overseers, emails), totalCount, 0))
           else
-            Right((Chat(chatId, subject, addresses, overseers, sliceSequence(emails, perPage, page)), totalCount,
+            Right((Chat(chatId, subject, addresses, overseers, emails), totalCount,
               divide(totalCount, perPage, RoundingMode.CEILING) - 1))
       }
     }
@@ -568,7 +567,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         emailRow.chatId === chatId && emailRow.emailId === optEmailId)
         .map(emailRow => (emailRow.date, emailRow.body))
     } yield (chatId, date, body)).sortBy { case (_, date, body) => (date.desc, body.asc) }
-    
+
     for {
       totalCount <- chatsData.length.result
       chatOverseeings <- (for {
@@ -1278,14 +1277,18 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   /**
    * Creates a DBIOAction that retrieves all the email addresses (that the user is allowed to see)
-   * involved in the chat requested, and the sequence of all the emails of the chat that the user can see
+   * involved in the chat requested, and the paginated sequence of all the emails of the chat that the user can see
    *
    * @param chatId ID of the requested chat
+   * @param page The page being seen
+   * @param perPage The number of emails per page
    * @param userId ID of the user requesting the chat
-   * @return A DBIOAction that returns the tuple (chatEmailAddresses, sequenceOfEmailDTOs)
+   * @param getAll Boolean used to indicate if all emails should be returned. False by default
+   * @return A DBIOAction that returns the tuple (chatEmailAddresses, sequenceOfEmailDTOs, totalCount)
    */
-  private def getGroupedEmailsAndAddresses(chatId: String, userId: String): DBIO[(Set[String], Seq[Email])] = {
-    // Query to get all the emails of this chat that the user can see
+  private def getGroupedEmailsAndAddresses(chatId: String, page: Int, perPage: Int, userId: String,
+    getAll: Boolean): DBIO[(Set[String], Seq[Email], Int)] = {
+    // Paginated query to get all the emails of this chat that the user can see
     val emailsQuery = getEmailsQuery(chatId, userId)
 
     // Query to get all the addresses involved in the emails of this chat
@@ -1293,7 +1296,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val emailAddressesQuery = getEmailAddressesQuery(userId, emailsQuery.map { case (emailId, _, _, _) => emailId })
 
     for {
-      emails <- emailsQuery.result
+      totalCount <- emailsQuery.length.result
+      emails <- if (getAll) emailsQuery.result
+      else emailsQuery.drop(perPage * page).take(perPage).result
       emailAddressesResult <- emailAddressesQuery.result
 
       groupedEmailAddresses = emailAddressesResult
@@ -1307,7 +1312,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       attachments <- getEmailsAttachments(emailsQuery.map { case (emailId, _, _, _) => emailId })
 
-    } yield (chatAddressesResult.toSet, buildEmailDto(emails, groupedEmailAddresses, attachments))
+    } yield (chatAddressesResult.toSet, buildEmailDto(emails, groupedEmailAddresses, attachments), totalCount)
   }
 
   /**
