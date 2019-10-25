@@ -19,8 +19,8 @@ object Sort {
 			override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Sort]] =
 				bindableString.bind(key, params) match {
 					case None => Some(Right(Sort(DEFAULT_SORT, Default)))
-					case Some(Right("-" +: orderBy)) => Some(Right(Sort(orderBy, Desc)))
-					case Some(Right("+" +: orderBy)) => Some(Right(Sort(orderBy, Asc)))
+					case Some(Right("-" ++ orderBy)) => Some(Right(Sort(orderBy, Desc)))
+					case Some(Right("+" ++ orderBy)) => Some(Right(Sort(orderBy, Asc)))
 					case Some(Right(orderBy)) => Some(Right(Sort(orderBy, Default)))
 					case Some(Left(message)) => Some(Left(message))
 				}

@@ -7,9 +7,11 @@ import play.api.libs.json._
 import services.ChatService
 import utils.Jsons._
 import repositories.RepUtils.RepConstants._
+import model.types._
+import repositories.RepUtils.RepConstants._
 
 import scala.concurrent.{ ExecutionContext, Future }
-import model.types.{ Mailbox, Page, PerPage }
+
 
 @Singleton
 class ChatController @Inject() (implicit val ec: ExecutionContext, cc: ControllerComponents, chatService: ChatService,
@@ -40,10 +42,12 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
   }
 
-  def getChats(mailbox: Mailbox, page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
+  def getChats(mailbox: Mailbox, page: Page, perPage: PerPage,
+               sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
-      chatService.getChats(mailbox, page, perPage, authenticatedRequest.userId)
+	    if(sort.sortBy == sortByDate)
+      chatService.getChats(mailbox, page, perPage, sort, authenticatedRequest.userId)
         .map {
           case Some((chatsPreviewDTO, totalCount, lastPage)) =>
             val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
@@ -61,6 +65,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
             Ok(chats ++ metadata)
           case None => InternalServerError(internalError)
         }
+	    else Future.successful(BadRequest(invalidSortBy))
   }
 
   /**
