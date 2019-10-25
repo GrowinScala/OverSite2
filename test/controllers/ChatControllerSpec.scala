@@ -3,8 +3,7 @@ package controllers
 import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.types._
-import model.types.Page._
-import model.types.PerPage._
+import repositories.RepUtils.RepConstants._
 import org.scalatestplus.play._
 import play.api.libs.json._
 import play.api.mvc._
@@ -820,8 +819,8 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   "ChatController#getOversights" should {
     "return the DTO sent by the service along with the metadata" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
-      val defaultPage = DEFAULT_PAGE.value
-      val defaultPerPage = DEFAULT_PER_PAGE.value
+      val defaultPage = DEFAULT_PAGE
+      val defaultPerPage = DEFAULT_PER_PAGE
 
       val oversightDTO = genOversightDTO.sample.value
 
