@@ -780,8 +780,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           Ordering.Tuple2(Ordering.String.reverse, Ordering.String))
         chats.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-         of the last element of the penultimate page (perPage * expectedLastPage - 1).*/
+        //           The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+        //         of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         chats.headOption.value.contentPreview mustBe sortedEmailList(perPage * expectedLastPage).body withClue "The" +
           " first element of the sliced sequence is wrong"
@@ -2548,8 +2548,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         }
         overseers.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-					 of the last element of the penultimate page (perPage * expectedLastPage - 1).*/
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+        //					 of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         overseers.headOption.value mustBe sortedOverseers(perPage * expectedLastPage) withClue "The first" +
           " element of the sliced sequence is wrong"
@@ -2952,6 +2952,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
       } yield optOverseeings mustBe None
     }
 
+    "return None if perPage is greater than the maximum" in {
+      for {
+        optOverseeing <- chatsRep.getOverseeings(
+          choose(1, 10).sample.value.sample.value,
+          choose(MAX_PER_PAGE + 1, MAX_PER_PAGE + 3).sample.value, genUUID.sample.value)
+      } yield optOverseeing mustBe None
+    }
+
     "return an empty sequence if there are no overseeings" in {
       val basicTestDB = genBasicTestDB.sample.value
 
@@ -3051,8 +3059,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val totalCount = result._2
         seqChatOverseeing.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-         of the last element of the penultimate page (perPage * expectedLastPage - 1).*/
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+        //         of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         seqChatOverseeing.headOption.value mustBe sortedOverseeings(perPage * expectedLastPage) withClue "The first" +
           " element of the sliced sequence is wrong"
@@ -3140,6 +3148,14 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           choose(1, 10).sample.value.sample.value,
           choose(-10, 0).sample.value, genUUID.sample.value)
       } yield optOverseens mustBe None
+    }
+
+    "return None if perPage is greater than the maximum" in {
+      for {
+        optOverseen <- chatsRep.getOverseens(
+          choose(1, 10).sample.value.sample.value,
+          choose(MAX_PER_PAGE + 1, MAX_PER_PAGE + 3).sample.value, genUUID.sample.value)
+      } yield optOverseen mustBe None
     }
 
     "return an empty sequence if there are no overseens" in {
@@ -3241,8 +3257,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val totalCount = result._2
         seqChatOverseen.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        /*    The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-         of the last element of the penultimate page (perPage * expectedLastPage - 1). */
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
+        //         of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         seqChatOverseen.headOption.value mustBe sortedOverseens(perPage * expectedLastPage) withClue "The first" +
           " element of the sliced sequence is wrong"
