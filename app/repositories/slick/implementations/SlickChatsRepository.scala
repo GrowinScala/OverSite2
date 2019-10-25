@@ -455,19 +455,19 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getOverseers(chatId: String, userId: String): Future[Option[Set[PostOverseer]]] =
     db.run(getOverseersAction(chatId, userId).transactionally)
 
-  private def postAttachmentAction(chatId: String, emailId: String, userId: String, attachmentPath: String): DBIO[Option[String]] = {
+  private def postAttachmentAction(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): DBIO[Option[String]] = {
     for {
       optionVerifiedFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
       optionAttachmentId <- DBIO.sequenceOption(optionVerifiedFromAddress.map { _ =>
         val attachmentId = newUUID
-        DBIO.seq(AttachmentsTable.all += AttachmentRow(attachmentId, emailId, "", attachmentPath))
+        DBIO.seq(AttachmentsTable.all += AttachmentRow(attachmentId, emailId, filename, attachmentPath))
           .andThen(DBIO.successful(attachmentId))
       })
     } yield optionAttachmentId
   }
 
-  def postAttachment(chatId: String, emailId: String, userId: String, attachmentPath: String): Future[Option[String]] =
-    db.run(postAttachmentAction(chatId, emailId, userId, attachmentPath).transactionally)
+  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): Future[Option[String]] =
+    db.run(postAttachmentAction(chatId, emailId, userId, filename, attachmentPath).transactionally)
 
   def verifyDraftPermissions(chatId: String, emailId: String, userId: String): Future[Boolean] =
     db.run(verifyDraftPermissionsAction(chatId, emailId, userId).transactionally)

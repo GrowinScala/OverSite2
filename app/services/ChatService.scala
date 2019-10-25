@@ -10,6 +10,9 @@ import repositories.ChatsRepository
 import PostOverseerDTO._
 import OversightDTO._
 import ChatPreviewDTO._
+import akka.actor.ActorSystem
+import akka.stream.{ ActorMaterializer, IOResult }
+import akka.stream.scaladsl.FileIO
 import play.api.Configuration
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
@@ -17,6 +20,8 @@ import utils.Jsons._
 import scala.concurrent.{ ExecutionContext, Future }
 
 class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsRepository, config: Configuration) {
+  implicit val sys = ActorSystem("ChatService")
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage,
     userId: String): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] =
@@ -83,23 +88,32 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getOversights(userId)
       .map(toOversightDTO)
 
-  def postAttachment(chatId: String, emailId: String, userId: String, file: File): Future[Option[String]] = {
-    chatsRep.verifyDraftPermissions(chatId, emailId, userId).flatMap {
-      if (_) {
-        val attachmentPath = uploadAttachment(file)
-        chatsRep.postAttachment(chatId, emailId, userId, attachmentPath)
+  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, file: File): Future[Option[String]] = {
+    chatsRep.verifyDraftPermissions(chatId, emailId, userId).flatMap { hasPermission =>
+      if (hasPermission) {
+        for {
+          optionAttachmentPath <- uploadAttachment(file)
+          optionAttachmentId <- optionAttachmentPath match {
+            case Some(attachmentPath) => chatsRep.postAttachment(chatId, emailId, userId, filename, attachmentPath)
+            case None => Future.successful(None)
+          }
+        } yield optionAttachmentId
       } else Future.successful(None)
     }
   }
 
-  private def uploadAttachment(file: File): String = {
+  private def uploadAttachment(file: File): Future[Option[String]] = {
     val filePath = file.toPath
-    val uploadPath = config.get[String]("uploadDirectory") + "\\" + filePath.getFileName
+    val uploadPathString = config.get[String]("uploadDirectory") + "\\" + filePath.getFileName
 
-    Files.move(filePath, Paths.get(uploadPath)) //Move file
-    Files.deleteIfExists(filePath) //Delete temporary file
-    println(s"path = $uploadPath")
-
-    uploadPath
+    FileIO.fromPath(filePath)
+      .to(FileIO.toPath(Paths.get(uploadPathString)))
+      .run()
+      .map { result =>
+        if (result.wasSuccessful) {
+          Files.deleteIfExists(filePath)
+          Some(uploadPathString)
+        } else None
+      }
   }
 }

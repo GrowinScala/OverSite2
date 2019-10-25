@@ -35,7 +35,7 @@ trait ChatsRepository {
 
   def getOversights(userId: String): Future[Oversight]
 
-  def postAttachment(chatId: String, emailId: String, userId: String, attachmentPath: String): Future[Option[String]]
+  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): Future[Option[String]]
 
   def verifyDraftPermissions(chatId: String, emailId: String, userId: String): Future[Boolean]
 }

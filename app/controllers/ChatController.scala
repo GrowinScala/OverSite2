@@ -196,7 +196,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
       implicit authenticatedRequest =>
         authenticatedRequest.body.file("attachment") match {
           case Some(FilePart(key, filename, contentType, file)) =>
-            chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, file).map {
+            chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, filename, file).map {
               case Some(attachmentId) => Ok(Json.toJson(attachmentId))
               case None => NotFound(chatNotFound)
             }
@@ -220,11 +220,12 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
    */
   private def handleFilePartAsFile: FilePartHandler[File] = {
     case FileInfo(partName, filename, contentType) =>
-      val path: Path = Files.createTempFile("multipartBody", filename)
-      val fileSink: Sink[ByteString, Future[IOResult]] = FileIO.toPath(path)
+      val temporaryPath: Path = Files.createTempFile("", "")
+
+      val fileSink: Sink[ByteString, Future[IOResult]] = FileIO.toPath(temporaryPath)
       val accumulator: Accumulator[ByteString, IOResult] = Accumulator(fileSink)
       accumulator.map {
-        case IOResult(count, status) => FilePart(partName, filename, contentType, path.toFile)
+        case IOResult(count, status) => FilePart(partName, filename, contentType, temporaryPath.toFile)
       }
   }
   //endregion
