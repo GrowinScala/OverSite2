@@ -6,7 +6,10 @@ import model.types.{ Mailbox, Page, PerPage }
 import repositories.ChatsRepository
 import PostOverseerDTO._
 import OversightDTO._
+import ChatOverseeingDTO._
+import ChatOverseenDTO._
 import ChatPreviewDTO._
+import ChatDTO._
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 
@@ -32,9 +35,14 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
       case Left(_) => Left(internalError)
     }
 
-  def getChat(chatId: String, userId: String): Future[Option[ChatDTO]] = {
-    chatsRep.getChat(chatId, userId).map(_.map(ChatDTO.toChatDTO))
-  }
+  def getChat(chatId: String, page: Page, perPage: PerPage,
+    userId: String): Future[Either[Error, (ChatDTO, Int, Page)]] =
+    chatsRep.getChat(chatId, page.value, perPage.value, userId).map {
+      case Right((chat, totalCount, lastPage)) =>
+        Right((toChatDTO(chat), totalCount, Page(lastPage)))
+      case Left(`CHAT_NOT_FOUND`) => Left(chatNotFound)
+      case Left(_) => Left(internalError)
+    }
 
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
     chatsRep.postChat(CreateChatDTO.toCreateChat(createChatDTO), userId).map(_.map(CreateChatDTO.toCreateChatDTO))
@@ -75,7 +83,23 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean] =
     chatsRep.deleteOverseer(chatId, oversightId, userId)
 
-  def getOversights(userId: String): Future[OversightDTO] =
+  def getOversights(userId: String): Future[Option[OversightDTO]] =
     chatsRep.getOversights(userId)
-      .map(toOversightDTO)
+      .map(_.map(toOversightDTO))
+
+  def getOverseeings(page: Page, perPage: PerPage,
+    userId: String): Future[Option[(Seq[ChatOverseeingDTO], Int, Page)]] =
+    chatsRep.getOverseeings(page.value, perPage.value, userId)
+      .map(_.map {
+        case (seqChatOverseeing, totalCount, lastPage) =>
+          (toSeqChatOverseeingDTO(seqChatOverseeing), totalCount, Page(lastPage))
+      })
+
+  def getOverseens(page: Page, perPage: PerPage,
+    userId: String): Future[Option[(Seq[ChatOverseenDTO], Int, Page)]] =
+    chatsRep.getOverseens(page.value, perPage.value, userId)
+      .map(_.map {
+        case (seqChatOverseeing, totalCount, lastPage) =>
+          (toSeqChatOverseenDTO(seqChatOverseeing), totalCount, Page(lastPage))
+      })
 }
