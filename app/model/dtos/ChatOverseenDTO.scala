@@ -9,6 +9,12 @@ case class ChatOverseenDTO(chatId: String, overseens: Set[OverseenDTO])
 object ChatOverseenDTO {
   implicit val ChatOverseenDtoOFormat: OFormat[ChatOverseenDTO] = Json.format[ChatOverseenDTO]
 
+  def toSeqChatOverseenDTO(seqChatOverseen: Seq[ChatOverseen]): Seq[ChatOverseenDTO] =
+    seqChatOverseen.map(toChatOverseenDTO)
+
+  def toSeqChatOverseen(seqChatOverseenDTO: Seq[ChatOverseenDTO]): Seq[ChatOverseen] =
+    seqChatOverseenDTO.map(toChatOverseen)
+
   def toChatOverseenDTO(chatOverseen: ChatOverseen): ChatOverseenDTO =
     ChatOverseenDTO(chatOverseen.chatId, chatOverseen.overseens.map(toOverseenDTO))
 

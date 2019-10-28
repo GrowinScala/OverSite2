@@ -16,6 +16,7 @@ object Jsons {
   val tokenNotFound: Error = Json.parse("""{ "Error": "Authorization Token not found in request headers"}  """)
   val tokenNotValid: Error = Json.parse("""{ "Error": "Invalid Authorization Token"}  """)
   val chatNotFound: Error = Json.parse("""{ "Error": "The given chat was not found"}  """)
+  val oversightsNotFound: Error = Json.parse("""{ "Error": "No oversight was found for this user"}  """)
   val overseerNotFound: Error = Json.parse("""{ "Error": "The given overseer was not found"}  """)
   val emailNotFound: Error = Json.parse("""{ "Error": "The given email was not found"}  """)
   val cannotBothDeleteAndRestore: Error =

@@ -1,6 +1,7 @@
 package model.types
 
 import play.api.mvc.QueryStringBindable
+import repositories.RepUtils.RepConstants._
 
 case class Page(value: Int) {
   self =>
@@ -40,7 +41,7 @@ object Page {
     new QueryStringBindable[Page] {
       override def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Page]] =
         bindableInt.bind(key, params) match {
-          case None => Some(Right(Page(0)))
+          case None => Some(Right(Page(DEFAULT_PAGE)))
           case Some(Right(intPage)) => if (intPage >= 0) Some(Right(Page(intPage)))
           else Some(Left("The page number must not be negative"))
           case Some(Left(message)) => Some(Left(message))
