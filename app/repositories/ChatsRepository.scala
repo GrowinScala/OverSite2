@@ -2,13 +2,14 @@ package repositories
 
 import model.dtos._
 import model.types.Mailbox
+import repositories.RepUtils.types.OrderBy
 import repositories.dtos._
 
 import scala.concurrent.Future
 
 trait ChatsRepository {
 
-  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int,
+  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int, orderBy: OrderBy,
     user: String): Future[Option[(Seq[ChatPreview], Int, Int)]]
 
   def getChat(chatId: String, page: Int, perPage: Int, userId: String): Future[Either[String, (Chat, Int, Int)]]

@@ -37,11 +37,11 @@ class ChatServiceSpec extends AsyncWordSpec
       val totalCount = choose(1, 10).sample.value
       val lastPage = choose(1, 10).sample.value
 
-      mockChatsRep.getChatsPreview(*, *, *, *)
+      mockChatsRep.getChatsPreview(*, *, *, *, *)
         .returns(Future.successful(optChatsPreview.map((_, totalCount, lastPage))))
 
       val chatsPreviewDTO = chatService.getChats(genMailbox.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genSort("date").sample.value, genUUID.sample.value)
       chatsPreviewDTO.map(_ mustBe optTestChatsPreviewDTO.map((_, totalCount, Page(lastPage))))
     }
   }

@@ -18,6 +18,8 @@ import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
 import utils.Generators._
 import repositories.RepUtils.RepMessages._
+import repositories.RepUtils.types.OrderBy
+import repositories.RepUtils.types.OrderBy._
 
 import math._
 import scala.concurrent._
@@ -123,13 +125,15 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         the total number of chats in the full sequence and number of the last page containing elements.
    *         The preview of each chat only shows the most recent email
    */
-  private[implementations] def getChatsPreviewAction(mailbox: Mailbox, page: Int, perPage: Int,
+  private[implementations] def getChatsPreviewAction(mailbox: Mailbox, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): DBIO[Option[(Seq[ChatPreview], Int, Int)]] = {
 
     if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
 
     else {
-      val sortedChatPreviewQuery = getChatsPreviewQuery(userId, Some(mailbox))
+      val sortedChatPreviewQuery = if (orderBy == Asc) getChatsPreviewQuery(userId, Some(mailbox))
+        .sortBy { case (chatId, subject, address, date, body) => (date.asc, body.asc, address.asc) }
+      else getChatsPreviewQuery(userId, Some(mailbox))
         .sortBy { case (chatId, subject, address, date, body) => (date.desc, body.asc, address.asc) }
 
       for {
@@ -153,9 +157,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         sequence and number of the last page containing elements. The preview of each chat only shows the most
    *         recent email
    */
-  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int,
+  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Option[(Seq[ChatPreview], Int, Int)]] =
-    db.run(getChatsPreviewAction(mailbox, page, perPage, userId).transactionally)
+    db.run(getChatsPreviewAction(mailbox, page, perPage, orderBy, userId).transactionally)
 
   /**
    * Creates a DBIOAction to get the paginated emails and other data of a specific chat of a user
