@@ -26,7 +26,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 import model.types.{ Mailbox, Page, PerPage }
 
 @Singleton
-class ChatController @Inject() (implicit val ec: ExecutionContext, config: Configuration, cc: ControllerComponents,
+class ChatController @Inject() (implicit val ec: ExecutionContext, cc: ControllerComponents,
   chatService: ChatService, authenticatedUserAction: AuthenticatedUserAction)
   extends AbstractController(cc) {
 

@@ -105,7 +105,6 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
         case (seqChatOverseeing, totalCount, lastPage) =>
           (toSeqChatOverseenDTO(seqChatOverseeing), totalCount, Page(lastPage))
       })
-      .map(toOversightDTO)
 
   def postAttachment(chatId: String, emailId: String, userId: String, filename: String, file: File): Future[Option[String]] = {
     chatsRep.verifyDraftPermissions(chatId, emailId, userId).flatMap { hasPermission =>

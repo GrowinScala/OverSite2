@@ -585,7 +585,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         emailRow.chatId === chatId && emailRow.emailId === optEmailId)
         .map(emailRow => (emailRow.date, emailRow.body))
     } yield (chatId, date, body)).sortBy { case (_, date, body) => (date.desc, body.asc) }
-    
+
     for {
       totalCount <- chatsData.length.result
       chatOverseeings <- (for {

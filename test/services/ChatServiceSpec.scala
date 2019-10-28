@@ -16,6 +16,7 @@ import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 import model.dtos.ChatOverseeingDTO._
 import model.dtos.ChatOverseenDTO._
+import play.api.Configuration
 
 import scala.concurrent.Future
 import utils.TestGenerators._
@@ -25,6 +26,7 @@ class ChatServiceSpec extends AsyncWordSpec
 
   def getServiceAndRepMock: (ChatService, ChatsRepository) = {
     implicit val mockChatsRep: ChatsRepository = mock[ChatsRepository]
+    implicit val config: Configuration = Configuration()
     val chatServiceImpl = new ChatService()
     (chatServiceImpl, mockChatsRep)
   }
