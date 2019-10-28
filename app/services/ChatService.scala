@@ -9,6 +9,7 @@ import OversightDTO._
 import ChatOverseeingDTO._
 import ChatOverseenDTO._
 import ChatPreviewDTO._
+import ChatDTO._
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 
@@ -34,9 +35,14 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
       case Left(_) => Left(internalError)
     }
 
-  def getChat(chatId: String, userId: String): Future[Option[ChatDTO]] = {
-    chatsRep.getChat(chatId, userId).map(_.map(ChatDTO.toChatDTO))
-  }
+  def getChat(chatId: String, page: Page, perPage: PerPage,
+    userId: String): Future[Either[Error, (ChatDTO, Int, Page)]] =
+    chatsRep.getChat(chatId, page.value, perPage.value, userId).map {
+      case Right((chat, totalCount, lastPage)) =>
+        Right((toChatDTO(chat), totalCount, Page(lastPage)))
+      case Left(`CHAT_NOT_FOUND`) => Left(chatNotFound)
+      case Left(_) => Left(internalError)
+    }
 
   def postChat(createChatDTO: CreateChatDTO, userId: String): Future[Option[CreateChatDTO]] = {
     chatsRep.postChat(CreateChatDTO.toCreateChat(createChatDTO), userId).map(_.map(CreateChatDTO.toCreateChatDTO))
