@@ -40,9 +40,10 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   }
 
   "ChatController#getChats" should {
-    def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage): String =
+    def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage,
+      sort: Sort): String =
       "http://localhost/chats?mailbox=" + mailbox.value + "&page=" + page.value.toString + "&perPage=" +
-        perPage.value.toString
+        perPage.value.toString + "&" + implicitly[QueryStringBindable[Sort]].unbind("sort", sort)
 
     "return the data provided by the service along with the corresponding metadata" in {
       val chatsPreviewDTO = genChatPreviewDTOSeq.sample.value
@@ -51,12 +52,13 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val lastPage = page + choose(1, 5).sample.value
       val mailbox = genMailbox.sample.value
       val perPage = genPerPage.sample.value
+      val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
-      val result: Future[Result] = chatController.getChats(mailbox, page, perPage, genSort(DEFAULT_SORT).sample.value)
+      val result: Future[Result] = chatController.getChats(mailbox, page, perPage, sort)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -66,11 +68,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
           PageLinksDTO(
-            self = makeGetChatsLink(mailbox, page, perPage),
-            first = makeGetChatsLink(mailbox, Page(0), perPage),
-            previous = Some(makeGetChatsLink(mailbox, page - 1, perPage)),
-            next = Some(makeGetChatsLink(mailbox, page + 1, perPage)),
-            last = makeGetChatsLink(mailbox, lastPage, perPage)))))
+            self = makeGetChatsLink(mailbox, page, perPage, sort),
+            first = makeGetChatsLink(mailbox, Page(0), perPage, sort),
+            previous = Some(makeGetChatsLink(mailbox, page - 1, perPage, sort)),
+            next = Some(makeGetChatsLink(mailbox, page + 1, perPage, sort)),
+            last = makeGetChatsLink(mailbox, lastPage, perPage, sort)))))
         chats ++ metadata
       }
     }
@@ -82,12 +84,12 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val lastPage = page + choose(1, 5).sample.value
       val mailbox = genMailbox.sample.value
       val perPage = genPerPage.sample.value
-
+      val sort = genSort(DEFAULT_SORT).sample.value
       val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
-      val result: Future[Result] = chatController.getChats(mailbox, page, perPage, genSort(DEFAULT_SORT).sample.value)
+      val result: Future[Result] = chatController.getChats(mailbox, page, perPage, sort)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -97,11 +99,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
           PageLinksDTO(
-            self = makeGetChatsLink(mailbox, page, perPage),
-            first = makeGetChatsLink(mailbox, Page(0), perPage),
+            self = makeGetChatsLink(mailbox, page, perPage, sort),
+            first = makeGetChatsLink(mailbox, Page(0), perPage, sort),
             previous = None,
-            next = Some(makeGetChatsLink(mailbox, page + 1, perPage)),
-            last = makeGetChatsLink(mailbox, lastPage, perPage)))))
+            next = Some(makeGetChatsLink(mailbox, page + 1, perPage, sort)),
+            last = makeGetChatsLink(mailbox, lastPage, perPage, sort)))))
         chats ++ metadata
       }
     }
@@ -113,12 +115,13 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val page = lastPage + choose(0, 5).sample.value
       val mailbox = genMailbox.sample.value
       val perPage = genPerPage.sample.value
+      val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
       mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
-      val result: Future[Result] = chatController.getChats(mailbox, page, perPage, genSort(DEFAULT_SORT).sample.value)
+      val result: Future[Result] = chatController.getChats(mailbox, page, perPage, sort)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -128,11 +131,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
           PageLinksDTO(
-            self = makeGetChatsLink(mailbox, page, perPage),
-            first = makeGetChatsLink(mailbox, Page(0), perPage),
-            previous = Some(makeGetChatsLink(mailbox, page - 1, perPage)),
+            self = makeGetChatsLink(mailbox, page, perPage, sort),
+            first = makeGetChatsLink(mailbox, Page(0), perPage, sort),
+            previous = Some(makeGetChatsLink(mailbox, page - 1, perPage, sort)),
             next = None,
-            last = makeGetChatsLink(mailbox, lastPage, perPage)))))
+            last = makeGetChatsLink(mailbox, lastPage, perPage, sort)))))
         chats ++ metadata
       }
     }
