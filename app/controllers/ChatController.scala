@@ -259,6 +259,9 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def makeGetChatLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getChat(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
 
+  def makeGetChatLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getChat(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
+
   def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getOverseers(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
 

@@ -813,8 +813,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           Ordering.Tuple2(Ordering.String.reverse, Ordering.String))
         chats.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        //           The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-        //         of the last element of the penultimate page (perPage * expectedLastPage - 1).
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1)
+        //            minus the index of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         chats.headOption.value.contentPreview mustBe sortedEmailList(perPage * expectedLastPage).body withClue "The" +
           " first element of the sliced sequence is wrong"
@@ -1425,14 +1425,15 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, page, perPage, basicTestDB.userRow.userId)
       } yield {
-        val result = eitherResult.toOption.value
-        val totalCount = result._2
-        val lastPage = result._3
+        eitherResult match {
+          case Right((_, totalCount, lastPage)) =>
+            totalCount mustBe emailRows.size withClue "The totalCount is wrong"
+            assert(sortedEmails.isDefinedAt(lastPage * perPage) &&
+              !sortedEmails.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
+            lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
 
-        totalCount mustBe emailRows.size withClue "The totalCount is wrong"
-        assert(sortedEmails.isDefinedAt(lastPage * perPage) &&
-          !sortedEmails.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
-        lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
+          case Left(message) => fail(message)
+        }
       }
 
     }
@@ -1460,11 +1461,16 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, page, perPage, basicTestDB.userRow.userId)
       } yield {
-        val emails = eitherResult.toOption.value._1.emails
+        eitherResult match {
+          case Right((chat, _, _)) =>
+            val emails = chat.emails
 
-        emails.size mustBe min(perPage, emailRows.size) withClue "The size of the slice sequence is wrong"
-        emails.headOption.value mustBe sortedEmails(perPage * page) withClue ("The first element" +
-          " of the sliced sequence is wrong")
+            emails.size mustBe min(perPage, emailRows.size) withClue "The size of the slice sequence is wrong"
+            emails.headOption.value mustBe sortedEmails(perPage * page) withClue ("The first element" +
+              " of the sliced sequence is wrong")
+
+          case Left(message) => fail(message)
+        }
       }
 
     }
@@ -1492,16 +1498,20 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, expectedLastPage, perPage,
           basicTestDB.userRow.userId)
       } yield {
-        val result = eitherResult.toOption.value
-        val emails = result._1.emails
-        val totalCount = result._2
-        emails.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
-          " sliced sequence is wrong"
-        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-        //					 of the last element of the penultimate page (perPage * expectedLastPage - 1).
+        eitherResult match {
+          case Right((chat, totalCount, _)) =>
+            val emails = chat.emails
 
-        emails.headOption.value mustBe sortedEmails(perPage * expectedLastPage) withClue "The first" +
-          " element of the sliced sequence is wrong"
+            emails.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
+              " sliced sequence is wrong"
+            //            The size of the last Page must be equal to the index of the final element (totalCount - 1)
+            //            minus the index of the last element of the penultimate page (perPage * expectedLastPage - 1).
+
+            emails.headOption.value mustBe sortedEmails(perPage * expectedLastPage) withClue "The first" +
+              " element of the sliced sequence is wrong"
+
+          case Left(message) => fail(message)
+        }
       }
 
     }
@@ -1530,11 +1540,13 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         eitherResult <- chatsRep.getChat(basicTestDB.chatRow.chatId, page, perPage,
           basicTestDB.userRow.userId)
       } yield {
-        val result = eitherResult.toOption.value
-        val emails = result._1.emails
-        val totalCount = result._2
-        totalCount must be > 0
-        emails mustBe empty
+        eitherResult match {
+          case Right((chat, totalCount, _)) =>
+            totalCount must be > 0
+            chat.emails mustBe empty
+
+          case Left(message) => fail(message)
+        }
       }
 
     }
@@ -2695,17 +2707,19 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
       } yield {
-        val result = eitherResult.toOption.value
-        val totalCount = result._2
-        val lastPage = result._3
-        val sortedOverseers = postedOverseers.value.toSeq.sortBy {
-          case PostOverseer(address, optOversightId) =>
-            (address, optOversightId.value)
+        eitherResult match {
+          case Right((_, totalCount, lastPage)) =>
+            val sortedOverseers = postedOverseers.value.toSeq.sortBy {
+              case PostOverseer(address, optOversightId) =>
+                (address, optOversightId.value)
+            }
+            totalCount mustBe overseerAddressList.size withClue "The totalCount is wrong"
+            assert(sortedOverseers.isDefinedAt(lastPage * perPage) &&
+              !sortedOverseers.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
+            lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
+
+          case Left(message) => fail(message)
         }
-        totalCount mustBe overseerAddressList.size withClue "The totalCount is wrong"
-        assert(sortedOverseers.isDefinedAt(lastPage * perPage) &&
-          !sortedOverseers.isDefinedAt((lastPage + 1) * perPage)) withClue "The value for the lastPage is wrong"
-        lastPage mustBe expectedLastPage withClue "The value for the lastPage did not equal it's expected value"
       }
     }
 
@@ -2732,14 +2746,17 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
       } yield {
-        val overseers = eitherResult.toOption.value._1
-        val sortedOverseers = postedOverseers.value.toSeq.sortBy {
-          case PostOverseer(address, optOversightId) =>
-            (address, optOversightId.value)
+        eitherResult match {
+          case Right((overseers, _, _)) =>
+            val sortedOverseers = postedOverseers.value.toSeq.sortBy {
+              case PostOverseer(address, optOversightId) =>
+                (address, optOversightId.value)
+            }
+            overseers.size mustBe min(perPage, seqPostOverseer.size) withClue "The size of the slice sequence is wrong"
+            overseers.headOption.value mustBe sortedOverseers(perPage * page) withClue ("The first element" +
+              " of the sliced sequence is wrong")
+          case Left(message) => fail(message)
         }
-        overseers.size mustBe min(perPage, seqPostOverseer.size) withClue "The size of the slice sequence is wrong"
-        overseers.headOption.value mustBe sortedOverseers(perPage * page) withClue ("The first element" +
-          " of the sliced sequence is wrong")
       }
     }
 
@@ -2765,20 +2782,22 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
       } yield {
-        val result = eitherResult.toOption.value
-        val overseers = result._1
-        val totalCount = result._2
-        val sortedOverseers = postedOverseers.value.toSeq.sortBy {
-          case PostOverseer(address, optOversightId) =>
-            (address, optOversightId.value)
-        }
-        overseers.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
-          " sliced sequence is wrong"
-        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-        //					 of the last element of the penultimate page (perPage * expectedLastPage - 1).
+        eitherResult match {
+          case Right((overseers, totalCount, _)) =>
+            val sortedOverseers = postedOverseers.value.toSeq.sortBy {
+              case PostOverseer(address, optOversightId) =>
+                (address, optOversightId.value)
+            }
+            overseers.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
+              " sliced sequence is wrong"
+            //            The size of the last Page must be equal to the index of the final element (totalCount - 1)
+            //            minus the index of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
-        overseers.headOption.value mustBe sortedOverseers(perPage * expectedLastPage) withClue "The first" +
-          " element of the sliced sequence is wrong"
+            overseers.headOption.value mustBe sortedOverseers(perPage * expectedLastPage) withClue "The first" +
+              " element of the sliced sequence is wrong"
+
+          case Left(message) => fail(message)
+        }
       }
     }
 
@@ -2805,11 +2824,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
       } yield {
-        val result = eitherResult.toOption.value
-        val overseers = result._1
-        val totalCount = result._2
-        totalCount must be > 0
-        overseers mustBe empty
+        eitherResult match {
+          case Right((overseers, totalCount, _)) =>
+            totalCount must be > 0
+            overseers mustBe empty
+          case Left(message) => fail(message)
+        }
       }
     }
 
@@ -3285,8 +3305,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val totalCount = result._2
         seqChatOverseeing.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-        //         of the last element of the penultimate page (perPage * expectedLastPage - 1).
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1)
+        //            minus the index of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         seqChatOverseeing.headOption.value mustBe sortedOverseeings(perPage * expectedLastPage) withClue "The first" +
           " element of the sliced sequence is wrong"
@@ -3483,8 +3503,8 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         val totalCount = result._2
         seqChatOverseen.size mustBe (totalCount - 1) - (perPage * expectedLastPage - 1) withClue "The size of the" +
           " sliced sequence is wrong"
-        //            The size of the last Page must be equal to the index of the final element (totalCount - 1) minus the index
-        //         of the last element of the penultimate page (perPage * expectedLastPage - 1).
+        //            The size of the last Page must be equal to the index of the final element (totalCount - 1)
+        //            minus the index of the last element of the penultimate page (perPage * expectedLastPage - 1).
 
         seqChatOverseen.headOption.value mustBe sortedOverseens(perPage * expectedLastPage) withClue "The first" +
           " element of the sliced sequence is wrong"
