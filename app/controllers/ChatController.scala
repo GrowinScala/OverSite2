@@ -30,13 +30,28 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   chatService: ChatService, authenticatedUserAction: AuthenticatedUserAction)
   extends AbstractController(cc) {
 
-  def getChat(id: String): Action[AnyContent] = authenticatedUserAction.async {
+  def getChat(chatId: String, page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
-      chatService.getChat(id, authenticatedRequest.userId).map {
-        case Some(chatDTO) => Ok(Json.toJson(chatDTO))
-        case None => NotFound(chatNotFound)
+      chatService.getChat(chatId, page, perPage, authenticatedRequest.userId).map {
+        case Right((chatDTO, totalCount, lastPage)) =>
+          val chat = Json.obj("chat" -> Json.toJson(chatDTO))
+
+          val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+            totalCount,
+            PageLinksDTO(
+              self = makeGetChatLink(chatId, page, perPage, authenticatedRequest),
+              first = makeGetChatLink(chatId, Page(0), perPage, authenticatedRequest),
+              previous = if (page == 0) None
+              else Some(makeGetChatLink(chatId, page - 1, perPage, authenticatedRequest)),
+              next = if (page >= lastPage) None
+              else Some(makeGetChatLink(chatId, page + 1, perPage, authenticatedRequest)),
+              last = makeGetChatLink(chatId, lastPage, perPage, authenticatedRequest)))))
+          Ok(chat ++ metadata)
+        case Left(`chatNotFound`) => BadRequest(chatNotFound)
+        case Left(_) => InternalServerError(internalError)
       }
+
   }
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
@@ -262,6 +277,9 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   //region Auxiliary Methods
   def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getChats(mailbox, page, perPage).absoluteURL(auth.secure)(auth.request)
+
+  def makeGetChatLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getChat(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
 
   def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getOverseers(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
