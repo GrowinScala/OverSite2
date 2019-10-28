@@ -33,7 +33,11 @@ trait ChatsRepository {
 
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean]
 
-  def getOversights(userId: String): Future[Oversight]
+  def getOversights(userId: String): Future[Option[Oversight]]
+
+  def getOverseeings(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]]
+
+  def getOverseens(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]]
 
   def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): Future[Option[String]]
 

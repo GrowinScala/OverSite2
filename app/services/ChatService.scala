@@ -9,6 +9,8 @@ import model.types.{ Mailbox, Page, PerPage }
 import repositories.ChatsRepository
 import PostOverseerDTO._
 import OversightDTO._
+import ChatOverseeingDTO._
+import ChatOverseenDTO._
 import ChatPreviewDTO._
 import akka.actor.ActorSystem
 import akka.stream.{ ActorMaterializer, IOResult }
@@ -84,8 +86,25 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean] =
     chatsRep.deleteOverseer(chatId, oversightId, userId)
 
-  def getOversights(userId: String): Future[OversightDTO] =
+  def getOversights(userId: String): Future[Option[OversightDTO]] =
     chatsRep.getOversights(userId)
+      .map(_.map(toOversightDTO))
+
+  def getOverseeings(page: Page, perPage: PerPage,
+    userId: String): Future[Option[(Seq[ChatOverseeingDTO], Int, Page)]] =
+    chatsRep.getOverseeings(page.value, perPage.value, userId)
+      .map(_.map {
+        case (seqChatOverseeing, totalCount, lastPage) =>
+          (toSeqChatOverseeingDTO(seqChatOverseeing), totalCount, Page(lastPage))
+      })
+
+  def getOverseens(page: Page, perPage: PerPage,
+    userId: String): Future[Option[(Seq[ChatOverseenDTO], Int, Page)]] =
+    chatsRep.getOverseens(page.value, perPage.value, userId)
+      .map(_.map {
+        case (seqChatOverseeing, totalCount, lastPage) =>
+          (toSeqChatOverseenDTO(seqChatOverseeing), totalCount, Page(lastPage))
+      })
       .map(toOversightDTO)
 
   def postAttachment(chatId: String, emailId: String, userId: String, filename: String, file: File): Future[Option[String]] = {

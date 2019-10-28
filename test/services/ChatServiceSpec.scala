@@ -14,6 +14,8 @@ import Gen._
 import model.types._
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
+import model.dtos.ChatOverseeingDTO._
+import model.dtos.ChatOverseenDTO._
 
 import scala.concurrent.Future
 import utils.TestGenerators._
@@ -254,21 +256,19 @@ class ChatServiceSpec extends AsyncWordSpec
         genPerPage.sample.value, genUUID.sample.value)
 
       serviceResponse.map(_ mustBe Left(chatNotFound))
-
     }
 
     "return InternalServerError if the repository returns an error message other than chatNotFound" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.getOverseers(*, *, *, *)
-        .returns(Future.successful(Left(genString.sample.value)))
+        .returns(Future.successful(Left(CHAT_NOT_FOUND)))
 
       val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
         genPerPage.sample.value, genUUID.sample.value)
 
-      serviceResponse.map(_ mustBe Left(internalError))
+      serviceResponse.map(_ mustBe Left(chatNotFound))
 
     }
-
   }
 
   "ChatService#deleteOverseer" should {
@@ -293,17 +293,53 @@ class ChatServiceSpec extends AsyncWordSpec
   }
 
   "ChatService#getOversights" should {
-    "turn the received Oversight to OversightDTO" in {
+    "turn the received optional Oversight to OversightDTO" in {
 
-      val expectedResponse = genOversightDTO.sample.value
+      val expectedResponse = option(genOversightDTO).sample.value
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.getOversights(*)
-        .returns(Future.successful(toOversight(expectedResponse)))
+        .returns(Future.successful(expectedResponse.map(toOversight)))
 
       val serviceResponse = chatService.getOversights(genUUID.sample.value)
 
       serviceResponse.map(_ mustBe expectedResponse)
+    }
+  }
+
+  "ChatService#getOverseeings" should {
+    "map the repositories optional response" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val optSeqChatOverseeingDTO = Gen.option(genSeqChatOverseeingDTO).sample.value
+      val optSeqChatOverseeing = optSeqChatOverseeingDTO.map(toSeqChatOverseeing)
+      val totalCount = choose(1, 10).sample.value
+      val lastPage = choose(1, 10).sample.value
+
+      mockChatsRep.getOverseeings(*, *, *)
+        .returns(Future.successful(optSeqChatOverseeing.map((_, totalCount, lastPage))))
+
+      val seqChatOverseeingDTO = chatService.getOverseeings(
+        genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+      seqChatOverseeingDTO.map(_ mustBe optSeqChatOverseeingDTO.map((_, totalCount, Page(lastPage))))
+    }
+  }
+
+  "ChatService#getOverseens" should {
+    "map the repositories optional response" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val optSeqChatOverseenDTO = Gen.option(genSeqChatOverseenDTO).sample.value
+      val optSeqChatOverseen = optSeqChatOverseenDTO.map(toSeqChatOverseen)
+      val totalCount = choose(1, 10).sample.value
+      val lastPage = choose(1, 10).sample.value
+
+      mockChatsRep.getOverseens(*, *, *)
+        .returns(Future.successful(optSeqChatOverseen.map((_, totalCount, lastPage))))
+
+      val seqChatOverseenDTO = chatService.getOverseens(
+        genPage.sample.value,
+        genPerPage.sample.value, genUUID.sample.value)
+      seqChatOverseenDTO.map(_ mustBe optSeqChatOverseenDTO.map((_, totalCount, Page(lastPage))))
     }
   }
 
