@@ -2,7 +2,7 @@ package services
 
 import javax.inject.Inject
 import model.dtos._
-import model.types.{ Mailbox, Page, PerPage }
+import model.types._
 import repositories.ChatsRepository
 import PostOverseerDTO._
 import OversightDTO._
@@ -17,9 +17,9 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsRepository) {
 
-  def getChats(mailbox: Mailbox, page: Page, perPage: PerPage,
+  def getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] =
-    chatsRep.getChatsPreview(mailbox, page.value, perPage.value, userId)
+    chatsRep.getChatsPreview(mailbox, page.value, perPage.value, sort.orderBy, userId)
       .map(_.map {
         case (chatsPreview, totalCount, lastPage) =>
           (toSeqChatPreviewDTO(chatsPreview), totalCount, Page(lastPage))
