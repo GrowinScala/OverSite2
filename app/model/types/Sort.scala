@@ -9,7 +9,7 @@ case class Sort(sortBy: String, orderBy: OrderBy)
 object Sort {
 
   val DEFAULT_SORT = "default"
-	val SORT_BY_DATE = "date"
+  val SORT_BY_DATE = "date"
 
   implicit def bindableSort(implicit bindableString: QueryStringBindable[String]): QueryStringBindable[Sort] {
     def bind(key: String, params: Map[String, Seq[String]]): Option[Either[String, Sort]]

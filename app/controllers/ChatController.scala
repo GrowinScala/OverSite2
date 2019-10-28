@@ -253,7 +253,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
   //region Auxiliary Methods
   def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort,
-                       auth: AuthenticatedUser[AnyContent]): String =
+    auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getChats(mailbox, page, perPage, sort).absoluteURL(auth.secure)(auth.request)
 
   def makeGetChatLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
