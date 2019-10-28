@@ -16,7 +16,7 @@ GET     /chats/oversights/overseeings       controllers.ChatController.getOverse
 
 GET     /chats/oversights/overseens         controllers.ChatController.getOverseens(page: Page, perPage: PerPage)
 
-GET     /chats/:id                          controllers.ChatController.getChat(id : String, page: Page, perPage: PerPage)
+GET     /chats/:id                          controllers.ChatController.getChat(id : String)
 
 POST    /chats                              controllers.ChatController.postChat
 
