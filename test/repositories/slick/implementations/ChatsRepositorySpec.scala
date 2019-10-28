@@ -499,6 +499,38 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String)), 2, 0)
     }
 
+    "show more than one chat in ascending order of date" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val otherChatRow = genChatRow.sample.value
+      val otherEmailRow = genEmailRow(otherChatRow.chatId).sample.value.copy(date = "2018")
+      val otherEmailAddressesRow = genEmailAddressRow(otherEmailRow.emailId, otherChatRow.chatId,
+        basicTestDB.addressRow.addressId, From).sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          List(basicTestDB.chatRow, otherChatRow),
+          List(basicTestDB.userRow),
+          List(basicTestDB.userChatRow, genUserChatRow(
+            basicTestDB.userRow.userId,
+            otherChatRow.chatId).sample.value),
+          List(basicTestDB.emailRow, otherEmailRow),
+          List(
+            basicTestDB.emailAddressRow,
+            genEmailAddressRow(otherEmailRow.emailId, otherChatRow.chatId,
+              basicTestDB.addressRow.addressId, From).sample.value))
+
+        chatsPreview <- chatsRep.getChatsPreview(Inbox, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value, Asc,
+          basicTestDB.userRow.userId)
+      } yield chatsPreview mustBe Some(List(
+        ChatPreview(basicTestDB.chatRow.chatId, basicTestDB.chatRow.subject,
+          basicTestDB.addressRow.address, basicTestDB.emailRow.date, basicTestDB.emailRow.body),
+        ChatPreview(otherChatRow.chatId, otherChatRow.subject,
+          basicTestDB.addressRow.address, otherEmailRow.date, otherEmailRow.body))
+        .sortBy(chatPreview =>
+          (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress)), 2, 0)
+    }
+
     "detect an email made by the oversee if it was sent" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseeAddressRow = genAddressRow.sample.value

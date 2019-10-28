@@ -152,6 +152,16 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       contentAsJson(result) mustBe internalError
     }
 
+    "return BadRequest if the sort is invalid" in {
+      val (chatController, _) = getControllerAndServiceMock
+
+      val result: Future[Result] = chatController.getChats(genMailbox.sample.value, genPage.sample.value,
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value)
+        .apply(FakeRequest())
+      status(result) mustBe BAD_REQUEST
+      contentAsJson(result) mustBe invalidSortBy
+    }
+
   }
 
   "ChatController#getChat" should {
@@ -259,7 +269,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val result: Future[Result] = chatController.getChat(genUUID.sample.value, genPage.sample.value,
         genPerPage.sample.value).apply(FakeRequest())
 
-      status(result) mustBe BAD_REQUEST
+      status(result) mustBe NOT_FOUND
       contentAsJson(result) mustBe chatNotFound
     }
 
@@ -779,7 +789,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val result: Future[Result] = chatController.getOverseers(genUUID.sample.value, genPage.sample.value,
         genPerPage.sample.value).apply(FakeRequest())
 
-      status(result) mustBe BAD_REQUEST
+      status(result) mustBe NOT_FOUND
       contentAsJson(result) mustBe chatNotFound
     }
 

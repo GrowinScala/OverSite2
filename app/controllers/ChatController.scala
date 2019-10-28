@@ -35,7 +35,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
               else Some(makeGetChatLink(chatId, page + 1, perPage, authenticatedRequest)),
               last = makeGetChatLink(chatId, lastPage, perPage, authenticatedRequest)))))
           Ok(chat ++ metadata)
-        case Left(`chatNotFound`) => BadRequest(chatNotFound)
+        case Left(`chatNotFound`) => NotFound(chatNotFound)
         case Left(_) => InternalServerError(internalError)
       }
 
@@ -90,7 +90,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
               else Some(makeGetOverseersLink(chatId, page + 1, perPage, authenticatedRequest)),
               last = makeGetOverseersLink(chatId, lastPage, perPage, authenticatedRequest)))))
           Ok(chats ++ metadata)
-        case Left(`chatNotFound`) => BadRequest(chatNotFound)
+        case Left(`chatNotFound`) => NotFound(chatNotFound)
         case Left(_) => InternalServerError(internalError)
       }
   }
@@ -255,9 +255,6 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort,
     auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getChats(mailbox, page, perPage, sort).absoluteURL(auth.secure)(auth.request)
-
-  def makeGetChatLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
-    routes.ChatController.getChat(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
 
   def makeGetChatLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getChat(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
