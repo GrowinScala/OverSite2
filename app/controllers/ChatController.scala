@@ -197,7 +197,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, config: Confi
         authenticatedRequest.body.file("attachment") match {
           case Some(FilePart(key, filename, contentType, file)) =>
             chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, filename, file).map {
-              case Some(attachmentId) => Ok(Json.toJson(attachmentId))
+              case Some(attachmentId) => Ok(Json.obj("attachmentId" -> attachmentId))
               case None => NotFound(chatNotFound)
             }
           case None => Future.successful(BadRequest(missingAttachment))
