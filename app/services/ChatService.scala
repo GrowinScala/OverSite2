@@ -13,7 +13,7 @@ import ChatDTO._
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsRepository) {
 

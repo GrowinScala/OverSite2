@@ -24,6 +24,8 @@ import repositories.RepUtils.RepConstants._
 import repositories.dtos._
 import repositories.slick.mappings._
 import repositories.RepUtils.RepMessages._
+import repositories.RepUtils.types.OrderBy
+import repositories.RepUtils.types.OrderBy._
 import utils.TestGenerators._
 
 import scala.concurrent._
@@ -113,7 +115,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     "return None if page is less than zero" in {
       for {
         optChatsPreview <- chatsRep.getChatsPreview(genMailbox.sample.value, choose(-10, -1).sample.value,
-          choose(1, 10).sample.value, genUUID.sample.value)
+          choose(1, 10).sample.value, DefaultOrder, genUUID.sample.value)
       } yield optChatsPreview mustBe None
     }
 

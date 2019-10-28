@@ -3,6 +3,7 @@ package controllers
 import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.types._
+import model.types.Sort._
 import repositories.RepUtils.RepConstants._
 import org.scalatestplus.play._
 import play.api.libs.json._
@@ -52,10 +53,10 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val perPage = genPerPage.sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(*, *, *, *)
+      mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
-      val result: Future[Result] = chatController.getChats(mailbox, page, perPage)
+      val result: Future[Result] = chatController.getChats(mailbox, page, perPage, genSort(DEFAULT_SORT).sample.value)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -83,10 +84,10 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val perPage = genPerPage.sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(*, *, *, *)
+      mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
-      val result: Future[Result] = chatController.getChats(mailbox, page, perPage)
+      val result: Future[Result] = chatController.getChats(mailbox, page, perPage, genSort(DEFAULT_SORT).sample.value)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -114,10 +115,10 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val perPage = genPerPage.sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(*, *, *, *)
+      mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
-      val result: Future[Result] = chatController.getChats(mailbox, page, perPage)
+      val result: Future[Result] = chatController.getChats(mailbox, page, perPage, genSort(DEFAULT_SORT).sample.value)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -138,11 +139,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
     "return InternalError if the service returns None" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(*, *, *, *)
+      mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(None))
 
       val result: Future[Result] = chatController.getChats(genMailbox.sample.value, genPage.sample.value,
-        genPerPage.sample.value)
+        genPerPage.sample.value, genSort(DEFAULT_SORT).sample.value)
         .apply(FakeRequest())
       status(result) mustBe INTERNAL_SERVER_ERROR
       contentAsJson(result) mustBe internalError

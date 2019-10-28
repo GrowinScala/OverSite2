@@ -6,14 +6,14 @@ import com.google.common.math.IntMath._
 import javax.inject.Inject
 import model.dtos._
 import repositories.RepUtils.RepConstants._
-import model.types.{Mailbox, ParticipantType}
+import model.types.{ Mailbox, ParticipantType }
 import model.types.Mailbox._
 import model.types.ParticipantType._
 import repositories.ChatsRepository
-import repositories.dtos.PatchChat.{ChangeSubject, MoveToTrash, Restore}
+import repositories.dtos.PatchChat.{ ChangeSubject, MoveToTrash, Restore }
 import repositories.slick.mappings._
 import repositories.dtos._
-import slick.dbio.{DBIOAction, Effect}
+import slick.dbio.{ DBIOAction, Effect }
 import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
 import utils.Generators._
@@ -131,9 +131,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
 
     else {
-      val sortedChatPreviewQuery = if(orderBy == Asc) getChatsPreviewQuery(userId, Some(mailbox))
+      val sortedChatPreviewQuery = if (orderBy == Asc) getChatsPreviewQuery(userId, Some(mailbox))
         .sortBy { case (chatId, subject, address, date, body) => (date.asc, body.asc, address.asc) }
-                                   else getChatsPreviewQuery(userId, Some(mailbox))
+      else getChatsPreviewQuery(userId, Some(mailbox))
         .sortBy { case (chatId, subject, address, date, body) => (date.desc, body.asc, address.asc) }
 
       for {

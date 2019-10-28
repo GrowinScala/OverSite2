@@ -7,10 +7,13 @@ import model.types.ParticipantType._
 import org.scalacheck.Gen
 import play.api.libs.json._
 import repositories.dtos._
-import repositories.slick.implementations.{ BasicTestDB, OverseeingData, OverseenData, UserChatVisibilityData }
+import repositories.slick.implementations.{BasicTestDB, OverseeingData, OverseenData, UserChatVisibilityData}
 import repositories.slick.mappings._
 import utils.DateUtils._
+import repositories.RepUtils.types.OrderBy
+import repositories.RepUtils.types.OrderBy._
 import Gen._
+
 
 object TestGenerators {
 
@@ -330,5 +333,13 @@ object TestGenerators {
       emailAddressRow <- genEmailAddressRow(emailRow.emailId, chatId, userAddressId, From)
       userChatRow <- genUserChatRow(userId, chatId)
     } yield UserChatVisibilityData(emailRow, emailAddressRow, userChatRow)
+  
+  val genOrderBy: Gen[OrderBy] =
+    oneOf(Asc, Desc, DefaultOrder)
+  
+  def genSort(sortBy: String): Gen[Sort] =
+    for{
+      orderBy <- genOrderBy
+    }yield Sort(sortBy, orderBy)
 
 }
