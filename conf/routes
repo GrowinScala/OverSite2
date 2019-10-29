@@ -8,7 +8,7 @@ GET     /chats                              controllers.ChatController.getChats(
 
 GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
 
-GET     /chats/:id/overseers                controllers.ChatController.getOverseers(id : String, page: Page, perPage: PerPage)
+GET     /chats/:id/overseers                controllers.ChatController.getOverseers(id : String, page: Page, perPage: PerPage, sort: Sort)
 
 GET     /chats/oversights                   controllers.ChatController.getOversights
 

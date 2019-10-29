@@ -218,7 +218,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     userId: String): Future[Either[String, (Chat, Int, Int)]] =
     db.run(getChatAction(chatId, page, perPage, orderBy, userId).transactionally)
 
-  private def getOverseersAction(chatId: String, page: Int, perPage: Int,
+  private def getOverseersAction(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): DBIO[Either[String, (Seq[PostOverseer], Int, Int)]] =
     if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(Left(INVALID_PAGINATION))
 
@@ -226,23 +226,28 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       for {
         optChatData <- getChatDataAction(chatId, userId)
         result <- optChatData match {
-          case Some(_) => for {
-            totalCount <- getOverseersQuery(chatId, userId).length.result
-            seqOverseers <- getOverseersQuery(chatId, userId).drop(perPage * page).take(perPage).result
+          case Some(_) =>
+            val orderedOverseersQuery = if (orderBy == Desc) getOverseersQuery(chatId, userId)
+              .sortBy { case (address, oversightId) => (address.desc, oversightId.asc) }
+            else getOverseersQuery(chatId, userId)
+              .sortBy { case (address, oversightId) => (address.asc, oversightId.asc) }
+            for {
+              totalCount <- orderedOverseersQuery.length.result
+              seqOverseers <- orderedOverseersQuery.drop(perPage * page).take(perPage).result
 
-          } yield Right((seqOverseers.map {
-            case (address, oversightId) =>
-              PostOverseer(address, Some(oversightId))
-          }, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1))
+            } yield Right((seqOverseers.map {
+              case (address, oversightId) =>
+                PostOverseer(address, Some(oversightId))
+            }, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1))
 
           case None => DBIO.successful(Left(CHAT_NOT_FOUND))
         }
       } yield result
     }
 
-  def getOverseers(chatId: String, page: Int, perPage: Int,
+  def getOverseers(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Either[String, (Seq[PostOverseer], Int, Int)]] =
-    db.run(getOverseersAction(chatId, page, perPage, userId).transactionally)
+    db.run(getOverseersAction(chatId, page, perPage, orderBy, userId).transactionally)
 
   /**
    * Creates a DBIOAction that inserts a chat with an email into the database
@@ -435,7 +440,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @return A sequence of pairs, each pair is composed by the address of the overseer and the Id of the oversight
    */
   private def getOverseersQuery(chatId: String, userId: String) =
-    (for {
+    for {
       (oversightId, overseerId) <- OversightsTable.all
         .filter(oversightRow => oversightRow.chatId === chatId && oversightRow.overseeId === userId)
         .map(oversightRow => (oversightRow.oversightId, oversightRow.overseerId))
@@ -444,7 +449,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
 
-    } yield (address, oversightId)).sortBy { case (address, oversightId) => (address.asc, oversightId.asc) }
+    } yield (address, oversightId)
 
   private def createNewOverseerAction(overseerId: String, overseerAddress: String, chatId: String,
     userId: String): DBIO[PostOverseer] =

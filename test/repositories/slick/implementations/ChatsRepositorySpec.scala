@@ -2675,21 +2675,21 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
     "return INVALID_PAGINATION if page is less than zero" in {
       for {
         result <- chatsRep.getOverseers(genUUID.sample.value, choose(-10, -1).sample.value,
-          choose(1, 10).sample.value, genUUID.sample.value)
+          choose(1, 10).sample.value, DefaultOrder, genUUID.sample.value)
       } yield result mustBe Left(INVALID_PAGINATION)
     }
 
     "return INVALID_PAGINATION if perPage is not greater than zero" in {
       for {
         result <- chatsRep.getOverseers(genUUID.sample.value, choose(1, 10).sample.value.sample.value,
-          choose(-10, 0).sample.value, genUUID.sample.value)
+          choose(-10, 0).sample.value, DefaultOrder, genUUID.sample.value)
       } yield result mustBe Left(INVALID_PAGINATION)
     }
 
     "return INVALID_PAGINATION if perPage is greater than the maximum" in {
       for {
         result <- chatsRep.getOverseers(genUUID.sample.value, choose(1, 10).sample.value.sample.value,
-          choose(MAX_PER_PAGE + 1, MAX_PER_PAGE + 3).sample.value, genUUID.sample.value)
+          choose(MAX_PER_PAGE + 1, MAX_PER_PAGE + 3).sample.value, DefaultOrder, genUUID.sample.value)
       } yield result mustBe Left(INVALID_PAGINATION)
     }
 
@@ -2704,7 +2704,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userChatRow))
 
         result <- chatsRep.getOverseers(genUUID.sample.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
-          basicTestDB.userRow.userId)
+          DefaultOrder, basicTestDB.userRow.userId)
       } yield result mustBe Left(CHAT_NOT_FOUND)
 
     }
@@ -2719,12 +2719,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           List(basicTestDB.userRow))
 
         result <- chatsRep.getOverseers(genUUID.sample.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
-          basicTestDB.userRow.userId)
+          DefaultOrder, basicTestDB.userRow.userId)
       } yield result mustBe Left(CHAT_NOT_FOUND)
 
     }
 
-    "return the user's overseers" in {
+    "return the user's overseers in ascending alphabetical order of overseer address" in {
       val basicTestDB = genBasicTestDB.sample.value
       val overseerOneAddressRow = genAddressRow.sample.value
       val overseerOneUserRow = genUserRow(overseerOneAddressRow.addressId).sample.value
@@ -2745,12 +2745,42 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
         result <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
-          basicTestDB.userRow.userId)
+          Asc, basicTestDB.userRow.userId)
 
       } yield result mustBe Right((postedOverseers.value.toSeq.sortBy {
         case PostOverseer(address, optOversightId) =>
           (address, optOversightId.value)
       }, 2, 0))
+
+    }
+
+    "return the user's overseers in descending alphabetical order of overseer address" in {
+      val basicTestDB = genBasicTestDB.sample.value
+      val overseerOneAddressRow = genAddressRow.sample.value
+      val overseerOneUserRow = genUserRow(overseerOneAddressRow.addressId).sample.value
+      val overseerTwoAddressRow = genAddressRow.sample.value
+      val overseerTwoUserRow = genUserRow(overseerTwoAddressRow.addressId).sample.value
+      val setPostOverseer = Set(
+        PostOverseer(overseerOneAddressRow.address, None),
+        PostOverseer(overseerTwoAddressRow.address, None))
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow, overseerOneAddressRow, overseerTwoAddressRow),
+          userRows = List(basicTestDB.userRow, overseerOneUserRow, overseerTwoUserRow))
+
+        createdChatDTO <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+
+        postedOverseers <- chatsRep.postOverseers(setPostOverseer, createdChatDTO.value.chatId.value,
+          basicTestDB.userRow.userId)
+
+        result <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, DEFAULT_PAGE.value, DEFAULT_PER_PAGE.value,
+          Desc, basicTestDB.userRow.userId)
+
+      } yield result mustBe Right((postedOverseers.value.toSeq.sortBy {
+        case PostOverseer(address, optOversightId) =>
+          (address, optOversightId.value)
+      }(Ordering.Tuple2(Ordering.String.reverse, Ordering.String)), 2, 0))
 
     }
 
@@ -2774,7 +2804,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
         eitherResult <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, page, perPage,
-          basicTestDB.userRow.userId)
+          DefaultOrder, basicTestDB.userRow.userId)
 
       } yield {
         eitherResult match {
@@ -2813,7 +2843,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
         eitherResult <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, page, perPage,
-          basicTestDB.userRow.userId)
+          DefaultOrder, basicTestDB.userRow.userId)
 
       } yield {
         eitherResult match {
@@ -2849,7 +2879,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
         eitherResult <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, expectedLastPage, perPage,
-          basicTestDB.userRow.userId)
+          DefaultOrder, basicTestDB.userRow.userId)
 
       } yield {
         eitherResult match {
@@ -2891,7 +2921,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
         eitherResult <- chatsRep.getOverseers(createdChatDTO.value.chatId.value, page, perPage,
-          basicTestDB.userRow.userId)
+          DefaultOrder, basicTestDB.userRow.userId)
 
       } yield {
         eitherResult match {
