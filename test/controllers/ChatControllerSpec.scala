@@ -18,6 +18,7 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import utils.Jsons._
 import utils.TestGenerators._
 import org.scalacheck.Gen._
+import repositories.RepUtils.types.OrderBy.DefaultOrder
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -40,8 +41,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   }
 
   "ChatController#getChats" should {
-    def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage,
-      sort: Sort): String =
+    def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort): String =
       s"http://localhost/chats?mailbox=${mailbox.value}&page=${page.value.toString}&perPage=${perPage.value.toString}&${
         implicitly[QueryStringBindable[Sort]].unbind("sort", sort)
       }"
@@ -166,8 +166,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   }
 
   "ChatController#getChat" should {
-    def makeGetChatLink(chatId: String, page: Page, perPage: PerPage,
-      sort: Sort): String =
+    def makeGetChatLink(chatId: String, page: Page, perPage: PerPage, sort: Sort): String =
       s"http://localhost/chats/$chatId?page=${page.value.toString}&perPage=${perPage.value.toString}&${
         implicitly[QueryStringBindable[Sort]].unbind("sort", sort)
       }"
@@ -881,9 +880,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
           Json.obj("links" ->
             Json.obj(
               "overseeing" ->
-                s"http://localhost/chats/oversights/overseeings?page=$defaultPage&perPage=$defaultPerPage",
+                JsString(s"http://localhost/chats/oversights/overseeings?page=$defaultPage&perPage=$defaultPerPage" +
+                  s"&sort=$DEFAULT_SORT"),
               "overseen" ->
-                s"http://localhost/chats/oversights/overseens?page=$defaultPage&perPage=$defaultPerPage")))
+                JsString(s"http://localhost/chats/oversights/overseens?page=$defaultPage&perPage=$defaultPerPage" +
+                  s"&sort=$DEFAULT_SORT"))))
         oversightsPreview ++ metadata
       }
     }
@@ -901,9 +902,10 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   }
 
   "ChatController#getOverseeings" should {
-    def makeGetOverseeingsLink(page: Page, perPage: PerPage): String =
-      s"http://localhost/chats/oversights/overseeings?page=" + page.value.toString + "&perPage=" +
-        perPage.value.toString
+    def makeGetOverseeingsLink(page: Page, perPage: PerPage, sort: Sort): String =
+      s"http://localhost/chats/oversights/overseeings?page=${page.value.toString}&perPage=${perPage.value.toString}&${
+        implicitly[QueryStringBindable[Sort]].unbind("sort", sort)
+      }"
 
     "return the DTO sent by the service along with the metadata" in {
       val seqChatOverseeingDTO = genSeqChatOverseeingDTO.sample.value
@@ -912,12 +914,13 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val lastPage = page + choose(1, 5).sample.value
       val chatId = genUUID.sample.value
       val perPage = genPerPage.sample.value
+      val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getOverseeings(*, *, *)
+      mockChatService.getOverseeings(*, *, *, *)
         .returns(Future.successful(Some((seqChatOverseeingDTO, totalCount, lastPage))))
 
-      val result: Future[Result] = chatController.getOverseeings(page, perPage)
+      val result: Future[Result] = chatController.getOverseeings(page, perPage, sort)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -927,11 +930,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
           PageLinksDTO(
-            self = makeGetOverseeingsLink(page, perPage),
-            first = makeGetOverseeingsLink(Page(0), perPage),
-            previous = Some(makeGetOverseeingsLink(page - 1, perPage)),
-            next = Some(makeGetOverseeingsLink(page + 1, perPage)),
-            last = makeGetOverseeingsLink(lastPage, perPage)))))
+            self = makeGetOverseeingsLink(page, perPage, sort),
+            first = makeGetOverseeingsLink(Page(0), perPage, sort),
+            previous = Some(makeGetOverseeingsLink(page - 1, perPage, sort)),
+            next = Some(makeGetOverseeingsLink(page + 1, perPage, sort)),
+            last = makeGetOverseeingsLink(lastPage, perPage, sort)))))
         overseeings ++ metadata
       }
     }
@@ -942,12 +945,13 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val page = Page(0)
       val lastPage = page + choose(1, 5).sample.value
       val perPage = genPerPage.sample.value
+      val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getOverseeings(*, *, *)
+      mockChatService.getOverseeings(*, *, *, *)
         .returns(Future.successful(Some((seqChatOverseeingDTO, totalCount, lastPage))))
 
-      val result: Future[Result] = chatController.getOverseeings(page, perPage)
+      val result: Future[Result] = chatController.getOverseeings(page, perPage, sort)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -957,11 +961,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
           PageLinksDTO(
-            self = makeGetOverseeingsLink(page, perPage),
-            first = makeGetOverseeingsLink(Page(0), perPage),
+            self = makeGetOverseeingsLink(page, perPage, sort),
+            first = makeGetOverseeingsLink(Page(0), perPage, sort),
             previous = None,
-            next = Some(makeGetOverseeingsLink(page + 1, perPage)),
-            last = makeGetOverseeingsLink(lastPage, perPage)))))
+            next = Some(makeGetOverseeingsLink(page + 1, perPage, sort)),
+            last = makeGetOverseeingsLink(lastPage, perPage, sort)))))
         overseeings ++ metadata
       }
     }
@@ -972,12 +976,13 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val lastPage = genPage.sample.value
       val page = lastPage + choose(0, 5).sample.value
       val perPage = genPerPage.sample.value
+      val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getOverseeings(*, *, *)
+      mockChatService.getOverseeings(*, *, *, *)
         .returns(Future.successful(Some((seqChatOverseeingDTO, totalCount, lastPage))))
 
-      val result: Future[Result] = chatController.getOverseeings(page, perPage)
+      val result: Future[Result] = chatController.getOverseeings(page, perPage, sort)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -987,33 +992,44 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
           PageLinksDTO(
-            self = makeGetOverseeingsLink(page, perPage),
-            first = makeGetOverseeingsLink(Page(0), perPage),
-            previous = Some(makeGetOverseeingsLink(page - 1, perPage)),
+            self = makeGetOverseeingsLink(page, perPage, sort),
+            first = makeGetOverseeingsLink(Page(0), perPage, sort),
+            previous = Some(makeGetOverseeingsLink(page - 1, perPage, sort)),
             next = None,
-            last = makeGetOverseeingsLink(lastPage, perPage)))))
+            last = makeGetOverseeingsLink(lastPage, perPage, sort)))))
         overseeings ++ metadata
       }
     }
 
     "return InternalServerError if the service returns None" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getOverseeings(*, *, *)
+      mockChatService.getOverseeings(*, *, *, *)
         .returns(Future.successful(None))
 
-      val result: Future[Result] = chatController.getOverseeings(
-        genPage.sample.value,
-        genPerPage.sample.value).apply(FakeRequest())
+      val result: Future[Result] = chatController.getOverseeings(genPage.sample.value, genPerPage.sample.value,
+        genSort(DEFAULT_SORT).sample.value).apply(FakeRequest())
 
       status(result) mustBe INTERNAL_SERVER_ERROR
       contentAsJson(result) mustBe internalError
+    }
+
+    "return BadRequest if the sort is invalid" in {
+      val (chatController, _) = getControllerAndServiceMock
+
+      val result: Future[Result] = chatController.getOverseeings(
+        genPage.sample.value,
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value)
+        .apply(FakeRequest())
+      status(result) mustBe BAD_REQUEST
+      contentAsJson(result) mustBe invalidSortBy
     }
   }
 
   "ChatController#getOverseens" should {
-    def makeGetOverseensLink(page: Page, perPage: PerPage): String =
-      s"http://localhost/chats/oversights/overseens?page=" + page.value.toString + "&perPage=" +
-        perPage.value.toString
+    def makeGetOverseensLink(page: Page, perPage: PerPage, sort: Sort): String =
+      s"http://localhost/chats/oversights/overseens?page=${page.value.toString}&perPage=${perPage.value.toString}&${
+        implicitly[QueryStringBindable[Sort]].unbind("sort", sort)
+      }"
 
     "return the DTO sent by the service along with the metadata" in {
       val seqChatOverseenDTO = genSeqChatOverseenDTO.sample.value
@@ -1022,12 +1038,13 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val lastPage = page + choose(1, 5).sample.value
       val chatId = genUUID.sample.value
       val perPage = genPerPage.sample.value
+      val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getOverseens(*, *, *)
+      mockChatService.getOverseens(*, *, *, *)
         .returns(Future.successful(Some((seqChatOverseenDTO, totalCount, lastPage))))
 
-      val result: Future[Result] = chatController.getOverseens(page, perPage)
+      val result: Future[Result] = chatController.getOverseens(page, perPage, sort)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -1037,11 +1054,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
           PageLinksDTO(
-            self = makeGetOverseensLink(page, perPage),
-            first = makeGetOverseensLink(Page(0), perPage),
-            previous = Some(makeGetOverseensLink(page - 1, perPage)),
-            next = Some(makeGetOverseensLink(page + 1, perPage)),
-            last = makeGetOverseensLink(lastPage, perPage)))))
+            self = makeGetOverseensLink(page, perPage, sort),
+            first = makeGetOverseensLink(Page(0), perPage, sort),
+            previous = Some(makeGetOverseensLink(page - 1, perPage, sort)),
+            next = Some(makeGetOverseensLink(page + 1, perPage, sort)),
+            last = makeGetOverseensLink(lastPage, perPage, sort)))))
         overseens ++ metadata
       }
     }
@@ -1052,12 +1069,13 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val page = Page(0)
       val lastPage = page + choose(1, 5).sample.value
       val perPage = genPerPage.sample.value
+      val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getOverseens(*, *, *)
+      mockChatService.getOverseens(*, *, *, *)
         .returns(Future.successful(Some((seqChatOverseenDTO, totalCount, lastPage))))
 
-      val result: Future[Result] = chatController.getOverseens(page, perPage)
+      val result: Future[Result] = chatController.getOverseens(page, perPage, sort)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -1067,11 +1085,11 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
           PageLinksDTO(
-            self = makeGetOverseensLink(page, perPage),
-            first = makeGetOverseensLink(Page(0), perPage),
+            self = makeGetOverseensLink(page, perPage, sort),
+            first = makeGetOverseensLink(Page(0), perPage, sort),
             previous = None,
-            next = Some(makeGetOverseensLink(page + 1, perPage)),
-            last = makeGetOverseensLink(lastPage, perPage)))))
+            next = Some(makeGetOverseensLink(page + 1, perPage, sort)),
+            last = makeGetOverseensLink(lastPage, perPage, sort)))))
         overseens ++ metadata
       }
     }
@@ -1082,12 +1100,13 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val lastPage = genPage.sample.value
       val page = lastPage + choose(0, 5).sample.value
       val perPage = genPerPage.sample.value
+      val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getOverseens(*, *, *)
+      mockChatService.getOverseens(*, *, *, *)
         .returns(Future.successful(Some((seqChatOverseenDTO, totalCount, lastPage))))
 
-      val result: Future[Result] = chatController.getOverseens(page, perPage)
+      val result: Future[Result] = chatController.getOverseens(page, perPage, sort)
         .apply(FakeRequest())
       status(result) mustBe OK
       contentAsJson(result) mustBe {
@@ -1097,26 +1116,36 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
         val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
           totalCount,
           PageLinksDTO(
-            self = makeGetOverseensLink(page, perPage),
-            first = makeGetOverseensLink(Page(0), perPage),
-            previous = Some(makeGetOverseensLink(page - 1, perPage)),
+            self = makeGetOverseensLink(page, perPage, sort),
+            first = makeGetOverseensLink(Page(0), perPage, sort),
+            previous = Some(makeGetOverseensLink(page - 1, perPage, sort)),
             next = None,
-            last = makeGetOverseensLink(lastPage, perPage)))))
+            last = makeGetOverseensLink(lastPage, perPage, sort)))))
         overseens ++ metadata
       }
     }
 
     "return InternalServerError if the service returns None" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getOverseens(*, *, *)
+      mockChatService.getOverseens(*, *, *, *)
         .returns(Future.successful(None))
 
-      val result: Future[Result] = chatController.getOverseens(
-        genPage.sample.value,
-        genPerPage.sample.value).apply(FakeRequest())
+      val result: Future[Result] = chatController.getOverseens(genPage.sample.value, genPerPage.sample.value,
+        genSort(DEFAULT_SORT).sample.value).apply(FakeRequest())
 
       status(result) mustBe INTERNAL_SERVER_ERROR
       contentAsJson(result) mustBe internalError
+    }
+
+    "return BadRequest if the sort is invalid" in {
+      val (chatController, _) = getControllerAndServiceMock
+
+      val result: Future[Result] = chatController.getOverseens(
+        genPage.sample.value,
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value)
+        .apply(FakeRequest())
+      status(result) mustBe BAD_REQUEST
+      contentAsJson(result) mustBe invalidSortBy
     }
   }
 

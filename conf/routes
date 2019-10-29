@@ -12,9 +12,9 @@ GET     /chats/:id/overseers                controllers.ChatController.getOverse
 
 GET     /chats/oversights                   controllers.ChatController.getOversights
 
-GET     /chats/oversights/overseeings       controllers.ChatController.getOverseeings(page: Page, perPage: PerPage)
+GET     /chats/oversights/overseeings       controllers.ChatController.getOverseeings(page: Page, perPage: PerPage, sort: Sort)
 
-GET     /chats/oversights/overseens         controllers.ChatController.getOverseens(page: Page, perPage: PerPage)
+GET     /chats/oversights/overseens         controllers.ChatController.getOverseens(page: Page, perPage: PerPage, sort: Sort)
 
 GET     /chats/:id                          controllers.ChatController.getChat(id : String, page: Page, perPage: PerPage, sort: Sort)
 
