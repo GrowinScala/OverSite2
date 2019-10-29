@@ -15,7 +15,7 @@ trait ChatsRepository {
   def getChat(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Either[String, (Chat, Int, Int)]]
 
-  def getOverseers(chatId: String, page: Int, perPage: Int,
+  def getOverseers(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Either[String, (Seq[PostOverseer], Int, Int)]]
 
   def postChat(createChat: CreateChat, userId: String): Future[Option[CreateChat]]

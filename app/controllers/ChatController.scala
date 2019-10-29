@@ -75,27 +75,30 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
    * @param chatId The chat's Id
    * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
    */
-  def getOverseers(chatId: String, page: Page, perPage: PerPage): Action[AnyContent] = authenticatedUserAction.async {
+  def getOverseers(chatId: String, page: Page, perPage: PerPage,
+    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
-      chatService.getOverseers(chatId, page, perPage, authenticatedRequest.userId).map {
-        case Right((postOverseerDTO, totalCount, lastPage)) =>
-          val chats = Json.obj("overseers" -> Json.toJson(postOverseerDTO))
+      if (sort.sortBy == SORT_BY_ADDRESS || sort.sortBy == DEFAULT_SORT)
+        chatService.getOverseers(chatId, page, perPage, sort, authenticatedRequest.userId).map {
+          case Right((postOverseerDTO, totalCount, lastPage)) =>
+            val chats = Json.obj("overseers" -> Json.toJson(postOverseerDTO))
 
-          val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
-            totalCount,
-            PageLinksDTO(
-              self = makeGetOverseersLink(chatId, page, perPage, authenticatedRequest),
-              first = makeGetOverseersLink(chatId, Page(0), perPage, authenticatedRequest),
-              previous = if (page == 0) None
-              else Some(makeGetOverseersLink(chatId, page - 1, perPage, authenticatedRequest)),
-              next = if (page >= lastPage) None
-              else Some(makeGetOverseersLink(chatId, page + 1, perPage, authenticatedRequest)),
-              last = makeGetOverseersLink(chatId, lastPage, perPage, authenticatedRequest)))))
-          Ok(chats ++ metadata)
-        case Left(`chatNotFound`) => NotFound(chatNotFound)
-        case Left(_) => InternalServerError(internalError)
-      }
+            val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
+              totalCount,
+              PageLinksDTO(
+                self = makeGetOverseersLink(chatId, page, perPage, sort, authenticatedRequest),
+                first = makeGetOverseersLink(chatId, Page(0), perPage, sort, authenticatedRequest),
+                previous = if (page == 0) None
+                else Some(makeGetOverseersLink(chatId, page - 1, perPage, sort, authenticatedRequest)),
+                next = if (page >= lastPage) None
+                else Some(makeGetOverseersLink(chatId, page + 1, perPage, sort, authenticatedRequest)),
+                last = makeGetOverseersLink(chatId, lastPage, perPage, sort, authenticatedRequest)))))
+            Ok(chats ++ metadata)
+          case Left(`chatNotFound`) => NotFound(chatNotFound)
+          case Left(_) => InternalServerError(internalError)
+        }
+      else Future.successful(BadRequest(invalidSortBy))
   }
 
   def postChat: Action[JsValue] = {
@@ -273,8 +276,9 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
     auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getChat(chatId, page, perPage, sort).absoluteURL(auth.secure)(auth.request)
 
-  def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, auth: AuthenticatedUser[AnyContent]): String =
-    routes.ChatController.getOverseers(chatId, page, perPage).absoluteURL(auth.secure)(auth.request)
+  def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, sort: Sort,
+    auth: AuthenticatedUser[AnyContent]): String =
+    routes.ChatController.getOverseers(chatId, page, perPage, sort).absoluteURL(auth.secure)(auth.request)
 
   def makeGetOverseeingsLink(page: Page, perPage: PerPage, sort: Sort, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getOverseeings(page, perPage, sort).absoluteURL(auth.secure)(auth.request)
