@@ -10,11 +10,12 @@ import scala.concurrent.Future
 trait ChatsRepository {
 
   def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int, orderBy: OrderBy,
-    user: String): Future[Option[(Seq[ChatPreview], Int, Int)]]
+    userId: String): Future[Option[(Seq[ChatPreview], Int, Int)]]
 
-  def getChat(chatId: String, page: Int, perPage: Int, userId: String): Future[Either[String, (Chat, Int, Int)]]
+  def getChat(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
+    userId: String): Future[Either[String, (Chat, Int, Int)]]
 
-  def getOverseers(chatId: String, page: Int, perPage: Int,
+  def getOverseers(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Either[String, (Seq[PostOverseer], Int, Int)]]
 
   def postChat(createChat: CreateChat, userId: String): Future[Option[CreateChat]]

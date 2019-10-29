@@ -179,14 +179,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *
    *         Or a String indicating what went wrong
    */
-  private[implementations] def getChatAction(chatId: String, page: Int, perPage: Int,
+  private[implementations] def getChatAction(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String, getAll: Boolean = false): DBIO[Either[String, (Chat, Int, Int)]] =
     if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(Left(INVALID_PAGINATION))
 
     else {
       for {
         chatData <- getChatDataAction(chatId, userId)
-        (addresses, emails, totalCount) <- getGroupedEmailsAndAddresses(chatId, page, perPage, userId, getAll)
+        (addresses, emails, totalCount) <- getGroupedEmailsAndAddresses(chatId, page, perPage, userId, orderBy, getAll)
         overseers <- getOverseersData(chatId)
       } yield chatData match {
         case None => Left(CHAT_NOT_FOUND)
@@ -214,10 +214,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *
    *         Or a String indicating what went wrong
    */
-  def getChat(chatId: String, page: Int, perPage: Int, userId: String): Future[Either[String, (Chat, Int, Int)]] =
-    db.run(getChatAction(chatId, page, perPage, userId).transactionally)
+  def getChat(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
+    userId: String): Future[Either[String, (Chat, Int, Int)]] =
+    db.run(getChatAction(chatId, page, perPage, orderBy, userId).transactionally)
 
-  private def getOverseersAction(chatId: String, page: Int, perPage: Int,
+  private def getOverseersAction(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): DBIO[Either[String, (Seq[PostOverseer], Int, Int)]] =
     if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(Left(INVALID_PAGINATION))
 
@@ -225,23 +226,28 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       for {
         optChatData <- getChatDataAction(chatId, userId)
         result <- optChatData match {
-          case Some(_) => for {
-            totalCount <- getOverseersQuery(chatId, userId).length.result
-            seqOverseers <- getOverseersQuery(chatId, userId).drop(perPage * page).take(perPage).result
+          case Some(_) =>
+            val orderedOverseersQuery = if (orderBy == Desc) getOverseersQuery(chatId, userId)
+              .sortBy { case (address, oversightId) => (address.desc, oversightId.asc) }
+            else getOverseersQuery(chatId, userId)
+              .sortBy { case (address, oversightId) => (address.asc, oversightId.asc) }
+            for {
+              totalCount <- orderedOverseersQuery.length.result
+              seqOverseers <- orderedOverseersQuery.drop(perPage * page).take(perPage).result
 
-          } yield Right((seqOverseers.map {
-            case (address, oversightId) =>
-              PostOverseer(address, Some(oversightId))
-          }, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1))
+            } yield Right((seqOverseers.map {
+              case (address, oversightId) =>
+                PostOverseer(address, Some(oversightId))
+            }, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1))
 
           case None => DBIO.successful(Left(CHAT_NOT_FOUND))
         }
       } yield result
     }
 
-  def getOverseers(chatId: String, page: Int, perPage: Int,
+  def getOverseers(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Either[String, (Seq[PostOverseer], Int, Int)]] =
-    db.run(getOverseersAction(chatId, page, perPage, userId).transactionally)
+    db.run(getOverseersAction(chatId, page, perPage, orderBy, userId).transactionally)
 
   /**
    * Creates a DBIOAction that inserts a chat with an email into the database
@@ -368,7 +374,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(patchChatAction(patchChat, chatId, userId).transactionally)
 
   private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String): DBIO[Option[Chat]] =
-    getChatAction(chatId, 0, 1, userId, getAll = true).map {
+    getChatAction(chatId, 0, 1, DefaultOrder, userId, getAll = true).map {
       case Left(_) => None
       case Right((chat, _, _)) => Some(chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
         .filter(_.emails.nonEmpty)
@@ -434,7 +440,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @return A sequence of pairs, each pair is composed by the address of the overseer and the Id of the oversight
    */
   private def getOverseersQuery(chatId: String, userId: String) =
-    (for {
+    for {
       (oversightId, overseerId) <- OversightsTable.all
         .filter(oversightRow => oversightRow.chatId === chatId && oversightRow.overseeId === userId)
         .map(oversightRow => (oversightRow.oversightId, oversightRow.overseerId))
@@ -443,7 +449,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
 
-    } yield (address, oversightId)).sortBy { case (address, oversightId) => (address.asc, oversightId.asc) }
+    } yield (address, oversightId)
 
   private def createNewOverseerAction(overseerId: String, overseerAddress: String, chatId: String,
     userId: String): DBIO[PostOverseer] =
@@ -1232,9 +1238,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   private def getEmailsQuery(chatId: String, userId: String) =
     getVisibleEmailsQuery(userId)
       .filter(_._1 === chatId)
-      .map {
-        case (_, emailId, body, date, sent) => (emailId, body, date, sent)
-      }.sortBy { case (_, body, date, _) => (date.asc, body.asc) }
+      .map { case (_, emailId, body, date, sent) => (emailId, body, date, sent) }
 
   /**
    * Method that, given the emailIds of the emails that the a user can see, for each participant of an email,
@@ -1290,19 +1294,23 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param getAll Boolean used to indicate if all emails should be returned. False by default
    * @return A DBIOAction that returns the tuple (chatEmailAddresses, sequenceOfEmailDTOs, totalCount)
    */
-  private def getGroupedEmailsAndAddresses(chatId: String, page: Int, perPage: Int, userId: String,
+  private def getGroupedEmailsAndAddresses(chatId: String, page: Int, perPage: Int, userId: String, orderBy: OrderBy,
     getAll: Boolean): DBIO[(Set[String], Seq[Email], Int)] = {
     // Paginated query to get all the emails of this chat that the user can see
-    val emailsQuery = getEmailsQuery(chatId, userId)
+    val orderedEmailsQuery =
+      if (orderBy == Desc)
+        getEmailsQuery(chatId, userId).sortBy { case (_, body, date, _) => (date.desc, body.asc) }
+      else getEmailsQuery(chatId, userId).sortBy { case (_, body, date, _) => (date.asc, body.asc) }
 
     // Query to get all the addresses involved in the emails of this chat
     // emailId, participationType, address)(
-    val emailAddressesQuery = getEmailAddressesQuery(userId, emailsQuery.map { case (emailId, _, _, _) => emailId })
+    val emailAddressesQuery =
+      getEmailAddressesQuery(userId, orderedEmailsQuery.map { case (emailId, _, _, _) => emailId })
 
     for {
-      totalCount <- emailsQuery.length.result
-      emails <- if (getAll) emailsQuery.result
-      else emailsQuery.drop(perPage * page).take(perPage).result
+      totalCount <- orderedEmailsQuery.length.result
+      emails <- if (getAll) orderedEmailsQuery.result
+      else orderedEmailsQuery.drop(perPage * page).take(perPage).result
       emailAddressesResult <- emailAddressesQuery.result
 
       groupedEmailAddresses = emailAddressesResult
@@ -1314,7 +1322,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       // All addresses that sent and received emails in this chat
       chatAddressesResult = emailAddressesResult.map { case (_, _, address) => address }.distinct
 
-      attachments <- getEmailsAttachments(emailsQuery.map { case (emailId, _, _, _) => emailId })
+      attachments <- getEmailsAttachments(orderedEmailsQuery.map { case (emailId, _, _, _) => emailId })
 
     } yield (chatAddressesResult.toSet, buildEmailDto(emails, groupedEmailAddresses, attachments), totalCount)
   }

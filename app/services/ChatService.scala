@@ -25,19 +25,19 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
           (toSeqChatPreviewDTO(chatsPreview), totalCount, Page(lastPage))
       })
 
-  def getOverseers(chatId: String, page: Page, perPage: PerPage,
+  def getOverseers(chatId: String, page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Either[Error, (Seq[PostOverseerDTO], Int, Page)]] =
 
-    chatsRep.getOverseers(chatId, page.value, perPage.value, userId).map {
+    chatsRep.getOverseers(chatId, page.value, perPage.value, sort.orderBy, userId).map {
       case Right((postOverseers, totalCount, lastPage)) =>
         Right((toSeqPostOverseerDTO(postOverseers), totalCount, Page(lastPage)))
       case Left(`CHAT_NOT_FOUND`) => Left(chatNotFound)
       case Left(_) => Left(internalError)
     }
 
-  def getChat(chatId: String, page: Page, perPage: PerPage,
+  def getChat(chatId: String, page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Either[Error, (ChatDTO, Int, Page)]] =
-    chatsRep.getChat(chatId, page.value, perPage.value, userId).map {
+    chatsRep.getChat(chatId, page.value, perPage.value, sort.orderBy, userId).map {
       case Right((chat, totalCount, lastPage)) =>
         Right((toChatDTO(chat), totalCount, Page(lastPage)))
       case Left(`CHAT_NOT_FOUND`) => Left(chatNotFound)

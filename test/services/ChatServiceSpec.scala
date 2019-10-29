@@ -41,7 +41,7 @@ class ChatServiceSpec extends AsyncWordSpec
         .returns(Future.successful(optChatsPreview.map((_, totalCount, lastPage))))
 
       val chatsPreviewDTO = chatService.getChats(genMailbox.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genSort("date").sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
       chatsPreviewDTO.map(_ mustBe optTestChatsPreviewDTO.map((_, totalCount, Page(lastPage))))
     }
   }
@@ -54,33 +54,33 @@ class ChatServiceSpec extends AsyncWordSpec
       val lastPage = choose(1, 10).sample.value
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getChat(*, *, *, *)
+      mockChatsRep.getChat(*, *, *, *, *)
         .returns(Future.successful(Right(toChat(testchatDTO), totalCount, lastPage)))
 
       val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
 
       serviceResponse.map(_ mustBe Right(testchatDTO, totalCount, Page(lastPage)))
     }
 
     "return chatNotFound according to the repositories response" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getChat(*, *, *, *)
+      mockChatsRep.getChat(*, *, *, *, *)
         .returns(Future.successful(Left(CHAT_NOT_FOUND)))
 
       val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
 
       serviceResponse.map(_ mustBe Left(chatNotFound))
     }
 
     "return InternalServerError if the repository returns an error message other than chatNotFound" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getChat(*, *, *, *)
+      mockChatsRep.getChat(*, *, *, *, *)
         .returns(Future.successful(Left(genString.sample.value)))
 
       val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
 
       serviceResponse.map(_ mustBe Left(internalError))
     }
@@ -260,33 +260,33 @@ class ChatServiceSpec extends AsyncWordSpec
       val lastPage = choose(1, 10).sample.value
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getOverseers(*, *, *, *)
+      mockChatsRep.getOverseers(*, *, *, *, *)
         .returns(Future.successful(Right(toSeqPostOverseer(postOverseersDTO), totalCount, lastPage)))
 
       val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
 
       serviceResponse.map(_ mustBe Right(postOverseersDTO, totalCount, Page(lastPage)))
     }
 
     "return chatNotFound according to the repositories response" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getOverseers(*, *, *, *)
+      mockChatsRep.getOverseers(*, *, *, *, *)
         .returns(Future.successful(Left(CHAT_NOT_FOUND)))
 
       val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
 
       serviceResponse.map(_ mustBe Left(chatNotFound))
     }
 
     "return InternalServerError if the repository returns an error message other than chatNotFound" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
-      mockChatsRep.getOverseers(*, *, *, *)
+      mockChatsRep.getOverseers(*, *, *, *, *)
         .returns(Future.successful(Left(CHAT_NOT_FOUND)))
 
       val serviceResponse = chatService.getOverseers(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
 
       serviceResponse.map(_ mustBe Left(chatNotFound))
 
