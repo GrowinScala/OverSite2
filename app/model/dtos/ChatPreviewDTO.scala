@@ -2,8 +2,9 @@ package model.dtos
 
 import play.api.libs.json.{ Json, OFormat }
 import repositories.dtos.ChatPreview
+import controllers.ChatController
 
-case class ChatPreviewDTO(chatId: String, subject: String, lastAddress: String,
+case class ChatPreviewDTO(chatId: String, chatLink: String, subject: String, lastAddress: String,
   lastEmailDate: String, contentPreview: String)
 
 object ChatPreviewDTO {
@@ -24,6 +25,7 @@ object ChatPreviewDTO {
     chatPreviews.map(chatPreview =>
       ChatPreviewDTO(
         chatPreview.chatId,
+        makeGetChatsLink
         chatPreview.subject,
         chatPreview.lastAddress,
         chatPreview.lastEmailDate,
