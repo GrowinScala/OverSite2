@@ -38,7 +38,9 @@ trait ChatsRepository {
 
   def getOversights(userId: String): Future[Option[Oversight]]
 
-  def getOverseeings(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]]
+  def getOverseeings(page: Int, perPage: Int, orderBy: OrderBy,
+    userId: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]]
 
-  def getOverseens(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]]
+  def getOverseens(page: Int, perPage: Int, orderBy: OrderBy,
+    userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]]
 }

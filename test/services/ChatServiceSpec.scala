@@ -337,12 +337,11 @@ class ChatServiceSpec extends AsyncWordSpec
       val totalCount = choose(1, 10).sample.value
       val lastPage = choose(1, 10).sample.value
 
-      mockChatsRep.getOverseeings(*, *, *)
+      mockChatsRep.getOverseeings(*, *, *, *)
         .returns(Future.successful(optSeqChatOverseeing.map((_, totalCount, lastPage))))
 
-      val seqChatOverseeingDTO = chatService.getOverseeings(
-        genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
+      val seqChatOverseeingDTO = chatService.getOverseeings(genPage.sample.value, genPerPage.sample.value,
+        genString.flatMap(genSort).sample.value, genUUID.sample.value)
       seqChatOverseeingDTO.map(_ mustBe optSeqChatOverseeingDTO.map((_, totalCount, Page(lastPage))))
     }
   }
@@ -355,12 +354,12 @@ class ChatServiceSpec extends AsyncWordSpec
       val totalCount = choose(1, 10).sample.value
       val lastPage = choose(1, 10).sample.value
 
-      mockChatsRep.getOverseens(*, *, *)
+      mockChatsRep.getOverseens(*, *, *, *)
         .returns(Future.successful(optSeqChatOverseen.map((_, totalCount, lastPage))))
 
       val seqChatOverseenDTO = chatService.getOverseens(
         genPage.sample.value,
-        genPerPage.sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
       seqChatOverseenDTO.map(_ mustBe optSeqChatOverseenDTO.map((_, totalCount, Page(lastPage))))
     }
   }

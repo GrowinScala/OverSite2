@@ -87,17 +87,17 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getOversights(userId)
       .map(_.map(toOversightDTO))
 
-  def getOverseeings(page: Page, perPage: PerPage,
+  def getOverseeings(page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Option[(Seq[ChatOverseeingDTO], Int, Page)]] =
-    chatsRep.getOverseeings(page.value, perPage.value, userId)
+    chatsRep.getOverseeings(page.value, perPage.value, sort.orderBy, userId)
       .map(_.map {
         case (seqChatOverseeing, totalCount, lastPage) =>
           (toSeqChatOverseeingDTO(seqChatOverseeing), totalCount, Page(lastPage))
       })
 
-  def getOverseens(page: Page, perPage: PerPage,
+  def getOverseens(page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Option[(Seq[ChatOverseenDTO], Int, Page)]] =
-    chatsRep.getOverseens(page.value, perPage.value, userId)
+    chatsRep.getOverseens(page.value, perPage.value, sort.orderBy, userId)
       .map(_.map {
         case (seqChatOverseeing, totalCount, lastPage) =>
           (toSeqChatOverseenDTO(seqChatOverseeing), totalCount, Page(lastPage))

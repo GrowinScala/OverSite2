@@ -498,10 +498,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private def getOversightsAction(userId: String): DBIO[Option[Oversight]] =
     for {
-      overseeing <- getOverseeing(DEFAULT_PAGE, DEFAULT_PER_PAGE, userId)
+      overseeing <- getOverseeing(DEFAULT_PAGE, DEFAULT_PER_PAGE, DefaultOrder, userId)
         .map { case (chatOverseeings, _, _) => chatOverseeings.headOption }
 
-      overseen <- getOverseen(DEFAULT_PAGE, DEFAULT_PER_PAGE, userId)
+      overseen <- getOverseen(DEFAULT_PAGE, DEFAULT_PER_PAGE, DefaultOrder, userId)
         .map { case (chatOverseens, _, _) => chatOverseens.headOption }
 
     } yield {
@@ -514,25 +514,27 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getOversights(userId: String): Future[Option[Oversight]] =
     db.run(getOversightsAction(userId).transactionally)
 
-  private[implementations] def getOverseeingsAction(page: Int, perPage: Int,
+  private[implementations] def getOverseeingsAction(page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): DBIO[Option[(Seq[ChatOverseeing], Int, Int)]] =
 
     if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
 
-    else getOverseeing(page, perPage, userId).map(Some(_))
+    else getOverseeing(page, perPage, orderBy, userId).map(Some(_))
 
-  def getOverseeings(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]] =
-    db.run(getOverseeingsAction(page, perPage, userId).transactionally)
+  def getOverseeings(page: Int, perPage: Int, orderBy: OrderBy,
+    userId: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]] =
+    db.run(getOverseeingsAction(page, perPage, orderBy, userId).transactionally)
 
-  private[implementations] def getOverseensAction(page: Int, perPage: Int,
+  private[implementations] def getOverseensAction(page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): DBIO[Option[(Seq[ChatOverseen], Int, Int)]] =
 
     if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
 
-    else getOverseen(page, perPage, userId).map(Some(_))
+    else getOverseen(page, perPage, orderBy, userId).map(Some(_))
 
-  def getOverseens(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]] =
-    db.run(getOverseensAction(page, perPage, userId).transactionally)
+  def getOverseens(page: Int, perPage: Int, orderBy: OrderBy,
+    userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]] =
+    db.run(getOverseensAction(page, perPage, orderBy, userId).transactionally)
 
   //region Auxiliary Methods
 
@@ -560,7 +562,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield (chatId, subject, address, date, body)
   }
 
-  private def getOverseeing(page: Int, perPage: Int, userId: String): DBIO[(Seq[ChatOverseeing], Int, Int)] = {
+  private def getOverseeing(page: Int, perPage: Int, orderBy: OrderBy,
+    userId: String): DBIO[(Seq[ChatOverseeing], Int, Int)] = {
     val chatsData = (for {
       (chatId, optEmailId) <- groupedVisibleEmailsQuery(userId).filter {
         case (chatId, _) => chatId.in(
@@ -571,7 +574,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       (date, body) <- EmailsTable.all.filter(emailRow =>
         emailRow.chatId === chatId && emailRow.emailId === optEmailId)
         .map(emailRow => (emailRow.date, emailRow.body))
-    } yield (chatId, date, body)).sortBy { case (_, date, body) => (date.desc, body.asc) }
+    } yield (chatId, date, body)) match {
+      case query if orderBy == Asc => query.sortBy { case (_, date, body) => (date.asc, body.asc) }
+      case query => query.sortBy { case (_, date, body) => (date.desc, body.asc) }
+    }
 
     for {
       totalCount <- chatsData.length.result
@@ -583,15 +589,22 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         overseeAddressId <- UsersTable.all.filter(_.userId === overseeId).map(_.addressId)
         overseeAddress <- AddressesTable.all.filter(_.addressId === overseeAddressId).map(_.address)
       } yield (chatId, date, body, oversightId, overseeAddress)).result
-        .map(_.groupBy { case (chatId, date, body, _, _) => (chatId, date, body) }.toSeq
-          .map { chatOverseeingData: ((String, String, String), Seq[(String, String, String, String, String)]) =>
-            (chatOverseeingData._1._2, chatOverseeingData._1._3,
-              ChatOverseeingDatatoDTO(chatOverseeingData._1._1, chatOverseeingData._2))
+        .map(resultSeq => {
+          val seqToOrder = resultSeq.groupBy { case (chatId, date, body, _, _) => (chatId, date, body) }.toSeq
+            .map { chatOverseeingData: ((String, String, String), Seq[(String, String, String, String, String)]) =>
+              (chatOverseeingData._1._2, chatOverseeingData._1._3,
+                ChatOverseeingDatatoDTO(chatOverseeingData._1._1, chatOverseeingData._2))
+            }
+
+          val orderedSeq = seqToOrder match {
+            case sequence if orderBy == Asc => sequence.sortBy { case (date, body, chatOverseeing) => (date, body) }
+            case sequence => sequence.sortBy { case (date, body, chatOverseeing) => (date, body) }(Ordering.Tuple2(
+              Ordering.String.reverse,
+              Ordering.String))
           }
-          .sortBy { case (date, body, chatOverseeing) => (date, body) }(Ordering.Tuple2(
-            Ordering.String.reverse,
-            Ordering.String))
-          .map(_._3))
+
+          orderedSeq.map(_._3)
+        })
 
     } yield (chatOverseeings, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1)
   }
@@ -603,7 +616,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       chatId,
       dataSeq.map { case (_, _, _, oversightId, overseeAddress) => Overseeing(oversightId, overseeAddress) }.toSet)
 
-  private def getOverseen(page: Int, perPage: Int, userId: String): DBIO[(Seq[ChatOverseen], Int, Int)] = {
+  private def getOverseen(page: Int, perPage: Int, orderBy: OrderBy,
+    userId: String): DBIO[(Seq[ChatOverseen], Int, Int)] = {
     val chatsData = (for {
       (chatId, optEmailId) <- groupedVisibleEmailsQuery(userId).filter {
         case (chatId, _) => chatId.in(
@@ -614,7 +628,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       (date, body) <- EmailsTable.all.filter(emailRow =>
         emailRow.chatId === chatId && emailRow.emailId === optEmailId)
         .map(emailRow => (emailRow.date, emailRow.body))
-    } yield (chatId, date, body)).sortBy { case (_, date, body) => (date.desc, body.asc) }
+    } yield (chatId, date, body)) match {
+      case query if orderBy == Asc => query.sortBy { case (_, date, body) => (date.asc, body.asc) }
+      case query => query.sortBy { case (_, date, body) => (date.desc, body.asc) }
+    }
 
     for {
       totalCount <- chatsData.length.result
@@ -626,15 +643,22 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         overseerAddressId <- UsersTable.all.filter(_.userId === overseerId).map(_.addressId)
         overseerAddress <- AddressesTable.all.filter(_.addressId === overseerAddressId).map(_.address)
       } yield (chatId, date, body, oversightId, overseerAddress)).result
-        .map(_.groupBy { case (chatId, date, body, _, _) => (chatId, date, body) }.toSeq
-          .map { chatOverseenData: ((String, String, String), Seq[(String, String, String, String, String)]) =>
-            (chatOverseenData._1._2, chatOverseenData._1._3,
-              ChatOverseenDatatoDTO(chatOverseenData._1._1, chatOverseenData._2))
+        .map(resultSeq => {
+          val seqToOrder = resultSeq.groupBy { case (chatId, date, body, _, _) => (chatId, date, body) }.toSeq
+            .map { chatOverseenData: ((String, String, String), Seq[(String, String, String, String, String)]) =>
+              (chatOverseenData._1._2, chatOverseenData._1._3,
+                ChatOverseenDatatoDTO(chatOverseenData._1._1, chatOverseenData._2))
+            }
+
+          val orderedSeq = seqToOrder match {
+            case sequence if orderBy == Asc => sequence.sortBy { case (date, body, chatOverseen) => (date, body) }
+            case sequence => sequence.sortBy { case (date, body, chatOverseeing) => (date, body) }(Ordering.Tuple2(
+              Ordering.String.reverse,
+              Ordering.String))
           }
-          .sortBy { case (date, body, chatOverseen) => (date, body) }(Ordering.Tuple2(
-            Ordering.String.reverse,
-            Ordering.String))
-          .map(_._3))
+
+          orderedSeq.map(_._3)
+        })
 
     } yield (chatOverseens, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1)
   }
