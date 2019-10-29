@@ -5,7 +5,7 @@ import java.math._
 import com.google.common.math.IntMath._
 import javax.inject.Inject
 import model.dtos._
-import repositories.RepUtils.RepConstants.MAX_PER_PAGE
+import repositories.RepUtils.RepConstants._
 import model.types.{ Mailbox, ParticipantType }
 import model.types.Mailbox._
 import model.types.ParticipantType._
@@ -18,11 +18,14 @@ import slick.jdbc.MySQLProfile.api._
 import utils.DateUtils
 import utils.Generators._
 import repositories.RepUtils.RepMessages._
+import repositories.RepUtils.types.OrderBy
+import repositories.RepUtils.types.OrderBy._
 
 import math._
 import scala.concurrent._
 import repositories.slick.mappings.EmailAddressesTable._
 
+import scala.collection.immutable
 import scala.concurrent.duration.Duration
 
 class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
@@ -91,6 +94,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         OR if the user is overseeing another user in the chat (has access to the same emails the oversee has,
    *         excluding the oversee's drafts)
    * - AND if email is draft (sent = 0), only the user with the From address can see it
+   *
+   * (chatId, emailId, body, date, sent)
    */
   private def getVisibleEmailsQuery(userId: String, optBox: Option[Mailbox] = None) =
     (for {
@@ -120,53 +125,20 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         the total number of chats in the full sequence and number of the last page containing elements.
    *         The preview of each chat only shows the most recent email
    */
-  private[implementations] def getChatsPreviewAction(mailbox: Mailbox, page: Int, perPage: Int,
+  private[implementations] def getChatsPreviewAction(mailbox: Mailbox, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): DBIO[Option[(Seq[ChatPreview], Int, Int)]] = {
 
     if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
 
     else {
-      val visibleEmailsQuery = getVisibleEmailsQuery(userId, Some(mailbox))
-
-      val groupedQuery = visibleEmailsQuery
-        .map { case (chatId, emailId, body, date, sent) => (chatId, date) }
-        .groupBy(_._1)
-        .map {
-          case (chatId, chatDateQuery) =>
-            (chatId, chatDateQuery.map { case (chat, date) => date }.max)
-        }
-        .join(visibleEmailsQuery)
-        .on {
-          case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
-            groupedChatId === chatId && maxDate === date
-        }
-        .map {
-          case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
-            (chatId, emailId)
-        }
-        .groupBy(_._1)
-        .map {
-          case (chatId, chatEmailQuery) =>
-            (chatId, chatEmailQuery.map { case (chat, emailId) => emailId }.min)
-        }
-
-      val chatPreviewQuery = (for {
-        (chatId, emailId) <- groupedQuery
-        subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
-        (emailId, body, date) <- EmailsTable.all.filter(emailRow =>
-          emailRow.chatId === chatId && emailRow.emailId === emailId).map(emailRow =>
-          (emailRow.emailId, emailRow.body.take(PREVIEW_BODY_LENGTH), emailRow.date))
-        addressId <- EmailAddressesTable.all.filter(emailAddressRow =>
-          emailAddressRow.emailId === emailId && emailAddressRow.participantType === from)
-          .map(_.addressId)
-        address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
-
-      } yield (chatId, subject, address, date, body))
+      val sortedChatPreviewQuery = if (orderBy == Asc) getChatsPreviewQuery(userId, Some(mailbox))
+        .sortBy { case (chatId, subject, address, date, body) => (date.asc, body.asc, address.asc) }
+      else getChatsPreviewQuery(userId, Some(mailbox))
         .sortBy { case (chatId, subject, address, date, body) => (date.desc, body.asc, address.asc) }
 
       for {
-        totalCount <- chatPreviewQuery.length.result
-        slicedChats <- chatPreviewQuery.drop(perPage * page).take(perPage).result
+        totalCount <- sortedChatPreviewQuery.length.result
+        slicedChats <- sortedChatPreviewQuery.drop(perPage * page).take(perPage).result
 
       } yield Some(slicedChats.map(ChatPreview.tupled), totalCount,
         divide(totalCount, perPage, RoundingMode.CEILING) - 1)
@@ -185,52 +157,65 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         sequence and number of the last page containing elements. The preview of each chat only shows the most
    *         recent email
    */
-  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int,
+  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Option[(Seq[ChatPreview], Int, Int)]] =
-    db.run(getChatsPreviewAction(mailbox, page, perPage, userId).transactionally)
+    db.run(getChatsPreviewAction(mailbox, page, perPage, orderBy, userId).transactionally)
 
   /**
-   * Creates a DBIOAction to get the emails and other data of a specific chat of a user
-   *
+   * Creates a DBIOAction to get the paginated emails and other data of a specific chat of a user
    * @param chatId ID of the chat requested
+   * @param page The page being seen
+   * @param perPage The number of emails per page
    * @param userId ID of the user who requested the chat
-   * @return A DBIOAction that when run returns a Chat DTO that carries
-   *         the chat's subject,
+   * @param getAll Boolean used to indicate if all emails should be returned. False by default
+   * @return A DBIOAction that when run returns Either a tuple that contains a Chat DTO with a slice of the
+   *         chat's emails, the total number of emails in the full sequence and number of the last page
+   *         containing elements.
+   *
+   *         The Chat DTO carries the chat's subject,
    *         the addresses involved in the chat,
    *         the overseers of the chat
-   *         and the emails of the chat (that the user can see)
+   *         and a slice of the emails of the chat according to the page and perPage values.
+   *
+   *         Or a String indicating what went wrong
    */
-  private[implementations] def getChatAction(chatId: String, userId: String): DBIO[Option[Chat]] = {
+  private[implementations] def getChatAction(chatId: String, page: Int, perPage: Int,
+    userId: String, getAll: Boolean = false): DBIO[Either[String, (Chat, Int, Int)]] =
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(Left(INVALID_PAGINATION))
 
-    for {
-      chatData <- getChatDataAction(chatId, userId)
-      (addresses, emails) <- getGroupedEmailsAndAddresses(chatId, userId)
-      overseers <- getOverseersData(chatId)
-    } yield chatData.map {
-      case (id, subject, _) =>
-        Chat(
-          id,
-          subject,
-          addresses,
-          overseers,
-          emails)
+    else {
+      for {
+        chatData <- getChatDataAction(chatId, userId)
+        (addresses, emails, totalCount) <- getGroupedEmailsAndAddresses(chatId, page, perPage, userId, getAll)
+        overseers <- getOverseersData(chatId)
+      } yield chatData match {
+        case None => Left(CHAT_NOT_FOUND)
+        case Some((_, subject, _)) =>
+          if (getAll)
+            Right((Chat(chatId, subject, addresses, overseers, emails), totalCount, 0))
+          else
+            Right((Chat(chatId, subject, addresses, overseers, emails), totalCount,
+              divide(totalCount, perPage, RoundingMode.CEILING) - 1))
+      }
     }
 
-  }
-
   /**
-   * Method to get the emails and other data of a specific chat of a user
-   *
+   * Method to get the paginated emails and other data of a specific chat of a user
    * @param chatId ID of the chat requested
+   * @param page The page being seen
+   * @param perPage The number of emails per page
    * @param userId ID of the user who requested the chat
-   * @return a Chat DTO that carries
-   *         the chat's subject,
+   * @return Either a tuple that contains a Chat DTO with a slice of the chat's emails, the total number of emails
+   *         in the full sequence and number of the last page containing elements.
+   *         The Chat DTO carries the chat's subject,
    *         the addresses involved in the chat,
    *         the overseers of the chat
-   *         and the emails of the chat (that the user can see)
+   *         and a slice of the emails of the chat according to the page and perPage values.
+   *
+   *         Or a String indicating what went wrong
    */
-  def getChat(chatId: String, userId: String): Future[Option[Chat]] =
-    db.run(getChatAction(chatId, userId).transactionally)
+  def getChat(chatId: String, page: Int, perPage: Int, userId: String): Future[Either[String, (Chat, Int, Int)]] =
+    db.run(getChatAction(chatId, page, perPage, userId).transactionally)
 
   private def getOverseersAction(chatId: String, page: Int, perPage: Int,
     userId: String): DBIO[Either[String, (Seq[PostOverseer], Int, Int)]] =
@@ -382,13 +367,12 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def patchChat(patchChat: PatchChat, chatId: String, userId: String): Future[Option[PatchChat]] =
     db.run(patchChatAction(patchChat, chatId, userId).transactionally)
 
-  private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String): DBIO[Option[Chat]] = {
-    getChatAction(chatId, userId)
-      .map(optionChat =>
-        optionChat
-          .map(chat => chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
-          .filter(_.emails.nonEmpty))
-  }
+  private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String): DBIO[Option[Chat]] =
+    getChatAction(chatId, 0, 1, userId, getAll = true).map {
+      case Left(_) => None
+      case Right((chat, _, _)) => Some(chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
+        .filter(_.emails.nonEmpty)
+    }
 
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {
     db.run(getEmailAction(chatId, emailId, userId).transactionally)
@@ -437,7 +421,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield optSeqPostOverseer.map(_.toSet)
 
-  def postOverseers(postOverseers: Set[PostOverseer], chatId: String, userId: String): Future[Option[Set[PostOverseer]]] =
+  def postOverseers(postOverseers: Set[PostOverseer], chatId: String,
+    userId: String): Future[Option[Set[PostOverseer]]] =
     db.run(postOverseersAction(postOverseers, chatId, userId).transactionally)
 
   //region Auxiliary Methods
@@ -460,7 +445,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield (address, oversightId)).sortBy { case (address, oversightId) => (address.asc, oversightId.asc) }
 
-  private def createNewOverseerAction(overseerId: String, overseerAddress: String, chatId: String, userId: String): DBIO[PostOverseer] =
+  private def createNewOverseerAction(overseerId: String, overseerAddress: String, chatId: String,
+    userId: String): DBIO[PostOverseer] =
     for {
       optOverseerUserChatId <- UserChatsTable.all.filter(_.userId === overseerId).map(_.userChatId).result.headOption
       _ <- optOverseerUserChatId match {
@@ -509,52 +495,155 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean] =
     db.run(deleteOverseerAction(chatId, oversightId, userId).transactionally)
 
-  private def getOversightsAction(userId: String): DBIO[Oversight] =
+  private def getOversightsAction(userId: String): DBIO[Option[Oversight]] =
     for {
-      overseeing <- getOverseeing(userId)
+      overseeing <- getOverseeing(DEFAULT_PAGE, DEFAULT_PER_PAGE, userId)
+        .map { case (chatOverseeings, _, _) => chatOverseeings.headOption }
 
-      overseen <- getOverseen(userId)
+      overseen <- getOverseen(DEFAULT_PAGE, DEFAULT_PER_PAGE, userId)
+        .map { case (chatOverseens, _, _) => chatOverseens.headOption }
 
-    } yield Oversight(overseeing, overseen)
+    } yield {
+      (overseeing, overseen) match {
+        case (None, None) => None
+        case _ => Some(Oversight(overseeing, overseen))
+      }
+    }
 
-  def getOversights(userId: String): Future[Oversight] =
+  def getOversights(userId: String): Future[Option[Oversight]] =
     db.run(getOversightsAction(userId).transactionally)
+
+  private[implementations] def getOverseeingsAction(page: Int, perPage: Int,
+    userId: String): DBIO[Option[(Seq[ChatOverseeing], Int, Int)]] =
+
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
+
+    else getOverseeing(page, perPage, userId).map(Some(_))
+
+  def getOverseeings(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]] =
+    db.run(getOverseeingsAction(page, perPage, userId).transactionally)
+
+  private[implementations] def getOverseensAction(page: Int, perPage: Int,
+    userId: String): DBIO[Option[(Seq[ChatOverseen], Int, Int)]] =
+
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
+
+    else getOverseen(page, perPage, userId).map(Some(_))
+
+  def getOverseens(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]] =
+    db.run(getOverseensAction(page, perPage, userId).transactionally)
 
   //region Auxiliary Methods
 
-  private def getOverseeing(userId: String): DBIO[Set[ChatOverseeing]] =
-    (for {
-      (chatId, oversightId, overseeId) <- OversightsTable.all.filter(_.overseerId === userId)
-        .map(oversightRow => (oversightRow.chatId, oversightRow.oversightId, oversightRow.overseeId))
-      overseeAddressId <- UsersTable.all.filter(_.userId === overseeId).map(_.addressId)
-      overseeAddress <- AddressesTable.all.filter(_.addressId === overseeAddressId).map(_.address)
-    } yield (chatId, oversightId, overseeAddress)).result
-      .map(_.groupBy { case (chatId, _, _) => chatId }.toSet
-        .map { chatOverseeingData: (String, Seq[(String, String, String)]) =>
-          ChatOverseeingDatatoDTO(chatOverseeingData._1, chatOverseeingData._2)
-        })
+  /**
+   * A query that returns previews of the chats visible to a user possibly filtered to a given Mailbox
+   *
+   * @param userId The userId of the user in question
+   * @param optMailbox The optional Mailbox
+   * @return A query that contains a sequence of tuples of (chatId, subject, address, date, body),
+   *         The preview of each chat only shows the data of the most recent email
+   */
+  private def getChatsPreviewQuery(userId: String, optMailbox: Option[Mailbox] = None) = {
 
-  private def ChatOverseeingDatatoDTO(chatId: String, dataSeq: Seq[(String, String, String)]): ChatOverseeing =
+    for {
+      (chatId, emailId) <- groupedVisibleEmailsQuery(userId, optMailbox)
+      subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
+      (emailId, body, date) <- EmailsTable.all.filter(emailRow =>
+        emailRow.chatId === chatId && emailRow.emailId === emailId).map(emailRow =>
+        (emailRow.emailId, emailRow.body.take(PREVIEW_BODY_LENGTH), emailRow.date))
+      addressId <- EmailAddressesTable.all.filter(emailAddressRow =>
+        emailAddressRow.emailId === emailId && emailAddressRow.participantType === from)
+        .map(_.addressId)
+      address <- AddressesTable.all.filter(_.addressId === addressId).map(_.address)
+
+    } yield (chatId, subject, address, date, body)
+  }
+
+  private def getOverseeing(page: Int, perPage: Int, userId: String): DBIO[(Seq[ChatOverseeing], Int, Int)] = {
+    val chatsData = (for {
+      (chatId, optEmailId) <- groupedVisibleEmailsQuery(userId).filter {
+        case (chatId, _) => chatId.in(
+          OversightsTable.all.filter(oversightRow => oversightRow.chatId === chatId &&
+            oversightRow.overseerId === userId).map(_.chatId))
+      }
+
+      (date, body) <- EmailsTable.all.filter(emailRow =>
+        emailRow.chatId === chatId && emailRow.emailId === optEmailId)
+        .map(emailRow => (emailRow.date, emailRow.body))
+    } yield (chatId, date, body)).sortBy { case (_, date, body) => (date.desc, body.asc) }
+
+    for {
+      totalCount <- chatsData.length.result
+      chatOverseeings <- (for {
+        (chatId, date, body) <- chatsData.drop(perPage * page).take(perPage)
+        (oversightId, overseeId) <- OversightsTable.all.filter(oversightRow =>
+          oversightRow.overseerId === userId && oversightRow.chatId === chatId)
+          .map(oversightRow => (oversightRow.oversightId, oversightRow.overseeId))
+        overseeAddressId <- UsersTable.all.filter(_.userId === overseeId).map(_.addressId)
+        overseeAddress <- AddressesTable.all.filter(_.addressId === overseeAddressId).map(_.address)
+      } yield (chatId, date, body, oversightId, overseeAddress)).result
+        .map(_.groupBy { case (chatId, date, body, _, _) => (chatId, date, body) }.toSeq
+          .map { chatOverseeingData: ((String, String, String), Seq[(String, String, String, String, String)]) =>
+            (chatOverseeingData._1._2, chatOverseeingData._1._3,
+              ChatOverseeingDatatoDTO(chatOverseeingData._1._1, chatOverseeingData._2))
+          }
+          .sortBy { case (date, body, chatOverseeing) => (date, body) }(Ordering.Tuple2(
+            Ordering.String.reverse,
+            Ordering.String))
+          .map(_._3))
+
+    } yield (chatOverseeings, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1)
+  }
+
+  private def ChatOverseeingDatatoDTO(
+    chatId: String,
+    dataSeq: Seq[(String, String, String, String, String)]): ChatOverseeing =
     ChatOverseeing(
       chatId,
-      dataSeq.map { case (_, oversightId, overseeAddress) => Overseeing(oversightId, overseeAddress) }.toSet)
+      dataSeq.map { case (_, _, _, oversightId, overseeAddress) => Overseeing(oversightId, overseeAddress) }.toSet)
 
-  private def getOverseen(userId: String): DBIO[Set[ChatOverseen]] =
-    (for {
-      (chatId, oversightId, overseerId) <- OversightsTable.all.filter(_.overseeId === userId)
-        .map(oversightRow => (oversightRow.chatId, oversightRow.oversightId, oversightRow.overseerId))
-      overseerAddressId <- UsersTable.all.filter(_.userId === overseerId).map(_.addressId)
-      overseerAddress <- AddressesTable.all.filter(_.addressId === overseerAddressId).map(_.address)
-    } yield (chatId, oversightId, overseerAddress)).result
-      .map(_.groupBy { case (chatId, _, _) => chatId }.toSet
-        .map { chatOverseenData: (String, Seq[(String, String, String)]) =>
-          ChatOverseenDatatoDTO(chatOverseenData._1, chatOverseenData._2)
-        })
+  private def getOverseen(page: Int, perPage: Int, userId: String): DBIO[(Seq[ChatOverseen], Int, Int)] = {
+    val chatsData = (for {
+      (chatId, optEmailId) <- groupedVisibleEmailsQuery(userId).filter {
+        case (chatId, _) => chatId.in(
+          OversightsTable.all.filter(oversightRow => oversightRow.chatId === chatId &&
+            oversightRow.overseeId === userId).map(_.chatId))
+      }
 
-  private def ChatOverseenDatatoDTO(chatId: String, dataSeq: Seq[(String, String, String)]): ChatOverseen =
+      (date, body) <- EmailsTable.all.filter(emailRow =>
+        emailRow.chatId === chatId && emailRow.emailId === optEmailId)
+        .map(emailRow => (emailRow.date, emailRow.body))
+    } yield (chatId, date, body)).sortBy { case (_, date, body) => (date.desc, body.asc) }
+
+    for {
+      totalCount <- chatsData.length.result
+      chatOverseens <- (for {
+        (chatId, date, body) <- chatsData.drop(perPage * page).take(perPage)
+        (oversightId, overseerId) <- OversightsTable.all.filter(oversightRow =>
+          oversightRow.overseeId === userId && oversightRow.chatId === chatId)
+          .map(oversightRow => (oversightRow.oversightId, oversightRow.overseerId))
+        overseerAddressId <- UsersTable.all.filter(_.userId === overseerId).map(_.addressId)
+        overseerAddress <- AddressesTable.all.filter(_.addressId === overseerAddressId).map(_.address)
+      } yield (chatId, date, body, oversightId, overseerAddress)).result
+        .map(_.groupBy { case (chatId, date, body, _, _) => (chatId, date, body) }.toSeq
+          .map { chatOverseenData: ((String, String, String), Seq[(String, String, String, String, String)]) =>
+            (chatOverseenData._1._2, chatOverseenData._1._3,
+              ChatOverseenDatatoDTO(chatOverseenData._1._1, chatOverseenData._2))
+          }
+          .sortBy { case (date, body, chatOverseen) => (date, body) }(Ordering.Tuple2(
+            Ordering.String.reverse,
+            Ordering.String))
+          .map(_._3))
+
+    } yield (chatOverseens, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1)
+  }
+
+  private def ChatOverseenDatatoDTO(
+    chatId: String,
+    dataSeq: Seq[(String, String, String, String, String)]): ChatOverseen =
     ChatOverseen(
       chatId,
-      dataSeq.map { case (_, oversightId, overseeAddress) => Overseen(oversightId, overseeAddress) }.toSet)
+      dataSeq.map { case (_, _, _, oversightId, overseeAddress) => Overseen(oversightId, overseeAddress) }.toSet)
 
   private def deleteOversightRow(chatId: String, oversightId: String, userId: String): DBIO[Boolean] =
     OversightsTable.all.filter(oversightRow => oversightRow.chatId === chatId &&
@@ -963,7 +1052,8 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param emailId     ID of the email
    * @return the action that updates the email row and the emailAddress rows
    */
-  private def updateEmailAction(upsertEmail: UpsertEmail, chatId: String, emailId: String, userId: String): DBIO[Option[Set[String]]] = {
+  private def updateEmailAction(upsertEmail: UpsertEmail, chatId: String, emailId: String,
+    userId: String): DBIO[Option[Set[String]]] = {
     for {
       optionVerifiedFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
 
@@ -1069,11 +1159,45 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         userChatRow.userId === userId &&
         (userChatRow.inbox === 1 || userChatRow.sent === 1 || userChatRow.draft >= 1 || userChatRow.trash === 1))
         .map(_.chatId)
-      __ <- ChatsTable.all.filter(_.chatId === chatId)
+      _ <- ChatsTable.all.filter(_.chatId === chatId)
       participantType <- EmailAddressesTable.all.filter(_.addressId === addressId).map(_.participantType)
     } yield participantType).exists.result
 
   //region getChat auxiliary methods
+
+  /**
+   * A query that groups the emails visible to a user possibly filtered to a given Mailbox. The grouping is done
+   * in a way that leaves only one emailId per chat. This email is the most recent with the lowest Id alphabetically
+   *
+   * @param userId The userId of the user in question
+   * @param optMailbox The optional Mailbox
+   * @return A query that contains a sequence of tuples of (chatId, Option(emailId)
+   */
+  private def groupedVisibleEmailsQuery(userId: String, optMailbox: Option[Mailbox] = None) = {
+    val visibleEmailsQuery = getVisibleEmailsQuery(userId, optMailbox)
+
+    visibleEmailsQuery
+      .map { case (chatId, emailId, body, date, sent) => (chatId, date) }
+      .groupBy(_._1)
+      .map {
+        case (chatId, chatDateQuery) =>
+          (chatId, chatDateQuery.map { case (chat, date) => date }.max)
+      }
+      .join(visibleEmailsQuery)
+      .on {
+        case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
+          groupedChatId === chatId && maxDate === date
+      }
+      .map {
+        case ((groupedChatId, maxDate), (chatId, emailId, _, date, _)) =>
+          (chatId, emailId)
+      }
+      .groupBy(_._1)
+      .map {
+        case (chatId, chatEmailQuery) =>
+          (chatId, chatEmailQuery.map { case (chat, emailId) => emailId }.min)
+      }
+  }
 
   /**
    * Takes a chat and user, and creates a DBIOAction that gives the chat's id the subject and the user's address
@@ -1081,8 +1205,11 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param chatId The chat's id
    * @param userId The user's id
    * @return A DBIOAction that returns the chat's id, it's subject and the user's address
+   *         (chatId, subject, address)
    */
-  private[implementations] def getChatDataAction(chatId: String, userId: String): DBIO[Option[(String, String, String)]] =
+  private[implementations] def getChatDataAction(
+    chatId: String,
+    userId: String): DBIO[Option[(String, String, String)]] =
     (for {
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
       _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId &&
@@ -1107,7 +1234,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       .filter(_._1 === chatId)
       .map {
         case (_, emailId, body, date, sent) => (emailId, body, date, sent)
-      }.sortBy { case (emailId, _, date, _) => (date, emailId) }
+      }.sortBy { case (_, body, date, _) => (date.asc, body.asc) }
 
   /**
    * Method that, given the emailIds of the emails that the a user can see, for each participant of an email,
@@ -1154,14 +1281,18 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   /**
    * Creates a DBIOAction that retrieves all the email addresses (that the user is allowed to see)
-   * involved in the chat requested, and the sequence of all the emails of the chat that the user can see
+   * involved in the chat requested, and the paginated sequence of all the emails of the chat that the user can see
    *
    * @param chatId ID of the requested chat
+   * @param page The page being seen
+   * @param perPage The number of emails per page
    * @param userId ID of the user requesting the chat
-   * @return A DBIOAction that returns the tuple (chatEmailAddresses, sequenceOfEmailDTOs)
+   * @param getAll Boolean used to indicate if all emails should be returned. False by default
+   * @return A DBIOAction that returns the tuple (chatEmailAddresses, sequenceOfEmailDTOs, totalCount)
    */
-  private def getGroupedEmailsAndAddresses(chatId: String, userId: String): DBIO[(Set[String], Seq[Email])] = {
-    // Query to get all the emails of this chat that the user can see
+  private def getGroupedEmailsAndAddresses(chatId: String, page: Int, perPage: Int, userId: String,
+    getAll: Boolean): DBIO[(Set[String], Seq[Email], Int)] = {
+    // Paginated query to get all the emails of this chat that the user can see
     val emailsQuery = getEmailsQuery(chatId, userId)
 
     // Query to get all the addresses involved in the emails of this chat
@@ -1169,7 +1300,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     val emailAddressesQuery = getEmailAddressesQuery(userId, emailsQuery.map { case (emailId, _, _, _) => emailId })
 
     for {
-      emails <- emailsQuery.result
+      totalCount <- emailsQuery.length.result
+      emails <- if (getAll) emailsQuery.result
+      else emailsQuery.drop(perPage * page).take(perPage).result
       emailAddressesResult <- emailAddressesQuery.result
 
       groupedEmailAddresses = emailAddressesResult
@@ -1183,7 +1316,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
       attachments <- getEmailsAttachments(emailsQuery.map { case (emailId, _, _, _) => emailId })
 
-    } yield (chatAddressesResult.toSet, buildEmailDto(emails, groupedEmailAddresses, attachments))
+    } yield (chatAddressesResult.toSet, buildEmailDto(emails, groupedEmailAddresses, attachments), totalCount)
   }
 
   /**

@@ -2,16 +2,17 @@ package repositories
 
 import model.dtos._
 import model.types.Mailbox
+import repositories.RepUtils.types.OrderBy
 import repositories.dtos._
 
 import scala.concurrent.Future
 
 trait ChatsRepository {
 
-  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int,
+  def getChatsPreview(mailbox: Mailbox, page: Int, perPage: Int, orderBy: OrderBy,
     user: String): Future[Option[(Seq[ChatPreview], Int, Int)]]
 
-  def getChat(chatId: String, userId: String): Future[Option[Chat]]
+  def getChat(chatId: String, page: Int, perPage: Int, userId: String): Future[Either[String, (Chat, Int, Int)]]
 
   def getOverseers(chatId: String, page: Int, perPage: Int,
     userId: String): Future[Either[String, (Seq[PostOverseer], Int, Int)]]
@@ -34,5 +35,9 @@ trait ChatsRepository {
 
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean]
 
-  def getOversights(userId: String): Future[Oversight]
+  def getOversights(userId: String): Future[Option[Oversight]]
+
+  def getOverseeings(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]]
+
+  def getOverseens(page: Int, perPage: Int, userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]]
 }

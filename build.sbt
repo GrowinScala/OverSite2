@@ -24,6 +24,7 @@ libraryDependencies ++= Seq(
 routesImport ++= Seq(
   "model.types.Mailbox",
   "model.types.Page",
-  "model.types.PerPage"
+  "model.types.PerPage",
+  "model.types.Sort"
 )
 
