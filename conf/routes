@@ -4,7 +4,7 @@
 # ~~~~
 
 # Chats
-GET     /chats                              controllers.ChatController.getChats(mailbox: Mailbox, page: Page, perPage: PerPage)
+GET     /chats                              controllers.ChatController.getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort)
 
 GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
 
@@ -16,7 +16,7 @@ GET     /chats/oversights/overseeings       controllers.ChatController.getOverse
 
 GET     /chats/oversights/overseens         controllers.ChatController.getOverseens(page: Page, perPage: PerPage)
 
-GET     /chats/:id                          controllers.ChatController.getChat(id : String)
+GET     /chats/:id                          controllers.ChatController.getChat(id : String, page: Page, perPage: PerPage, sort: Sort)
 
 POST    /chats                              controllers.ChatController.postChat
 
