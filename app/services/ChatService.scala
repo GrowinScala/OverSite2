@@ -35,9 +35,9 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
       case Left(_) => Left(internalError)
     }
 
-  def getChat(chatId: String, page: Page, perPage: PerPage,
+  def getChat(chatId: String, page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Either[Error, (ChatDTO, Int, Page)]] =
-    chatsRep.getChat(chatId, page.value, perPage.value, userId).map {
+    chatsRep.getChat(chatId, page.value, perPage.value, sort.orderBy, userId).map {
       case Right((chat, totalCount, lastPage)) =>
         Right((toChatDTO(chat), totalCount, Page(lastPage)))
       case Left(`CHAT_NOT_FOUND`) => Left(chatNotFound)
