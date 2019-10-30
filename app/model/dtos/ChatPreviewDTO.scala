@@ -1,8 +1,14 @@
 package model.dtos
 
+import controllers.AuthenticatedUser
 import play.api.libs.json.{ Json, OFormat }
 import repositories.dtos.ChatPreview
-import controllers.ChatController
+import controllers.ChatController._
+import model.types.Sort.DEFAULT_SORT
+import model.types.{ Page, PerPage, Sort }
+import play.api.mvc.AnyContent
+import repositories.RepUtils.RepConstants.{ DEFAULT_PAGE, DEFAULT_PER_PAGE }
+import repositories.RepUtils.types.OrderBy.DefaultOrder
 
 case class ChatPreviewDTO(chatId: String, chatLink: String, subject: String, lastAddress: String,
   lastEmailDate: String, contentPreview: String)
@@ -21,11 +27,12 @@ object ChatPreviewDTO {
         chatPreviewDTO.lastEmailDate,
         chatPreviewDTO.contentPreview))
 
-  def toSeqChatPreviewDTO(chatPreviews: Seq[ChatPreview]): Seq[ChatPreviewDTO] = {
+  def toSeqChatPreviewDTO(chatPreviews: Seq[ChatPreview], auth: AuthenticatedUser[AnyContent]): Seq[ChatPreviewDTO] = {
     chatPreviews.map(chatPreview =>
       ChatPreviewDTO(
         chatPreview.chatId,
-        makeGetChatsLink
+        makeGetChatLink(chatPreview.chatId, Page(DEFAULT_PAGE), PerPage(DEFAULT_PER_PAGE),
+          Sort(DEFAULT_SORT, DefaultOrder), auth),
         chatPreview.subject,
         chatPreview.lastAddress,
         chatPreview.lastEmailDate,
