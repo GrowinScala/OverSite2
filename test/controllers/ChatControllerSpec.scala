@@ -23,6 +23,7 @@ import org.scalacheck.Gen._
 import play.api.libs.Files
 import play.api.libs.Files.{ SingletonTemporaryFileCreator, TemporaryFile }
 import play.api.mvc.MultipartFormData.FilePart
+import utils.FileUtils
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -1089,7 +1090,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       mockChatService.postAttachment(*, *, *, *, *)
         .returns(Future.successful(Some(attachmentId)))
 
-      val file: File = new java.io.File("attachmentFile")
+      val file: File = FileUtils.generateTextFile("attachmentFile")
       val temporaryFile: TemporaryFile = SingletonTemporaryFileCreator.create(file.toPath)
       val part: FilePart[File] = FilePart[File](key = "attachment", filename = "attachmentFile", contentType = None, ref = temporaryFile)
       file.deleteOnExit()
