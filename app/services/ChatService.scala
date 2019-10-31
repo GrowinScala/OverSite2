@@ -5,7 +5,7 @@ import java.nio.file.{ Files, Paths }
 
 import javax.inject.Inject
 import model.dtos._
-import model.types.{ Mailbox, Page, PerPage }
+import model.types._
 import repositories.ChatsRepository
 import PostOverseerDTO._
 import OversightDTO._
@@ -26,27 +26,27 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   implicit val sys = ActorSystem("ChatService")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  def getChats(mailbox: Mailbox, page: Page, perPage: PerPage,
+  def getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] =
-    chatsRep.getChatsPreview(mailbox, page.value, perPage.value, userId)
+    chatsRep.getChatsPreview(mailbox, page.value, perPage.value, sort.orderBy, userId)
       .map(_.map {
         case (chatsPreview, totalCount, lastPage) =>
           (toSeqChatPreviewDTO(chatsPreview), totalCount, Page(lastPage))
       })
 
-  def getOverseers(chatId: String, page: Page, perPage: PerPage,
+  def getOverseers(chatId: String, page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Either[Error, (Seq[PostOverseerDTO], Int, Page)]] =
 
-    chatsRep.getOverseers(chatId, page.value, perPage.value, userId).map {
+    chatsRep.getOverseers(chatId, page.value, perPage.value, sort.orderBy, userId).map {
       case Right((postOverseers, totalCount, lastPage)) =>
         Right((toSeqPostOverseerDTO(postOverseers), totalCount, Page(lastPage)))
       case Left(`CHAT_NOT_FOUND`) => Left(chatNotFound)
       case Left(_) => Left(internalError)
     }
 
-  def getChat(chatId: String, page: Page, perPage: PerPage,
+  def getChat(chatId: String, page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Either[Error, (ChatDTO, Int, Page)]] =
-    chatsRep.getChat(chatId, page.value, perPage.value, userId).map {
+    chatsRep.getChat(chatId, page.value, perPage.value, sort.orderBy, userId).map {
       case Right((chat, totalCount, lastPage)) =>
         Right((toChatDTO(chat), totalCount, Page(lastPage)))
       case Left(`CHAT_NOT_FOUND`) => Left(chatNotFound)
@@ -96,17 +96,17 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getOversights(userId)
       .map(_.map(toOversightDTO))
 
-  def getOverseeings(page: Page, perPage: PerPage,
+  def getOverseeings(page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Option[(Seq[ChatOverseeingDTO], Int, Page)]] =
-    chatsRep.getOverseeings(page.value, perPage.value, userId)
+    chatsRep.getOverseeings(page.value, perPage.value, sort.orderBy, userId)
       .map(_.map {
         case (seqChatOverseeing, totalCount, lastPage) =>
           (toSeqChatOverseeingDTO(seqChatOverseeing), totalCount, Page(lastPage))
       })
 
-  def getOverseens(page: Page, perPage: PerPage,
+  def getOverseens(page: Page, perPage: PerPage, sort: Sort,
     userId: String): Future[Option[(Seq[ChatOverseenDTO], Int, Page)]] =
-    chatsRep.getOverseens(page.value, perPage.value, userId)
+    chatsRep.getOverseens(page.value, perPage.value, sort.orderBy, userId)
       .map(_.map {
         case (seqChatOverseeing, totalCount, lastPage) =>
           (toSeqChatOverseenDTO(seqChatOverseeing), totalCount, Page(lastPage))

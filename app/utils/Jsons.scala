@@ -23,5 +23,6 @@ object Jsons {
   val cannotBothDeleteAndRestore: Error =
     Json.parse("""{ "Error": "Cannot move chat to trash and restore chat simultaneously"}""")
   val internalError: Error = Json.parse("""{ "Error": "Internal Server error"}  """)
+  val invalidSortBy: Error = Json.parse("""{ "Error": "The given sort value is invalid"}  """)
 
 }
