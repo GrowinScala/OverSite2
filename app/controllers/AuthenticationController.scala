@@ -7,6 +7,10 @@ import play.api.mvc._
 import services.AuthenticationService
 import utils.Jsons._
 import Results._
+import org.slf4j.MDC
+import play.api.Logger
+import utils.LogMessages._
+import utils.Headers._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -16,29 +20,63 @@ class AuthenticationController @Inject() (implicit
   cc: ControllerComponents, authenticationService: AuthenticationService)
   extends AbstractController(cc) {
 
+  private val log = Logger(this.getClass)
+
   def signUpUser: Action[JsValue] =
     Action.async(parse.json) { implicit request: Request[JsValue] =>
+      MDC.put("controllerMethod", "signUpUser")
+      //log.debug(receivedJson(request))
+      log.info(requestSignUp)
       val jsonValue = request.body
       jsonValue.validate[UserAccessDTO].fold(
-        errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        userAccessDTO =>
+        errors => {
+          log.info(invalidJson(UserAccessDTO))
+          Future.successful(BadRequest)
+        },
+        userAccessDTO => {
+          log.debug(s"User to sign-Up: ${userAccessDTO.address.toString}")
           authenticationService.signUpUser(userAccessDTO).map {
-            case Left(error) => BadRequest(error)
-            case Right(jsToken) => Ok(jsToken)
-          })
+            case Left(error) =>
+              log.info(badRequest(error))
+              BadRequest(error)
+            case Right(jsToken) =>
+              log.info(s"The user successfully signed-Up: ${userAccessDTO.address}")
+              log.debug(s"The user ${userAccessDTO.address.toString} signed-Up and received the token: ${
+                jsToken.toString
+              }")
+              Ok(jsToken)
+          }
+        })
     }
 
   def signInUser: Action[JsValue] =
     Action.async(parse.json) { implicit request: Request[JsValue] =>
+      MDC.put("controllerMethod", "signInUser")
+      log.info(requestSignIn)
       val jsonValue = request.body
       jsonValue.validate[UserAccessDTO].fold(
-        errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        userAccessDTO =>
+        errors => {
+          log.info(invalidJson(UserAccessDTO))
+          Future.successful(BadRequest)
+        },
+        userAccessDTO => {
+          log.debug(s"User to sign-In: ${userAccessDTO.address.toString}")
           authenticationService.signInUser(userAccessDTO).map {
-            case Left(error) => if (error == internalError) InternalServerError
-            else BadRequest(error)
-            case Right(jsToken) => Ok(jsToken)
-          })
+            case Left(error) => if (error == internalError) {
+              log.error("Internal Error received from service")
+              InternalServerError
+            } else {
+              log.info(badRequest(error))
+              BadRequest(error)
+            }
+            case Right(jsToken) =>
+              log.info(s"The user successfully signed-In: ${userAccessDTO.address.toString}")
+              log.debug(s"The user ${userAccessDTO.address.toString} signed-In and received the token: ${
+                jsToken.toString
+              }")
+              Ok(jsToken)
+          }
+        })
     }
 }
 
@@ -56,18 +94,30 @@ class ImplAuthenticatedUserAction @Inject() (
   authenticationService: AuthenticationService)
   extends AuthenticatedUserAction {
 
+  private val log = Logger(this.getClass)
+
   override def parser: BodyParser[AnyContent] = defaultParser
 
   override def invokeBlock[A](
     request: Request[A],
-    block: AuthenticatedUser[A] => Future[Result]): Future[Result] =
-    request.headers.get("Authorization") match {
-      case None => Future.successful(BadRequest(tokenNotFound))
+    block: AuthenticatedUser[A] => Future[Result]): Future[Result] = {
+    MDC.put("controllerMethod", "signUpUser")
+    log.info("Received request to authenticate user")
+    request.headers.get(auth) match {
+      case None =>
+        log.info(badRequest(tokenNotFound))
+        Future.successful(BadRequest(tokenNotFound))
       case Some(token) => authenticationService.validateToken(token).flatMap {
-        case Left(error) => Future.successful(BadRequest(error))
-        case Right(userId) => block(AuthenticatedUser(userId, request))
+        case Left(error) =>
+          log.info(badRequest(error))
+          Future.successful(BadRequest(error))
+        case Right(userId) =>
+          log.info("Successfully received the userId from the service")
+          log.debug(s"Successfully received the userId: $userId from the service")
+          block(AuthenticatedUser(userId, request))
       }
     }
+  }
 
 }
 

@@ -28,4 +28,16 @@ object EmailDTO {
     }
   }
 
+  def toEmailDTO(email: Email): EmailDTO =
+    EmailDTO(
+      email.emailId,
+      email.from,
+      email.to,
+      email.bcc,
+      email.cc,
+      email.body,
+      email.date,
+      email.sent != 0,
+      email.attachments)
+
 }
