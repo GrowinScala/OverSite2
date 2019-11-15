@@ -1,38 +1,53 @@
 package services
 
+import java.nio.file.{ Files, Path, Paths }
+import java.io.File
+
 import model.dtos._
 import model.dtos.PostOverseerDTO._
 import model.dtos.ChatDTO._
 import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalacheck.Gen
-import org.scalatest.{ AsyncWordSpec, MustMatchers, OptionValues }
+import org.scalatest._
 import repositories.ChatsRepository
 import repositories.dtos.PatchChat
 import OversightDTO._
 import ChatPreviewDTO._
 import Gen._
+import akka.stream.scaladsl.FileIO
+import com.typesafe.config.ConfigFactory
 import model.types._
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 import model.dtos.ChatOverseeingDTO._
 import model.dtos.ChatOverseenDTO._
 import play.api.Configuration
+import utils.FileUtils
 
 import scala.concurrent.Future
 import utils.TestGenerators._
 
-class ChatServiceSpec extends AsyncWordSpec
+class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
   with AsyncIdiomaticMockito with MustMatchers with OptionValues {
+
+  implicit val config: Configuration = Configuration(ConfigFactory.load("test.conf"))
 
   def getServiceAndRepMock: (ChatService, ChatsRepository) = {
     implicit val mockChatsRep: ChatsRepository = mock[ChatsRepository]
-    implicit val config: Configuration = Configuration()
     val chatServiceImpl = new ChatService()
     (chatServiceImpl, mockChatsRep)
   }
 
+  override def beforeAll(): Unit = {
+    FileUtils.createDirectory(config.get[String]("uploadDirectory"))
+  }
+
+  override def afterAll(): Unit = {
+    FileUtils.deleteRecursively(new File(config.get[String]("uploadDirectory")))
+  }
+
   "ChatService#getChats" should {
-    "map the repositorie's result" in {
+    "map the repository's result" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       val optTestChatsPreviewDTO = Gen.option(genChatPreviewDTOSeq).sample.value
       val optChatsPreview = optTestChatsPreviewDTO.map(toSeqChatPreview)
@@ -49,7 +64,7 @@ class ChatServiceSpec extends AsyncWordSpec
   }
 
   "ChatService#getChat" should {
-    "map the repositorie's Right result" in {
+    "map the repository's Right result" in {
 
       val testchatDTO = genChatDTO.sample.value
       val totalCount = choose(1, 10).sample.value
@@ -65,7 +80,7 @@ class ChatServiceSpec extends AsyncWordSpec
       serviceResponse.map(_ mustBe Right(testchatDTO, totalCount, Page(lastPage)))
     }
 
-    "return chatNotFound according to the repositories response" in {
+    "return chatNotFound according to the repository's response" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.getChat(*, *, *, *, *)
         .returns(Future.successful(Left(CHAT_NOT_FOUND)))
@@ -255,7 +270,7 @@ class ChatServiceSpec extends AsyncWordSpec
   }
 
   "ChatService#getOverseers" should {
-    "map the repositorie's Right result" in {
+    "map the repository's Right result" in {
 
       val postOverseersDTO = genSeqPostOverseerDTO.sample.value
       val totalCount = choose(1, 10).sample.value
@@ -271,7 +286,7 @@ class ChatServiceSpec extends AsyncWordSpec
       serviceResponse.map(_ mustBe Right(postOverseersDTO, totalCount, Page(lastPage)))
     }
 
-    "return chatNotFound according to the repositories response" in {
+    "return chatNotFound according to the repository's response" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.getOverseers(*, *, *, *, *)
         .returns(Future.successful(Left(CHAT_NOT_FOUND)))
@@ -332,7 +347,7 @@ class ChatServiceSpec extends AsyncWordSpec
   }
 
   "ChatService#getOverseeings" should {
-    "map the repositories optional response" in {
+    "map the repository's optional response" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       val optSeqChatOverseeingDTO = Gen.option(genSeqChatOverseeingDTO).sample.value
       val optSeqChatOverseeing = optSeqChatOverseeingDTO.map(toSeqChatOverseeing)
@@ -349,7 +364,7 @@ class ChatServiceSpec extends AsyncWordSpec
   }
 
   "ChatService#getOverseens" should {
-    "map the repositories optional response" in {
+    "map the repository's optional response" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       val optSeqChatOverseenDTO = Gen.option(genSeqChatOverseenDTO).sample.value
       val optSeqChatOverseen = optSeqChatOverseenDTO.map(toSeqChatOverseen)
@@ -366,4 +381,62 @@ class ChatServiceSpec extends AsyncWordSpec
     }
   }
 
+  "ChatService#uploadAttachment" should {
+    "correctly save the attachment into the default upload directory" in {
+      val (chatService, _) = getServiceAndRepMock
+
+      val filename = genString.sample.value
+      val file = FileUtils.generateTextFile(filename)
+      val filePath: Path = file.toPath
+
+      val source = FileIO.fromPath(filePath)
+
+      val hashBeforeUpload: String = FileUtils.computeHash(filePath.toString)
+
+      chatService.uploadAttachment(source).map { optionPath =>
+        val path: String = optionPath.value
+        val hashAfterUpload: String = FileUtils.computeHash(path)
+
+        hashAfterUpload mustBe hashBeforeUpload
+      }
+    }
+  }
+
+  "ChatService#postAttachment" should {
+    "return the attachmentId of the file attached" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val attachmentId = genUUID.sample.value
+      val filename = genString.sample.value
+
+      mockChatsRep.verifyDraftPermissions(*, *, *)
+        .returns(Future.successful(true))
+
+      mockChatsRep.postAttachment(*, *, *, *, *)
+        .returns(Future.successful(Some(attachmentId)))
+
+      val file = FileUtils.generateTextFile(filename)
+      val source = FileIO.fromPath(file.toPath)
+
+      chatService
+        .postAttachment(genUUID.sample.value, genUUID.sample.value,
+          genUUID.sample.value, filename, source)
+        .map(_ mustBe Some(attachmentId))
+    }
+    "return None if the user does not have permission to attach a file" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val filename = genString.sample.value
+
+      mockChatsRep.verifyDraftPermissions(*, *, *)
+        .returns(Future.successful(false))
+
+      val file = FileUtils.generateTextFile(filename)
+      val source = FileIO.fromPath(file.toPath)
+
+      chatService
+        .postAttachment(genUUID.sample.value, genUUID.sample.value,
+          genUUID.sample.value, filename, source)
+        .map(_ mustBe None)
+
+    }
+  }
 }

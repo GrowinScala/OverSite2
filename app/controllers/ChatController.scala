@@ -1,27 +1,16 @@
 package controllers
 
-import java.io.File
-import java.nio.file.{ Files, Path, Paths }
-
 import javax.inject._
 import model.dtos._
-import play.api.mvc._
-import play.api.libs.json._
 import services.ChatService
 import utils.Jsons._
-import akka.stream.IOResult
 import akka.stream.scaladsl._
-import akka.util.ByteString
-import play.api._
-import play.api.data.Form
-import play.api.data.Forms._
-import play.api.libs.streams._
 import play.api.libs.json.{ JsError, JsValue, Json }
 import play.api.mvc.MultipartFormData.FilePart
 import play.api.mvc._
-import play.core.parsers.Multipart.FileInfo
 import model.types._
 import model.types.Sort._
+import play.api.libs.Files.TemporaryFile
 import repositories.RepUtils.RepConstants._
 import repositories.RepUtils.types.OrderBy.DefaultOrder
 
@@ -281,12 +270,12 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       else Future.successful(BadRequest(invalidSortBy))
   }
 
-  def postAttachment(chatId: String, emailId: String): Action[MultipartFormData[File]] =
-    authenticatedUserAction.async(parse.multipartFormData(handleFilePartAsFile)) {
+  def postAttachment(chatId: String, emailId: String): Action[MultipartFormData[TemporaryFile]] =
+    authenticatedUserAction.async(parse.multipartFormData) {
       implicit authenticatedRequest =>
         authenticatedRequest.body.file("attachment") match {
-          case Some(FilePart(key, filename, contentType, file)) =>
-            chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, filename, file).map {
+          case Some(FilePart(_, filename, _, ref)) =>
+            chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, filename, FileIO.fromPath(ref.path)).map {
               case Some(attachmentId) => Ok(Json.obj("attachmentId" -> attachmentId))
               case None => NotFound(chatNotFound)
             }
@@ -313,23 +302,6 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def makeGetOverseensLink(page: Page, perPage: PerPage, sort: Sort, auth: AuthenticatedUser[AnyContent]): String =
     routes.ChatController.getOverseens(page, perPage, sort).absoluteURL(auth.secure)(auth.request)
 
-  type FilePartHandler[A] = FileInfo => Accumulator[ByteString, FilePart[A]]
-
-  /**
-   * Uses a custom FilePartHandler to return a type of "File" rather than using Play's TemporaryFile class.
-   * Deletion must happen explicitly on completion, rather than TemporaryFile
-   * (which uses finalization to delete temporary files).
-   */
-  private def handleFilePartAsFile: FilePartHandler[File] = {
-    case FileInfo(partName, filename, contentType) =>
-      val temporaryPath: Path = Files.createTempFile("", "")
-
-      val fileSink: Sink[ByteString, Future[IOResult]] = FileIO.toPath(temporaryPath)
-      val accumulator: Accumulator[ByteString, IOResult] = Accumulator(fileSink)
-      accumulator.map {
-        case IOResult(count, status) => FilePart(partName, filename, contentType, temporaryPath.toFile)
-      }
-  }
   //endregion
 
 }

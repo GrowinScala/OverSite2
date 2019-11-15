@@ -1,7 +1,6 @@
 package services
 
-import java.io.File
-import java.nio.file.{ Files, Paths }
+import java.nio.file.Paths
 
 import javax.inject.Inject
 import model.dtos._
@@ -14,16 +13,18 @@ import ChatOverseenDTO._
 import ChatPreviewDTO._
 import akka.actor.ActorSystem
 import akka.stream.{ ActorMaterializer, IOResult }
-import akka.stream.scaladsl.FileIO
+import akka.stream.scaladsl.{ FileIO, Sink, Source }
 import play.api.Configuration
 import ChatDTO._
+import akka.util.ByteString
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
+import utils.Generators.newUUID
 
 import scala.concurrent.{ ExecutionContext, Future }
 
 class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsRepository, config: Configuration) {
-  implicit val sys = ActorSystem("ChatService")
+  implicit val sys: ActorSystem = ActorSystem("ChatService")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort,
@@ -112,11 +113,12 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
           (toSeqChatOverseenDTO(seqChatOverseeing), totalCount, Page(lastPage))
       })
 
-  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, file: File): Future[Option[String]] = {
+  def postAttachment(chatId: String, emailId: String, userId: String, filename: String,
+    source: Source[ByteString, Future[IOResult]]): Future[Option[String]] = {
     chatsRep.verifyDraftPermissions(chatId, emailId, userId).flatMap { hasPermission =>
       if (hasPermission) {
         for {
-          optionAttachmentPath <- uploadAttachment(file)
+          optionAttachmentPath <- uploadAttachment(source)
           optionAttachmentId <- optionAttachmentPath match {
             case Some(attachmentPath) => chatsRep.postAttachment(chatId, emailId, userId, filename, attachmentPath)
             case None => Future.successful(None)
@@ -126,16 +128,14 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     }
   }
 
-  private def uploadAttachment(file: File): Future[Option[String]] = {
-    val filePath = file.toPath
-    val uploadPathString = config.get[String]("uploadDirectory") + "\\" + filePath.getFileName
+  private[services] def uploadAttachment(source: Source[ByteString, Future[IOResult]]): Future[Option[String]] = {
+    val uploadPathString = config.get[String]("uploadDirectory") + "\\" + newUUID
 
-    FileIO.fromPath(filePath)
-      .to(FileIO.toPath(Paths.get(uploadPathString)))
-      .run()
+    val sink: Sink[ByteString, Future[IOResult]] = FileIO.toPath(Paths.get(uploadPathString))
+
+    source.runWith(sink)
       .map { result =>
         if (result.wasSuccessful) {
-          Files.deleteIfExists(filePath)
           Some(uploadPathString)
         } else None
       }
