@@ -8,8 +8,6 @@ resolvers += Resolver.sonatypeRepo("snapshots")
 
 scalaVersion := "2.12.7"
 
-//javaOptions in Test += "-Dconfig.resource=test.conf"
-
 libraryDependencies ++= Seq(
   guice,
   "com.typesafe.slick" %% "slick-hikaricp" % "3.3.2",

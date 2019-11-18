@@ -451,7 +451,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       optionVerifiedFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
       optionAttachmentId <- DBIO.sequenceOption(optionVerifiedFromAddress.map { _ =>
         val attachmentId = newUUID
-        DBIO.seq(AttachmentsTable.all += AttachmentRow(attachmentId, emailId, filename, attachmentPath))
+        (AttachmentsTable.all += AttachmentRow(attachmentId, emailId, filename, attachmentPath))
           .andThen(DBIO.successful(attachmentId))
       })
     } yield optionAttachmentId

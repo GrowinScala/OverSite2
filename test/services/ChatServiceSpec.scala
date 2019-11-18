@@ -388,6 +388,7 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
       val filename = genString.sample.value
       val file = FileUtils.generateTextFile(filename)
       val filePath: Path = file.toPath
+      file.deleteOnExit()
 
       val source = FileIO.fromPath(filePath)
 
