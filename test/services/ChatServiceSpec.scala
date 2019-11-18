@@ -415,6 +415,7 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
         .returns(Future.successful(Some(attachmentId)))
 
       val file = FileUtils.generateTextFile(filename)
+      file.deleteOnExit()
       val source = FileIO.fromPath(file.toPath)
 
       chatService
@@ -430,6 +431,7 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
         .returns(Future.successful(false))
 
       val file = FileUtils.generateTextFile(filename)
+      file.deleteOnExit()
       val source = FileIO.fromPath(file.toPath)
 
       chatService
