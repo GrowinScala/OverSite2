@@ -18,7 +18,8 @@ libraryDependencies ++= Seq(
   "com.h2database" % "h2" % "1.4.199" % Test,
   "com.github.t3hnar" %% "scala-bcrypt" % "4.1",
   "org.scalacheck" %% "scalacheck" % "1.14.0" % Test,
-  "com.pauldijou" %% "jwt-play-json" % "4.1.0"
+  "com.pauldijou" %% "jwt-play-json" % "4.1.0",
+	"org.flywaydb" % "flyway-core" % "6.0.7"
 )
 
 routesImport ++= Seq(

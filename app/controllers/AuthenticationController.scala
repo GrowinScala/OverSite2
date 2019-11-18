@@ -80,7 +80,7 @@ class AuthenticationController @Inject() (implicit
     }
 }
 
-case class AuthenticatedUser[A](userId: String, request: Request[A]) extends WrappedRequest(request) {
+case class AuthenticatedUser[+A](userId: String, request: Request[A]) extends WrappedRequest(request) {
   override def newWrapper[B](newRequest: Request[B]): AuthenticatedUser[B] =
     AuthenticatedUser(
       userId,

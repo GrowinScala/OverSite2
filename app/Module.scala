@@ -13,6 +13,7 @@ class Module extends AbstractModule {
     bind(classOf[ChatsRepository]).to(classOf[SlickChatsRepository])
     bind(classOf[AuthenticationRepository]).to(classOf[SlickAuthenticationRepository])
     bind(classOf[AuthenticatedUserAction]).to(classOf[ImplAuthenticatedUserAction])
+    bind(classOf[ApplicationStart]).asEagerSingleton()
 
   }
 }

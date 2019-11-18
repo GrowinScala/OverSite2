@@ -2,6 +2,7 @@ package services
 
 import javax.inject.Inject
 import model.dtos._
+import model.dtos.EmailDTO._
 import model.types._
 import repositories.ChatsRepository
 import PostOverseerDTO._
@@ -15,6 +16,8 @@ import EmailDTO._
 import ChatDTO._
 import org.slf4j.MDC
 import play.api.Logger
+import controllers.AuthenticatedUser
+import play.api.mvc.AnyContent
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 import utils.LogMessages._
@@ -26,7 +29,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   private val log = Logger(this.getClass)
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort,
-    userId: String): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] = {
+    userId: String, auth: AuthenticatedUser[AnyContent]): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] = {
     MDC.put("serviceMethod", "getChats")
     log.info(logRequest(logGetChats))
     log.debug(logRequest(s"$logGetChats: mailbox=${mailbox.value}, page=${page.value}, perPage=${
@@ -39,7 +42,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
           log.debug(s"${logRepData("chats")}: chatsPreview=$chatsPreview," +
             s" totalCount=$totalCount, lastPage=$lastPage")
           MDC.remove("serviceMethod")
-          Some(toSeqChatPreviewDTO(chatsPreview), totalCount, Page(lastPage))
+          Some(toSeqChatPreviewDTO(chatsPreview, auth), totalCount, Page(lastPage))
         case None =>
           log.info(repReturn(logNonePagError))
           log.debug(serviceReturn(s"$logNonePagError: page=$page, perPage=$perPage"))
@@ -72,7 +75,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def getChat(chatId: String, page: Page, perPage: PerPage, sort: Sort,
-    userId: String): Future[Either[Error, (ChatDTO, Int, Page)]] = {
+    userId: String, auth: AuthenticatedUser[Any]): Future[Either[Error, (ChatDTO, Int, Page)]] = {
     MDC.put("serviceMethod", "getChat")
     log.info(logRequest(logGetChat))
     log.debug(logRequest(s"$logGetChat: chatId=$chatId, page=${page.value}, perPage=${perPage.value}, sort=$sort," +
@@ -82,7 +85,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
         log.info(logRepData("chat"))
         log.debug(s"${logRepData("chat")}: chat=$chat, totalCount=$totalCount, lastPage=$lastPage")
         MDC.remove("serviceMethod")
-        Right((toChatDTO(chat), totalCount, Page(lastPage)))
+        Right((toChatDTO(chat, auth), totalCount, Page(lastPage)))
       case Left(`CHAT_NOT_FOUND`) =>
         log.info(repReturn(CHAT_NOT_FOUND))
         MDC.remove("serviceMethod")
@@ -131,7 +134,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String,
-    userId: String): Future[Option[EmailDTO]] = {
+    userId: String, auth: AuthenticatedUser[Any]): Future[Option[EmailDTO]] = {
     MDC.put("serviceMethod", "patchEmail")
     log.info(logRequest(logPatchEmail))
     log.debug(logRequest(s"$logPatchEmail: upsertEmailDTO=$upsertEmailDTO, chatId=$chatId, emailId=$emailId," +
@@ -147,7 +150,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
           log.debug(s"${logRepData("Email")}: emailToPatch:$upsertEmailDTO, chatId=$chatId, emailId=$emailId," +
             s" userId=$userId, patchedEmail:$email")
           MDC.remove("serviceMethod")
-          Some(toEmailDTO(email))
+          Some(toEmailDTO(chatId, email, auth))
       }
   }
 
@@ -201,7 +204,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     }
   }
 
-  def getEmail(chatId: String, emailId: String, userId: String): Future[Option[ChatDTO]] = {
+  def getEmail(chatId: String, emailId: String, auth: AuthenticatedUser[Any]): Future[Option[ChatDTO]] = {
+    val userId = auth.userId
     MDC.put("serviceMethod", "getEmail")
     log.info(logRequest(logGetEmail))
     log.debug(logRequest(s"$logGetEmail: chatId=$chatId, emailId=$emailId, userId=$userId"))
@@ -214,7 +218,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
         log.info(logRepData("Email"))
         log.debug(s"${logRepData("Email")}: email:$chat, chatId=$chatId, userId=$userId")
         MDC.remove("serviceMethod")
-        Some(toChatDTO(chat))
+        Some(toChatDTO(chat, auth))
     }
   }
 
