@@ -62,9 +62,9 @@ class ImplAuthenticatedUserAction @Inject() (
     request: Request[A],
     block: AuthenticatedUser[A] => Future[Result]): Future[Result] =
     request.headers.get("Authorization") match {
-      case None => Future.successful(BadRequest(tokenNotFound))
+      case None => Future.successful(Unauthorized(tokenNotFound))
       case Some(token) => authenticationService.validateToken(token).flatMap {
-        case Left(error) => Future.successful(BadRequest(error))
+        case Left(error) => Future.successful(Unauthorized(error))
         case Right(userId) => block(AuthenticatedUser(userId, request))
       }
     }
