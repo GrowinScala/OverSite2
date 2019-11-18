@@ -276,7 +276,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       log.info(logRequest(logGetEmail))
       log.debug(logRequest(s"$logGetEmail: userId=$userId, chatId=$chatId, emailId=$emailId"))
 
-      chatService.getEmail(chatId, emailId, userId).map {
+      chatService.getEmail(chatId, emailId, authenticatedRequest).map {
         case Some(chatDTO) =>
           log.info("The email was retrived")
           log.debug(s"The email was retrived: $chatDTO")

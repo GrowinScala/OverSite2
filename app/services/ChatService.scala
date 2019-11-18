@@ -29,7 +29,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   private val log = Logger(this.getClass)
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort,
-    userId: String, auth: AuthenticatedUser[AnyContent]): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] = {
+    auth: AuthenticatedUser[AnyContent]): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] = {
+    val userId = auth.userId
     MDC.put("serviceMethod", "getChats")
     log.info(logRequest(logGetChats))
     log.debug(logRequest(s"$logGetChats: mailbox=${mailbox.value}, page=${page.value}, perPage=${
@@ -75,7 +76,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def getChat(chatId: String, page: Page, perPage: PerPage, sort: Sort,
-    userId: String, auth: AuthenticatedUser[Any]): Future[Either[Error, (ChatDTO, Int, Page)]] = {
+    auth: AuthenticatedUser[Any]): Future[Either[Error, (ChatDTO, Int, Page)]] = {
+    val userId = auth.userId
     MDC.put("serviceMethod", "getChat")
     log.info(logRequest(logGetChat))
     log.debug(logRequest(s"$logGetChat: chatId=$chatId, page=${page.value}, perPage=${perPage.value}, sort=$sort," +
@@ -134,7 +136,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String,
-    userId: String, auth: AuthenticatedUser[Any]): Future[Option[EmailDTO]] = {
+    auth: AuthenticatedUser[Any]): Future[Option[EmailDTO]] = {
+    val userId = auth.userId
     MDC.put("serviceMethod", "patchEmail")
     log.info(logRequest(logPatchEmail))
     log.debug(logRequest(s"$logPatchEmail: upsertEmailDTO=$upsertEmailDTO, chatId=$chatId, emailId=$emailId," +
@@ -150,7 +153,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
           log.debug(s"${logRepData("Email")}: emailToPatch:$upsertEmailDTO, chatId=$chatId, emailId=$emailId," +
             s" userId=$userId, patchedEmail:$email")
           MDC.remove("serviceMethod")
-          Some(toEmailDTO(chatId, email, auth))
+          toEmailDTO(chatId, Some(email), auth)
       }
   }
 
