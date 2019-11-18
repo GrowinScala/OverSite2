@@ -74,9 +74,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.deleteDraft(chatId, emailId, userId)
   }
 
-  def getEmail(chatId: String, emailId: String, userId: String,
-    auth: AuthenticatedUser[Any]): Future[Option[ChatDTO]] = {
-    chatsRep.getEmail(chatId, emailId, userId).map(_.map(toChatDTO(_, auth)))
+  def getEmail(chatId: String, emailId: String, auth: AuthenticatedUser[Any]): Future[Option[ChatDTO]] = {
+    chatsRep.getEmail(chatId, emailId, auth.userId).map(_.map(toChatDTO(_, auth)))
   }
 
   def postOverseers(postOverseersDTO: Set[PostOverseerDTO], chatId: String,

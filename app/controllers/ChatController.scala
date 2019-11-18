@@ -163,7 +163,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def getEmail(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
-      chatService.getEmail(chatId, emailId, authenticatedRequest.userId, authenticatedRequest).map {
+      chatService.getEmail(chatId, emailId, authenticatedRequest).map {
         case Some(chatDTO) => Ok(Json.toJson(chatDTO))
         case None => NotFound(emailNotFound)
       }

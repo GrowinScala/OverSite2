@@ -582,7 +582,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val responseChatDto = genChatDTO.sample.value
 
-      mockChatService.getEmail(*, *, *, *)
+      mockChatService.getEmail(*, *, *)
         .returns(Future.successful(Some(responseChatDto)))
 
       val result = chatController.getEmail(genUUID.sample.value, genUUID.sample.value).apply(FakeRequest())
@@ -592,7 +592,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
     "return NotFound if service response is None" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getEmail(*, *, *, *)
+      mockChatService.getEmail(*, *, *)
         .returns(Future.successful(None))
 
       val result = chatController.getEmail(genUUID.sample.value, genUUID.sample.value).apply(FakeRequest())

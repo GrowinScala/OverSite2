@@ -199,7 +199,7 @@ class ChatServiceSpec extends AsyncWordSpec
 
       val expectedServiceResponse = Some(toChatDTO(repositoryChatResponse, authenticatedUser))
 
-      chatService.getEmail(genUUID.sample.value, genUUID.sample.value, genUUID.sample.value, authenticatedUser).map(
+      chatService.getEmail(genUUID.sample.value, genUUID.sample.value, authenticatedUser).map(
         serviceResponse => serviceResponse.value mustBe expectedServiceResponse.value)
     }
   }
