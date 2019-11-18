@@ -1,5 +1,7 @@
 package model.dtos
 
+import controllers.AuthenticatedUser
+import controllers.ChatController.makeGetEmailLink
 import play.api.libs.json.{ Json, OFormat, OWrites, Reads }
 import repositories.dtos.{ Chat, Email, Overseers }
 
@@ -40,7 +42,7 @@ object ChatDTO {
           else 0,
           emailDTO.attachments)).sortBy(_.date))
 
-  def toChatDTO(chat: Chat): ChatDTO = {
+  def toChatDTO(chat: Chat, auth: AuthenticatedUser[Any]): ChatDTO = {
     ChatDTO(
       chat.chatId,
       chat.subject,
@@ -52,6 +54,7 @@ object ChatDTO {
       chat.emails.map(email =>
         EmailDTO(
           email.emailId,
+          makeGetEmailLink(chat.chatId, email.emailId, auth),
           email.from,
           email.to,
           email.bcc,
