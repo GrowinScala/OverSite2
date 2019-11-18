@@ -4,6 +4,7 @@ import java.nio.file.Paths
 
 import javax.inject.Inject
 import model.dtos._
+import model.dtos.EmailDTO._
 import model.types._
 import repositories.ChatsRepository
 import PostOverseerDTO._
@@ -16,6 +17,8 @@ import akka.stream.{ ActorMaterializer, IOResult }
 import akka.stream.scaladsl.{ FileIO, Sink, Source }
 import play.api.Configuration
 import ChatDTO._
+import controllers.AuthenticatedUser
+import play.api.mvc.AnyContent
 import akka.util.ByteString
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
@@ -28,11 +31,11 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort,
-    userId: String): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] =
+    userId: String, auth: AuthenticatedUser[AnyContent]): Future[Option[(Seq[ChatPreviewDTO], Int, Page)]] =
     chatsRep.getChatsPreview(mailbox, page.value, perPage.value, sort.orderBy, userId)
       .map(_.map {
         case (chatsPreview, totalCount, lastPage) =>
-          (toSeqChatPreviewDTO(chatsPreview), totalCount, Page(lastPage))
+          (toSeqChatPreviewDTO(chatsPreview, auth), totalCount, Page(lastPage))
       })
 
   def getOverseers(chatId: String, page: Page, perPage: PerPage, sort: Sort,
@@ -46,10 +49,10 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     }
 
   def getChat(chatId: String, page: Page, perPage: PerPage, sort: Sort,
-    userId: String): Future[Either[Error, (ChatDTO, Int, Page)]] =
+    userId: String, auth: AuthenticatedUser[Any]): Future[Either[Error, (ChatDTO, Int, Page)]] =
     chatsRep.getChat(chatId, page.value, perPage.value, sort.orderBy, userId).map {
       case Right((chat, totalCount, lastPage)) =>
-        Right((toChatDTO(chat), totalCount, Page(lastPage)))
+        Right((toChatDTO(chat, auth), totalCount, Page(lastPage)))
       case Left(`CHAT_NOT_FOUND`) => Left(chatNotFound)
       case Left(_) => Left(internalError)
     }
@@ -64,9 +67,9 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def patchEmail(upsertEmailDTO: UpsertEmailDTO, chatId: String, emailId: String,
-    userId: String): Future[Option[EmailDTO]] = {
+    userId: String, auth: AuthenticatedUser[Any]): Future[Option[EmailDTO]] = {
     chatsRep.patchEmail(UpsertEmailDTO.toUpsertEmail(upsertEmailDTO), chatId, emailId, userId)
-      .map(EmailDTO.toEmailDTO)
+      .map(toEmailDTO(chatId, _, auth))
   }
 
   def patchChat(patchChatDTO: PatchChatDTO, chatId: String, userId: String): Future[Option[PatchChatDTO]] = {
@@ -81,8 +84,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.deleteDraft(chatId, emailId, userId)
   }
 
-  def getEmail(chatId: String, emailId: String, userId: String): Future[Option[ChatDTO]] = {
-    chatsRep.getEmail(chatId, emailId, userId).map(_.map(ChatDTO.toChatDTO))
+  def getEmail(chatId: String, emailId: String, auth: AuthenticatedUser[Any]): Future[Option[ChatDTO]] = {
+    chatsRep.getEmail(chatId, emailId, auth.userId).map(_.map(toChatDTO(_, auth)))
   }
 
   def postOverseers(postOverseersDTO: Set[PostOverseerDTO], chatId: String,

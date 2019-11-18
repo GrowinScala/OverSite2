@@ -21,12 +21,14 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   chatService: ChatService, authenticatedUserAction: AuthenticatedUserAction)
   extends AbstractController(cc) {
 
+  import ChatController._
+
   def getChat(chatId: String, page: Page, perPage: PerPage,
-    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+              sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
-        chatService.getChat(chatId, page, perPage, sort, authenticatedRequest.userId).map {
+        chatService.getChat(chatId, page, perPage, sort, authenticatedRequest.userId, authenticatedRequest).map {
           case Right((chatDTO, totalCount, lastPage)) =>
             val chat = Json.obj("chat" -> Json.toJson(chatDTO))
 
@@ -48,11 +50,11 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   }
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage,
-    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+               sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
-        chatService.getChats(mailbox, page, perPage, sort, authenticatedRequest.userId)
+        chatService.getChats(mailbox, page, perPage, sort, authenticatedRequest.userId, authenticatedRequest)
           .map {
             case Some((chatsPreviewDTO, totalCount, lastPage)) =>
               val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
@@ -74,12 +76,13 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   }
 
   /**
-   * Gets the user's overseers for the given chat
-   * @param chatId The chat's Id
-   * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
-   */
+    * Gets the user's overseers for the given chat
+    *
+    * @param chatId The chat's Id
+    * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
+    */
   def getOverseers(chatId: String, page: Page, perPage: PerPage,
-    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+                   sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_ADDRESS || sort.sortBy == DEFAULT_SORT)
@@ -139,7 +142,8 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
       jsonValue.validate[UpsertEmailDTO].fold(
         errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        upsertEmailDTO => chatService.patchEmail(upsertEmailDTO, chatId, emailId, authenticatedRequest.userId)
+        upsertEmailDTO => chatService.patchEmail(upsertEmailDTO, chatId, emailId, authenticatedRequest.userId,
+          authenticatedRequest)
           .map {
             case Some(result) => Ok(Json.toJson(result))
             case None => NotFound(emailNotFound)
@@ -163,7 +167,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def getEmail(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
-      chatService.getEmail(chatId, emailId, authenticatedRequest.userId).map {
+      chatService.getEmail(chatId, emailId, authenticatedRequest).map {
         case Some(chatDTO) => Ok(Json.toJson(chatDTO))
         case None => NotFound(emailNotFound)
       }
@@ -221,7 +225,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   }
 
   def getOverseeings(page: Page, perPage: PerPage,
-    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+                     sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
@@ -246,7 +250,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   }
 
   def getOverseens(page: Page, perPage: PerPage,
-    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+                   sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
@@ -282,26 +286,28 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
           case None => Future.successful(BadRequest(missingAttachment))
         }
     }
+}
 
-  //region Auxiliary Methods
+object ChatController {
   def makeGetChatsLink(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort,
-    auth: AuthenticatedUser[AnyContent]): String =
+    auth: AuthenticatedUser[Any]): String =
     routes.ChatController.getChats(mailbox, page, perPage, sort).absoluteURL(auth.secure)(auth.request)
 
   def makeGetChatLink(chatId: String, page: Page, perPage: PerPage, sort: Sort,
-    auth: AuthenticatedUser[AnyContent]): String =
+    auth: AuthenticatedUser[Any]): String =
     routes.ChatController.getChat(chatId, page, perPage, sort).absoluteURL(auth.secure)(auth.request)
 
+  def makeGetEmailLink(chatId: String, emailId: String, auth: AuthenticatedUser[Any]): String =
+    routes.ChatController.getEmail(chatId, emailId).absoluteURL(auth.secure)(auth.request)
+
   def makeGetOverseersLink(chatId: String, page: Page, perPage: PerPage, sort: Sort,
-    auth: AuthenticatedUser[AnyContent]): String =
+    auth: AuthenticatedUser[Any]): String =
     routes.ChatController.getOverseers(chatId, page, perPage, sort).absoluteURL(auth.secure)(auth.request)
 
-  def makeGetOverseeingsLink(page: Page, perPage: PerPage, sort: Sort, auth: AuthenticatedUser[AnyContent]): String =
+  def makeGetOverseeingsLink(page: Page, perPage: PerPage, sort: Sort, auth: AuthenticatedUser[Any]): String =
     routes.ChatController.getOverseeings(page, perPage, sort).absoluteURL(auth.secure)(auth.request)
 
-  def makeGetOverseensLink(page: Page, perPage: PerPage, sort: Sort, auth: AuthenticatedUser[AnyContent]): String =
+  def makeGetOverseensLink(page: Page, perPage: PerPage, sort: Sort, auth: AuthenticatedUser[Any]): String =
     routes.ChatController.getOverseens(page, perPage, sort).absoluteURL(auth.secure)(auth.request)
-
-  //endregion
 
 }

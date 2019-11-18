@@ -2,6 +2,7 @@ package utils
 
 import model.dtos._
 import model.types._
+import model.types.Sort._
 import Mailbox._
 import model.types.ParticipantType._
 import org.scalacheck.Gen
@@ -12,6 +13,7 @@ import repositories.slick.mappings._
 import utils.DateUtils._
 import repositories.RepUtils.types.OrderBy
 import repositories.RepUtils.types.OrderBy._
+import repositories.RepUtils.RepConstants._
 import Gen._
 
 object TestGenerators {
@@ -79,17 +81,19 @@ object TestGenerators {
     for {
       chatId <- genUUID
       subject <- genString
+      chatLink = s"http://localhost/chats/$chatId?page=$DEFAULT_PAGE&perPage=$DEFAULT_PER_PAGE&sort=$DEFAULT_SORT"
       lastAddress <- genEmailAddress
       lastEmailDate = getCurrentDate
       contentPreview <- genString
-    } yield ChatPreviewDTO(chatId, subject, lastAddress, lastEmailDate, contentPreview)
+    } yield ChatPreviewDTO(chatId, chatLink, subject, lastAddress, lastEmailDate, contentPreview)
 
   val genChatPreviewDTOSeq: Gen[Seq[ChatPreviewDTO]] =
     genList(1, 3, genChatPreviewDTO)
 
-  val genEmailDTO: Gen[EmailDTO] =
+  def genEmailDTO(chatId: String): Gen[EmailDTO] =
     for {
       emailId <- genUUID
+      emailLink = s"http://localhost/chats/$chatId/emails/$emailId"
       from <- genEmailAddress
       to <- genList(1, 4, genEmailAddress).map(_.toSet)
       bcc <- genList(0, 1, genEmailAddress).map(_.toSet)
@@ -98,7 +102,7 @@ object TestGenerators {
       date = getCurrentDate
       sent <- Gen.oneOf(true, false)
       attachments <- genList(0, 1, genString).map(_.toSet)
-    } yield EmailDTO(emailId, from, to, bcc, cc, body, date, sent, attachments)
+    } yield EmailDTO(emailId, emailLink, from, to, bcc, cc, body, date, sent, attachments)
 
   val genOverseersDTO: Gen[OverseersDTO] =
     for {
@@ -115,17 +119,16 @@ object TestGenerators {
     } yield Overseers(overseeAddress, overseersAddresses)
 
   val genChatDTO: Gen[ChatDTO] =
-    genList(1, 4, genEmailDTO).flatMap(emails => {
-      val addresses = emails.foldLeft(Set.empty[String])((set, emailDTO) =>
+    for {
+      chatId <- genUUID
+      emails <- genList(1, 4, genEmailDTO(chatId))
+
+      addresses = emails.foldLeft(Set.empty[String])((set, emailDTO) =>
         set + emailDTO.from ++ emailDTO.to ++ emailDTO.bcc ++ emailDTO.cc)
 
-      for {
-        chatId <- genUUID
-        subject <- genString
-        overseers <- genList(0, 2, genOverseersDTO).map(_.toSet)
-      } yield ChatDTO(chatId, subject, addresses, overseers, emails.sortBy(_.date))
-
-    })
+      subject <- genString
+      overseers <- genList(0, 2, genOverseersDTO).map(_.toSet)
+    } yield ChatDTO(chatId, subject, addresses, overseers, emails.sortBy(_.date))
 
   val genUpsertEmailOption: Gen[UpsertEmail] =
     for {

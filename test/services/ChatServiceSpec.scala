@@ -5,6 +5,7 @@ import java.io.File
 
 import model.dtos._
 import model.dtos.PostOverseerDTO._
+import model.dtos.EmailDTO._
 import model.dtos.ChatDTO._
 import org.mockito.scalatest.AsyncIdiomaticMockito
 import org.scalacheck.Gen
@@ -16,11 +17,13 @@ import ChatPreviewDTO._
 import Gen._
 import akka.stream.scaladsl.FileIO
 import com.typesafe.config.ConfigFactory
+import controllers.AuthenticatedUser
 import model.types._
 import repositories.RepUtils.RepMessages._
 import utils.Jsons._
 import model.dtos.ChatOverseeingDTO._
 import model.dtos.ChatOverseenDTO._
+import play.api.test.FakeRequest
 import play.api.Configuration
 import utils.FileUtils
 
@@ -58,7 +61,8 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
         .returns(Future.successful(optChatsPreview.map((_, totalCount, lastPage))))
 
       val chatsPreviewDTO = chatService.getChats(genMailbox.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value,
+        AuthenticatedUser(genString.sample.value, FakeRequest()))
       chatsPreviewDTO.map(_ mustBe optTestChatsPreviewDTO.map((_, totalCount, Page(lastPage))))
     }
   }
@@ -75,7 +79,8 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
         .returns(Future.successful(Right(toChat(testchatDTO), totalCount, lastPage)))
 
       val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value,
+        AuthenticatedUser(genString.sample.value, FakeRequest()))
 
       serviceResponse.map(_ mustBe Right(testchatDTO, totalCount, Page(lastPage)))
     }
@@ -86,7 +91,8 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
         .returns(Future.successful(Left(CHAT_NOT_FOUND)))
 
       val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value,
+        AuthenticatedUser(genString.sample.value, FakeRequest()))
 
       serviceResponse.map(_ mustBe Left(chatNotFound))
     }
@@ -97,7 +103,8 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
         .returns(Future.successful(Left(genString.sample.value)))
 
       val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value)
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value,
+        AuthenticatedUser(genString.sample.value, FakeRequest()))
 
       serviceResponse.map(_ mustBe Left(internalError))
     }
@@ -183,6 +190,8 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
   "ChatService#patchEmail" should {
     "return an EmailDTO that contains the email with the updated/patched fields" in {
       val returnedEmail = genEmail.sample.value
+      val chatId = genUUID.sample.value
+      val authenticatedUser = AuthenticatedUser(genString.sample.value, FakeRequest())
 
       val (chatService, mockChatsRep) = getServiceAndRepMock
       mockChatsRep.patchEmail(*, *, *, *)
@@ -190,24 +199,24 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
 
       val serviceResponse = chatService.patchEmail(
         genUpsertEmailDTOption.sample.value,
-        genUUID.sample.value, genUUID.sample.value, genUUID.sample.value)
+        chatId, genUUID.sample.value, genUUID.sample.value, authenticatedUser)
 
-      serviceResponse.map(_ mustBe EmailDTO.toEmailDTO(Some(returnedEmail)))
+      serviceResponse.map(_ mustBe toEmailDTO(chatId, Some(returnedEmail), authenticatedUser))
     }
   }
 
   "ChatService#getEmail" should {
     "return a ChatDTO with the requested email" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
-
+      val authenticatedUser = AuthenticatedUser(genString.sample.value, FakeRequest())
       val repositoryChatResponse = genChat.sample.value
 
       mockChatsRep.getEmail(*, *, *)
         .returns(Future.successful(Some(repositoryChatResponse)))
 
-      val expectedServiceResponse = Some(ChatDTO.toChatDTO(repositoryChatResponse))
+      val expectedServiceResponse = Some(toChatDTO(repositoryChatResponse, authenticatedUser))
 
-      chatService.getEmail(genUUID.sample.value, genUUID.sample.value, genUUID.sample.value).map(
+      chatService.getEmail(genUUID.sample.value, genUUID.sample.value, authenticatedUser).map(
         serviceResponse => serviceResponse.value mustBe expectedServiceResponse.value)
     }
   }
