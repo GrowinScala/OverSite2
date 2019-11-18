@@ -159,13 +159,13 @@ insert into email_addresses (email_address_id, email_id, chat_id, address_id, pa
 	('d4476a39-1542-473a-9f63-881481614001', 'fe4ff891-144a-4f61-af35-6d4a5ec76314','825ee397-f36e-4023-951e-89d6e43a8e7d','56da0e3f-a8eb-4c90-a110-726410a44c4b', 'to');
 
 
-insert into attachments (attachment_id, email_id) values
-	('9e8d51c6-e903-4760-84a7-6d67e6dd80b2','1f325a6a-d56c-400f-adf3-cdddf742f50f'),
-	('1e419d9b-e604-4060-b28e-3bca42d106b6','1f325a6a-d56c-400f-adf3-cdddf742f50f'),
-	('a83db7d5-8ae1-48ef-a1eb-e6a788173b4a','1f325a6a-d56c-400f-adf3-cdddf742f50f'),
-	('15709f05-5142-44b7-93b7-1c7d8b5d327c','07181ad2-4b49-4bd8-98ee-2b559e97ffc4'),
-	('a6f95aa1-a662-4a50-a0cd-d5379375a6c2','a4e4d8f5-ff60-40e1-a2d3-330088412f81'),
-	('b8c313cc-90a1-4f2f-81c6-e61a64fb0b16','fe4ff891-144a-4f61-af35-6d4a5ec76314');
+insert into attachments (attachment_id, email_id, filename, path) values
+	('9e8d51c6-e903-4760-84a7-6d67e6dd80b2','1f325a6a-d56c-400f-adf3-cdddf742f50f','akdnfdns.txt','C:\\Oversite\\UploadDir\\e649654b-5b48-41b4-ae94-d4580ee3a9c4'),
+	('1e419d9b-e604-4060-b28e-3bca42d106b6','1f325a6a-d56c-400f-adf3-cdddf742f50f','afjfjdfn.pdf','C:\\Oversite\\UploadDir\\9c1612e4-793c-4d43-8499-c830cbb67ccb'),
+	('a83db7d5-8ae1-48ef-a1eb-e6a788173b4a','1f325a6a-d56c-400f-adf3-cdddf742f50f','kjdsffkd.png','C:\\Oversite\\UploadDir\\6eb576fe-9b46-416f-9a5c-648be945b657'),
+	('15709f05-5142-44b7-93b7-1c7d8b5d327c','07181ad2-4b49-4bd8-98ee-2b559e97ffc4','adfbjdse.jpg','C:\\Oversite\\UploadDir\\5881f579-ddfc-4fc3-982c-5a3687528c57'),
+	('a6f95aa1-a662-4a50-a0cd-d5379375a6c2','a4e4d8f5-ff60-40e1-a2d3-330088412f81','tyghsnds.mp3','C:\\Oversite\\UploadDir\\fac0d3f3-ca6e-4191-8c9a-6455babfefeb'),
+	('b8c313cc-90a1-4f2f-81c6-e61a64fb0b16','fe4ff891-144a-4f61-af35-6d4a5ec76314','nbvadaid.mp4','C:\\Oversite\\UploadDir\\aab2cbff-b4ef-4742-95df-adf9d344bb43');
 
 
 insert into user_chats (user_chat_id, user_id, chat_id, inbox, sent, draft, trash) values
