@@ -12,5 +12,10 @@ class ApplicationStart @Inject() (config: Config) {
     .locations("filesystem:" + config.getString("migrationLocation"))
     .load()
 
-  flyway.migrate
+  try flyway.migrate
+  catch {
+    case e: Exception =>
+      println(s"The Flyway migrations failed: $e")
+      System.exit(500)
+  }
 }
