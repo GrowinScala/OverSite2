@@ -185,12 +185,9 @@ DROP TABLE IF EXISTS `oversitedb`.`attachments` ;
 CREATE TABLE IF NOT EXISTS `oversitedb`.`attachments` (
   `attachment_id` CHAR(36) NOT NULL,
   `email_id` CHAR(36) NOT NULL,
-  `filename` VARCHAR(45) NULL,
-  `path` VARCHAR(255) NULL,
   PRIMARY KEY (`attachment_id`),
   UNIQUE INDEX `attachment_id_UNIQUE` (`attachment_id` ASC),
   INDEX `fk_attachments_emails1_idx` (`email_id` ASC),
-  UNIQUE INDEX `attachment_path_UNIQUE` (`path` ASC),
   CONSTRAINT `fk_attachments_emails1`
     FOREIGN KEY (`email_id`)
     REFERENCES `oversitedb`.`emails` (`email_id`)

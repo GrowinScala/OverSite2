@@ -24,7 +24,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   import ChatController._
 
   def getChat(chatId: String, page: Page, perPage: PerPage,
-              sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
@@ -50,7 +50,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   }
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage,
-               sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
@@ -76,13 +76,13 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   }
 
   /**
-    * Gets the user's overseers for the given chat
-    *
-    * @param chatId The chat's Id
-    * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
-    */
+   * Gets the user's overseers for the given chat
+   *
+   * @param chatId The chat's Id
+   * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
+   */
   def getOverseers(chatId: String, page: Page, perPage: PerPage,
-                   sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_ADDRESS || sort.sortBy == DEFAULT_SORT)
@@ -225,7 +225,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   }
 
   def getOverseeings(page: Page, perPage: PerPage,
-                     sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
@@ -250,7 +250,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   }
 
   def getOverseens(page: Page, perPage: PerPage,
-                   sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
+    sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
