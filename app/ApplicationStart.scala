@@ -2,9 +2,12 @@ import org.flywaydb.core.Flyway
 import com.typesafe.config.Config
 import javax.inject.Inject
 import javax.inject.Singleton
+import play.api.Logger
 
 @Singleton
 class ApplicationStart @Inject() (config: Config) {
+  private val log = Logger(this.getClass)
+  
   private val flyway = Flyway.configure().dataSource(
     config.getString("dbinfo.properties.url"),
     config.getString("dbinfo.properties.user"),
@@ -15,7 +18,7 @@ class ApplicationStart @Inject() (config: Config) {
   try flyway.migrate
   catch {
     case e: Exception =>
-      println(s"The Flyway migrations failed: $e")
+      log.error(s"The Flyway migrations failed: $e")
       System.exit(500)
   }
 }
