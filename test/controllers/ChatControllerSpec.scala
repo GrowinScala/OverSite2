@@ -61,7 +61,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val result: Future[Result] = chatController.getChats(mailbox, page, perPage, sort)
         .apply(FakeRequest())
-      status(result) mustBe "WRONG NOT OK"
+      status(result) mustBe OK
       contentAsJson(result) mustBe {
 
         val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
