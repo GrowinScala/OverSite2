@@ -36,6 +36,7 @@ DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteO
 
 DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
+#GET     /chats/:chatId/emails/:emailId/attachments      controllers.ChatController.getAttachments(chatId: String, emailId: String)
 
 # Authentication
 

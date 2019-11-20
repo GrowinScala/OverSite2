@@ -324,4 +324,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
           None
       }
   }
+
+  def getAttachments(chatId: String, emailId: String, userId: String): Future[Option[Set[AttachmentInfoDTO]]] = {
+    chatsRep.getAttachments(chatId, emailId, userId).map(_.map(_.map(AttachmentInfoDTO.toAttachmentInfoDTO)))
+  }
 }

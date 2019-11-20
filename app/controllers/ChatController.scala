@@ -484,6 +484,17 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
         Future.successful(BadRequest(invalidSortBy))
       }
   }
+
+  def getAttachments(chatId: String, emailId: String): Action[AnyContent] = {
+    authenticatedUserAction.async {
+      authenticatedRequest =>
+        chatService.getAttachments(chatId, emailId, authenticatedRequest.userId).map {
+          case Some(attachmentsInfo) => Ok(Json.toJson(attachmentsInfo))
+          case None => NotFound
+        }
+
+    }
+  }
 }
 
 object ChatController {

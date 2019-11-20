@@ -7,7 +7,7 @@ import play.api.Logger
 @Singleton
 class ApplicationStart @Inject() (config: Config) {
   private val log = Logger(this.getClass)
-  
+
   private val flyway = Flyway.configure().dataSource(
     config.getString("dbinfo.properties.url"),
     config.getString("dbinfo.properties.user"),
