@@ -44,7 +44,7 @@ class ChatServiceSpec extends AsyncWordSpec
         .returns(Future.successful(optChatsPreview.map((_, totalCount, lastPage))))
 
       val chatsPreviewDTO = chatService.getChats(genMailbox.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value,
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value,
         AuthenticatedUser(genString.sample.value, FakeRequest()))
       chatsPreviewDTO.map(_ mustBe optTestChatsPreviewDTO.map((_, totalCount, Page(lastPage))))
     }
@@ -62,7 +62,7 @@ class ChatServiceSpec extends AsyncWordSpec
         .returns(Future.successful(Right(toChat(testchatDTO), totalCount, lastPage)))
 
       val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value,
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value,
         AuthenticatedUser(genString.sample.value, FakeRequest()))
 
       serviceResponse.map(_ mustBe Right(testchatDTO, totalCount, Page(lastPage)))
@@ -74,7 +74,7 @@ class ChatServiceSpec extends AsyncWordSpec
         .returns(Future.successful(Left(CHAT_NOT_FOUND)))
 
       val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value,
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value,
         AuthenticatedUser(genString.sample.value, FakeRequest()))
 
       serviceResponse.map(_ mustBe Left(chatNotFound))
@@ -86,7 +86,7 @@ class ChatServiceSpec extends AsyncWordSpec
         .returns(Future.successful(Left(genString.sample.value)))
 
       val serviceResponse = chatService.getChat(genUUID.sample.value, genPage.sample.value,
-        genPerPage.sample.value, genString.flatMap(genSort).sample.value, genUUID.sample.value,
+        genPerPage.sample.value, genString.flatMap(genSort).sample.value,
         AuthenticatedUser(genString.sample.value, FakeRequest()))
 
       serviceResponse.map(_ mustBe Left(internalError))
@@ -182,7 +182,7 @@ class ChatServiceSpec extends AsyncWordSpec
 
       val serviceResponse = chatService.patchEmail(
         genUpsertEmailDTOption.sample.value,
-        chatId, genUUID.sample.value, genUUID.sample.value, authenticatedUser)
+        chatId, genUUID.sample.value, authenticatedUser)
 
       serviceResponse.map(_ mustBe toEmailDTO(chatId, Some(returnedEmail), authenticatedUser))
     }

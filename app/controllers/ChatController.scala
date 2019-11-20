@@ -35,7 +35,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       log.debug(logRequest(s"$logGetChat: userId=$userId, chatId=$chatId, page=${page.value}," +
         s" perPage=${perPage.value}, sort=$sort"))
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
-        chatService.getChat(chatId, page, perPage, sort, authenticatedRequest.userId, authenticatedRequest).map {
+        chatService.getChat(chatId, page, perPage, sort, authenticatedRequest).map {
           case Right((chatDTO, totalCount, lastPage)) =>
             val chat = Json.obj("chat" -> Json.toJson(chatDTO))
 
@@ -70,13 +70,12 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage,
     sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      val userId = authenticatedRequest.userId
       MDC.put("controllerMethod", "getChats")
       log.info(logRequest(logGetChats))
-      log.debug(logRequest(s"$logGetChats: userId=$userId, mailbox=$mailbox," +
+      log.debug(logRequest(s"$logGetChats: userId=${authenticatedRequest.userId}, mailbox=$mailbox," +
         s" page=${page.value}, perPage=${perPage.value}, sort=$sort"))
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
-        chatService.getChats(mailbox, page, perPage, sort, authenticatedRequest.userId, authenticatedRequest)
+        chatService.getChats(mailbox, page, perPage, sort, authenticatedRequest)
           .map {
             case Some((chatsPreviewDTO, totalCount, lastPage)) =>
               val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
@@ -91,13 +90,16 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
                   next = if (page >= lastPage) None
                   else Some(makeGetChatsLink(mailbox, page + 1, perPage, sort, authenticatedRequest)),
                   last = makeGetChatsLink(mailbox, lastPage, perPage, sort, authenticatedRequest)))))
+
               log.info("The chats were retrived")
               log.debug(s"The chats were retrived: ${(chats ++ metadata).toString}")
+
               Ok(chats ++ metadata)
             case None =>
               log.error(serviceReturn(logNonePagError))
               log.debug(serviceReturn(s"$logNonePagError: page=$page, perPage=$perPage"))
               log.error(serviceReturn(internalError))
+
               InternalServerError(internalError)
           }
       else {
@@ -228,7 +230,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
           log.debug(invalidJson(UpsertEmailDTO))
           Future.successful(BadRequest(JsError.toJson(errors)))
         },
-        upsertEmailDTO => chatService.patchEmail(upsertEmailDTO, chatId, emailId, userId, authenticatedRequest)
+        upsertEmailDTO => chatService.patchEmail(upsertEmailDTO, chatId, emailId, authenticatedRequest)
           .map {
             case Some(result) =>
               log.info("The email was patched")
