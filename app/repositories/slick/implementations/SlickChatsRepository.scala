@@ -617,7 +617,44 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     userId: String): Future[Option[Set[PostOverseer]]] =
     db.run(postOverseersAction(postOverseers, chatId, userId).transactionally)
 
+  private def getAttachmentsAction(chatId: String, emailId: String, userId: String): DBIO[Option[Set[AttachmentInfo]]] = {
+    for {
+      verifyIfUserIfAllowed <- verifyIfUserAllowedToSeeEmail(chatId, emailId, userId).result.headOption
+      attachmentRows <- AttachmentsTable.all.filter(_.emailId === emailId).result
+
+      attachmentsInfo = attachmentRows
+        .map(attachmentRow => AttachmentInfo(attachmentRow.attachmentId, "filename" /*attachmentRow.filename*/ )) //TODO
+        .toSet
+
+    } yield verifyIfUserIfAllowed.map(_ => attachmentsInfo)
+  }
+
+  def getAttachments(chatId: String, emailId: String, userId: String): Future[Option[Set[AttachmentInfo]]] = {
+    db.run(getAttachmentsAction(chatId, emailId, userId))
+  }
+
   //region Auxiliary Methods
+
+  /**
+   * Query that verifies if the user is allowed access to see the email (if is participant or overseer)
+   * @param chatId The Id of the given chat
+   * @param emailId The Id of the given email
+   * @param userId The Id of the given user
+   * @return A query with the addressId of the user (with given userId) if the user is allowed to see the email
+   */
+  private def verifyIfUserAllowedToSeeEmail(chatId: String, emailId: String, userId: String): Query[Rep[String], String, Seq] = {
+    for {
+      userAddressId <- UsersTable.all.filter(_.userId === userId).map(_.addressId)
+
+      allowedAddressId <- EmailsTable.all.join(EmailAddressesTable.all)
+        .on {
+          case (emailRow, emailAddressRow) =>
+            emailRow.emailId === emailAddressRow.emailId &&
+              (emailAddressRow.addressId === userAddressId || emailAddressRow.addressId.in(getUserChatOverseesQuery(userId, chatId))) &&
+              (emailRow.sent === 1 || (emailAddressRow.participantType === from && emailAddressRow.addressId === userAddressId))
+        }.map(_._2.addressId)
+    } yield allowedAddressId
+  }
 
   /**
    * Query that returns a sequence of overseers for a given user within a given chat
@@ -1481,9 +1518,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @return A DBIOAction that returns the chat's id, it's subject and the user's address
    *         (chatId, subject, address)
    */
-  private[implementations] def getChatDataAction(
-    chatId: String,
-    userId: String): DBIO[Option[(String, String, String)]] =
+  private[implementations] def getChatDataAction(chatId: String, userId: String): DBIO[Option[(String, String, String)]] =
     (for {
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
       _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId &&

@@ -43,4 +43,6 @@ trait ChatsRepository {
 
   def getOverseens(page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]]
+
+  def getAttachments(chatId: String, emailId: String, userId: String): Future[Option[Set[AttachmentInfo]]]
 }
