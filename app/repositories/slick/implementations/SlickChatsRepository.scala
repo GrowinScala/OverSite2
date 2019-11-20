@@ -4,11 +4,12 @@ import java.math._
 
 import com.google.common.math.IntMath._
 import javax.inject.Inject
-import model.dtos._
 import repositories.RepUtils.RepConstants._
 import model.types.{ Mailbox, ParticipantType }
 import model.types.Mailbox._
 import model.types.ParticipantType._
+import org.slf4j.MDC
+import play.api.Logger
 import repositories.ChatsRepository
 import repositories.dtos.PatchChat.{ ChangeSubject, MoveToTrash, Restore }
 import repositories.slick.mappings._
@@ -24,6 +25,7 @@ import repositories.RepUtils.types.OrderBy._
 import math._
 import scala.concurrent._
 import repositories.slick.mappings.EmailAddressesTable._
+import utils.LogMessages._
 
 import scala.collection.immutable
 import scala.concurrent.duration.Duration
@@ -31,6 +33,7 @@ import scala.concurrent.duration.Duration
 class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: ExecutionContext)
   extends ChatsRepository {
 
+  private val log = Logger(this.getClass)
   val PREVIEW_BODY_LENGTH: Int = 30
 
   //region Shared auxiliary methods
@@ -127,10 +130,16 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    */
   private[implementations] def getChatsPreviewAction(mailbox: Mailbox, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): DBIO[Option[(Seq[ChatPreview], Int, Int)]] = {
-
-    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
-
-    else {
+    MDC.put("repMethod", "getChatsPreviewAction")
+    log.info(logRequest(logGetChats))
+    log.debug(logRequest(s"$logGetChats: mailbox=$mailbox, page=$page, perPage=$perPage," +
+      s" orderBy=$OrderBy, userId=$userId"))
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) {
+      log.info(INVALID_PAGINATION)
+      log.debug(s"$INVALID_PAGINATION. page=$page, perPage=$perPage")
+      MDC.remove("repMethod")
+      DBIO.successful(None)
+    } else {
       val sortedChatPreviewQuery = if (orderBy == Asc) getChatsPreviewQuery(userId, Some(mailbox))
         .sortBy { case (chatId, subject, address, date, body) => (date.asc, body.asc, address.asc) }
       else getChatsPreviewQuery(userId, Some(mailbox))
@@ -140,8 +149,17 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
         totalCount <- sortedChatPreviewQuery.length.result
         slicedChats <- sortedChatPreviewQuery.drop(perPage * page).take(perPage).result
 
-      } yield Some(slicedChats.map(ChatPreview.tupled), totalCount,
-        divide(totalCount, perPage, RoundingMode.CEILING) - 1)
+      } yield {
+        val result = (slicedChats.map(ChatPreview.tupled), totalCount,
+          divide(totalCount, perPage, RoundingMode.CEILING) - 1)
+        log.info("Retrieved the paginated chats")
+        log.debug(s"${
+          paginatedResult("chatsPreview", result._1, totalCount = result._2, lastPage = result._3, page,
+            perPage)
+        }, mailbox=$mailbox, userId=$userId")
+        MDC.remove("repMethod")
+        Some(result)
+      }
     }
 
   }
@@ -180,24 +198,48 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         Or a String indicating what went wrong
    */
   private[implementations] def getChatAction(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
-    userId: String, getAll: Boolean = false): DBIO[Either[String, (Chat, Int, Int)]] =
-    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(Left(INVALID_PAGINATION))
-
-    else {
+    userId: String, getAll: Boolean = false): DBIO[Either[String, (Chat, Int, Int)]] = {
+    MDC.put("repMethod", "getChatAction")
+    log.info(logRequest(logGetChat))
+    log.debug(logRequest(s"$logGetChat: chatId=$chatId, page=$page, perPage=$perPage, orderBy=$OrderBy," +
+      s" userId=$userId, getAll=$getAll"))
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) {
+      log.info(INVALID_PAGINATION)
+      log.debug(s"$INVALID_PAGINATION. page=$page, perPage=$perPage")
+      MDC.remove("repMethod")
+      DBIO.successful(Left(INVALID_PAGINATION))
+    } else {
       for {
         chatData <- getChatDataAction(chatId, userId)
         (addresses, emails, totalCount) <- getGroupedEmailsAndAddresses(chatId, page, perPage, userId, orderBy, getAll)
         overseers <- getOverseersData(chatId)
       } yield chatData match {
-        case None => Left(CHAT_NOT_FOUND)
+        case None =>
+          log.info(CHAT_NOT_FOUND)
+          log.debug(s"$CHAT_NOT_FOUND: chatId: $chatId, userId: $userId")
+          MDC.remove("repMethod")
+          Left(CHAT_NOT_FOUND)
         case Some((_, subject, _)) =>
-          if (getAll)
-            Right((Chat(chatId, subject, addresses, overseers, emails), totalCount, 0))
-          else
-            Right((Chat(chatId, subject, addresses, overseers, emails), totalCount,
-              divide(totalCount, perPage, RoundingMode.CEILING) - 1))
+          if (getAll) {
+            val result = (Chat(chatId, subject, addresses, overseers, emails), totalCount, 0)
+            log.info("Retrieved the whole chat")
+            log.debug(paginatedResult("chat", result._1, totalCount = result._2, lastPage = result._3, page, perPage))
+            MDC.remove("repMethod")
+            Right(result)
+          } else {
+            val result = (Chat(chatId, subject, addresses, overseers, emails), totalCount,
+              divide(totalCount, perPage, RoundingMode.CEILING) - 1)
+            log.info("Retrieved the paginated chat")
+            log.debug(s"${
+              paginatedResult("chat", result._1, totalCount = result._2, lastPage = result._3, page,
+                perPage)
+            }, chatId=$chatId, userId=$userId")
+            MDC.remove("repMethod")
+            Right(result)
+          }
       }
     }
+  }
 
   /**
    * Method to get the paginated emails and other data of a specific chat of a user
@@ -219,10 +261,17 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(getChatAction(chatId, page, perPage, orderBy, userId).transactionally)
 
   private def getOverseersAction(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
-    userId: String): DBIO[Either[String, (Seq[PostOverseer], Int, Int)]] =
-    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(Left(INVALID_PAGINATION))
-
-    else {
+    userId: String): DBIO[Either[String, (Seq[PostOverseer], Int, Int)]] = {
+    MDC.put("repMethod", "getOverseersAction")
+    log.info(logRequest(logGetOverseers))
+    log.debug(logRequest(s"$logGetOverseers: chatId=$chatId, page=$page, perPage=$perPage, orderBy=$OrderBy," +
+      s" userId=$userId"))
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) {
+      log.info(INVALID_PAGINATION)
+      log.debug(s"$INVALID_PAGINATION. page=$page, perPage=$perPage")
+      MDC.remove("repMethod")
+      DBIO.successful(Left(INVALID_PAGINATION))
+    } else {
       for {
         optChatData <- getChatDataAction(chatId, userId)
         result <- optChatData match {
@@ -235,15 +284,31 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
               totalCount <- orderedOverseersQuery.length.result
               seqOverseers <- orderedOverseersQuery.drop(perPage * page).take(perPage).result
 
-            } yield Right((seqOverseers.map {
-              case (address, oversightId) =>
-                PostOverseer(address, Some(oversightId))
-            }, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1))
+            } yield {
+              val result = (seqOverseers.map {
+                case (address, oversightId) =>
+                  PostOverseer(address, Some(oversightId))
+              }, totalCount, divide(totalCount, perPage, RoundingMode.CEILING) - 1)
 
-          case None => DBIO.successful(Left(CHAT_NOT_FOUND))
+              log.info("Retrieved the paginated overseers")
+              log.debug(s"${
+                paginatedResult("overseers", result._1, totalCount = result._2, lastPage = result._3, page,
+                  perPage)
+              }, chatId=$chatId, userId=$userId")
+              Right(result)
+            }
+
+          case None =>
+            log.info(CHAT_NOT_FOUND)
+            log.debug(s"$CHAT_NOT_FOUND: chatId: $chatId, userId: $userId")
+            DBIO.successful(Left(CHAT_NOT_FOUND))
         }
-      } yield result
+      } yield {
+        MDC.remove("repMethod")
+        result
+      }
     }
+  }
 
   def getOverseers(chatId: String, page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Either[String, (Seq[PostOverseer], Int, Int)]] =
@@ -259,6 +324,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    *         If the userId does not have a corresponding address the DBIO does nothing and returns None.
    */
   private[implementations] def postChatAction(createChat: CreateChat, userId: String): DBIO[Option[CreateChat]] = {
+    MDC.put("repMethod", "postChatAction")
+    log.info(logRequest(logPostChat))
+    log.debug(logRequest(s"$logPostChat: createChat=$createChat, userId=$userId"))
     val emailDTO = createChat.email
     val date = DateUtils.getCurrentDate
 
@@ -278,15 +346,23 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
           _ <- UserChatsTable.all += UserChatRow(userChatId, userId, chatId, 0, 0, 1, 0)
           _ <- insertEmailAndAddresses(emailDTO, chatId, emailId, fromAddress, date)
         } yield ()
-        case None => DBIO.successful(())
+        case None =>
+          log.info(USER_NOT_FOUND)
+          log.debug(s"$USER_NOT_FOUND: userId: $userId")
+          DBIO.successful(())
       }
 
     } yield optFromAddress
 
-    inserts.map(_.map(fromAddress =>
-      createChat.copy(chatId = Some(chatId), email = emailDTO.copy(
+    inserts.map(_.map(fromAddress => {
+      val postedChat = createChat.copy(chatId = Some(chatId), email = emailDTO.copy(
         emailId = Some(emailId),
-        from = Some(fromAddress), date = Some(date)))))
+        from = Some(fromAddress), date = Some(date)))
+      log.info("chat posted")
+      log.debug(s"chat posted: postedChat: $postedChat, userId=$userId")
+      MDC.remove("repMethod")
+      postedChat
+    }))
   }
 
   /**
@@ -301,6 +377,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(postChatAction(createChat, userId).transactionally)
 
   private[implementations] def postEmailAction(upsertEmail: UpsertEmail, chatId: String, userId: String): DBIO[Option[CreateChat]] = {
+    MDC.put("repMethod", "postEmailAction")
+    log.info(logRequest(logPostEmail))
+    log.debug(logRequest(s"$logPostEmail: upsertEmail=$upsertEmail, chatId=$chatId, userId=$userId"))
     val date = DateUtils.getCurrentDate
 
     val emailId = newUUID
@@ -318,21 +397,31 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield chatAddress
 
     insertAndUpdate.map {
-      case Some(tuple) => tuple match {
-        case (chatID, subject, fromAddress) => Some(CreateChat(
-          Some(chatID),
-          Some(subject),
-          UpsertEmail(
-            emailId = Some(emailId),
-            from = Some(fromAddress),
-            to = upsertEmail.to,
-            bcc = upsertEmail.bcc,
-            cc = upsertEmail.cc,
-            body = upsertEmail.body,
-            date = Some(date),
-            sent = Some(false))))
-      }
-      case None => None
+      case Some(tuple) =>
+        val postedEmail = tuple match {
+          case (chatID, subject, fromAddress) => CreateChat(
+            Some(chatID),
+            Some(subject),
+            UpsertEmail(
+              emailId = Some(emailId),
+              from = Some(fromAddress),
+              to = upsertEmail.to,
+              bcc = upsertEmail.bcc,
+              cc = upsertEmail.cc,
+              body = upsertEmail.body,
+              date = Some(date),
+              sent = Some(false)))
+        }
+        log.info("email posted")
+        log.debug(s"email posted: postedEmail: $postedEmail, chatId=$chatId, userId=$userId")
+        MDC.remove("repMethod")
+        Some(postedEmail)
+
+      case None =>
+        log.info(CHAT_NOT_FOUND)
+        log.debug(s"$CHAT_NOT_FOUND: chatId=$chatId, userId=$userId")
+        MDC.remove("repMethod")
+        None
     }
   }
 
@@ -341,6 +430,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
   private[implementations] def patchEmailAction(upsertEmail: UpsertEmail, chatId: String,
     emailId: String, userId: String): DBIO[Option[Email]] = {
+    MDC.put("repMethod", "patchEmailAction")
+    log.info(logRequest(logPatchEmail))
+    log.debug(logRequest(s"$logPatchEmail: upsertEmail=$upsertEmail, chatId=$chatId, emailId=$emailId," +
+      s" userId=$userId"))
     val updateAndSendEmail = for {
       updatedReceiversAddresses <- updateEmailAction(upsertEmail, chatId, emailId, userId)
 
@@ -355,36 +448,87 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     for {
       optionPatch <- updateAndSendEmail.transactionally
       email <- getEmailDTOAction(userId, emailId)
-    } yield optionPatch.flatMap(_ => email.headOption)
+    } yield optionPatch.flatMap(_ => email.headOption) match {
+      case None =>
+        log.info(EMAIL_NOT_FOUND)
+        log.debug(s"$EMAIL_NOT_FOUND: chatId=$chatId, emailId=$emailId, userId=$userId")
+        MDC.remove("repMethod")
+        None
+      case Some(patchedEmail) =>
+        log.info("email patched")
+        log.debug(s"email patched: patchedEmail: $patchedEmail, chatId=$chatId, emailId=$emailId, userId=$userId")
+        MDC.remove("repMethod")
+        Some(patchedEmail)
+    }
   }
 
   def patchEmail(upsertEmail: UpsertEmail, chatId: String, emailId: String, userId: String): Future[Option[Email]] =
     db.run(patchEmailAction(upsertEmail, chatId, emailId, userId).transactionally)
 
-  private[implementations] def patchChatAction(patchChat: PatchChat, chatId: String, userId: String): DBIO[Option[PatchChat]] =
+  private[implementations] def patchChatAction(patchChat: PatchChat, chatId: String,
+    userId: String): DBIO[Option[PatchChat]] = {
+    MDC.put("repMethod", "patchChatAction")
+    log.info(logRequest(logPatchChat))
+    log.debug(logRequest(s"$logPatchChat: patchChat=$patchChat, chatId=$chatId, userId=$userId"))
     for {
       optionPatch <- patchChat match {
         case MoveToTrash => moveToTrashAction(chatId, userId)
         case Restore => tryRestoreChatAction(chatId, userId)
         case ChangeSubject(subject) => changeChatSubjectAction(chatId, userId, subject)
       }
-    } yield optionPatch.map(_ => patchChat)
+    } yield optionPatch.map(_ => patchChat) match {
+      case None =>
+        log.info(CHAT_NOT_FOUND)
+        log.debug(s"$CHAT_NOT_FOUND: chatId=$chatId, userId=$userId")
+        MDC.remove("repMethod")
+        None
+      case Some(patchedChat) =>
+        log.info("chat patched")
+        log.debug(s"chat patched: patchedChat: $patchedChat, chatId=$chatId, userId=$userId")
+        MDC.remove("repMethod")
+        Some(patchedChat)
+    }
+  }
 
   def patchChat(patchChat: PatchChat, chatId: String, userId: String): Future[Option[PatchChat]] =
     db.run(patchChatAction(patchChat, chatId, userId).transactionally)
 
-  private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String): DBIO[Option[Chat]] =
+  private[implementations] def getEmailAction(chatId: String, emailId: String, userId: String): DBIO[Option[Chat]] = {
+    MDC.put("repMethod", "getEmailAction")
+    log.info(logRequest(logGetEmail))
+    log.debug(logRequest(s"$logGetEmail: chatId=$chatId, emailId=$emailId, userId=$userId"))
     getChatAction(chatId, 0, 1, DefaultOrder, userId, getAll = true).map {
-      case Left(_) => None
-      case Right((chat, _, _)) => Some(chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
-        .filter(_.emails.nonEmpty)
+      case Left(_) =>
+        log.info(CHAT_NOT_FOUND)
+        log.debug(s"$CHAT_NOT_FOUND: chatId=$chatId, userId=$userId")
+        MDC.remove("repMethod")
+        None
+      case Right((chat, _, _)) =>
+        Some(chat.copy(emails = chat.emails.filter(email => email.emailId == emailId)))
+          .filter(_.emails.nonEmpty) match {
+            case None =>
+              log.info(EMAIL_NOT_FOUND)
+              log.debug(s"$EMAIL_NOT_FOUND: chatId=$chatId, emailId=$emailId, userId=$userId")
+              MDC.remove("repMethod")
+              None
+            case Some(singleEmailChat) =>
+              log.info("Retrieved email")
+              log.debug(s"Retrieved email: singleEmailChat: $singleEmailChat, chatId=$chatId, emailId=$emailId," +
+                s" userId=$userId")
+              MDC.remove("repMethod")
+              Some(singleEmailChat)
+          }
     }
+  }
 
   def getEmail(chatId: String, emailId: String, userId: String): Future[Option[Chat]] = {
     db.run(getEmailAction(chatId, emailId, userId).transactionally)
   }
 
   private[implementations] def deleteChatAction(chatId: String, userId: String): DBIO[Boolean] = {
+    MDC.put("repMethod", "deleteChatAction")
+    log.info(logRequest(logDeleteChat))
+    log.debug(logRequest(s"$logDeleteChat: chatId=$chatId, userId=$userId"))
     val userChatQuery = UserChatsTable.all
       .filter(userChatRow => userChatRow.userId === userId && userChatRow.chatId === chatId && userChatRow.trash === 1)
     for {
@@ -397,26 +541,55 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
           .update(0, 0, 0, 0)
         case None => DBIO.successful(0)
       }
-    } yield updateUserChatRow > 0
+    } yield if (updateUserChatRow > 0) {
+      log.info("chat deleted")
+      log.debug(s"chat deleted: chatId=$chatId, userId=$userId")
+      MDC.remove("repMethod")
+      true
+    } else {
+      log.info(CHAT_NOT_FOUND)
+      log.debug(s"$CHAT_NOT_FOUND: chatId=$chatId, userId=$userId")
+      MDC.remove("repMethod")
+      false
+    }
   }
 
   def deleteChat(chatId: String, userId: String): Future[Boolean] =
     db.run(deleteChatAction(chatId, userId).transactionally)
 
   private[implementations] def deleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
+    MDC.put("repMethod", "deleteDraftAction")
+    log.info(logRequest(logDeleteDraft))
+    log.debug(logRequest(s"$logDeleteDraft: userId=$userId, chatId=$chatId, emailId=$emailId"))
+
     for {
       allowedToDeleteDraft <- verifyConditionsToDeleteDraftAction(chatId, emailId, userId)
 
       deleted <- if (allowedToDeleteDraft) deleteDraftRowsAction(chatId, emailId, userId).transactionally
       else DBIO.successful(false)
-    } yield deleted
+    } yield if (deleted) {
+      log.info("draft deleted")
+      log.debug(s"draft deleted: chatId=$chatId, emailId=$emailId, userId=$userId")
+      MDC.remove("repMethod")
+      true
+    } else {
+      log.info(EMAIL_NOT_FOUND)
+      log.debug(s"$EMAIL_NOT_FOUND: chatId=$chatId, emailId=$emailId, userId=$userId")
+      MDC.remove("repMethod")
+      false
+    }
   }
 
   def deleteDraft(chatId: String, emailId: String, userId: String): Future[Boolean] = {
     db.run(deleteDraftAction(chatId, emailId, userId).transactionally)
   }
 
-  private def postOverseersAction(postOverseers: Set[PostOverseer], chatId: String, userId: String): DBIO[Option[Set[PostOverseer]]] =
+  private def postOverseersAction(postOverseers: Set[PostOverseer], chatId: String,
+    userId: String): DBIO[Option[Set[PostOverseer]]] = {
+    MDC.put("repMethod", "postOverseersAction")
+    log.info(logRequest(logPostOverseers))
+    log.debug(logRequest(s"$logPostOverseers: postOverseers=$postOverseers, chatId=$chatId, userId=$userId"))
+
     for {
       chatAccessAndParticipation <- checkIfUserHasAccessAndParticipates(chatId, userId)
 
@@ -425,7 +598,20 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
           .map(Some(_))
       else DBIO.successful(None)
 
-    } yield optSeqPostOverseer.map(_.toSet)
+    } yield optSeqPostOverseer.map(_.toSet) match {
+      case Some(set) =>
+        log.info("overseers posted")
+        log.debug(s"overseers posted: postedOverseers: $set, chatId=$chatId, userId=$userId")
+        MDC.remove("repMethod")
+        Some(set)
+
+      case None =>
+        log.info(CHAT_NOT_FOUND)
+        log.debug(s"$CHAT_NOT_FOUND: chatId=$chatId, userId=$userId")
+        MDC.remove("repMethod")
+        None
+    }
+  }
 
   def postOverseers(postOverseers: Set[PostOverseer], chatId: String,
     userId: String): Future[Option[Set[PostOverseer]]] =
@@ -488,6 +674,10 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   }
 
   private def deleteOverseerAction(chatId: String, oversightId: String, userId: String): DBIO[Boolean] = {
+    MDC.put("repMethod", "deleteOverseerAction")
+    log.info(logRequest(logDeleteOverseer))
+    log.debug(logRequest(s"$logDeleteOverseer: userId=$userId, chatId=$chatId, oversightId=$oversightId"))
+
     for {
       optChatData <- getChatDataAction(chatId, userId)
       result <- optChatData match {
@@ -495,13 +685,27 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
         case None => DBIO.successful(false)
       }
-    } yield result
+    } yield if (result) {
+      log.info("overseer deleted")
+      log.debug(s"overseer deleted: chatId=$chatId, oversightId=$oversightId, userId=$userId")
+      MDC.remove("repMethod")
+      true
+    } else {
+      log.info(CHAT_NOT_FOUND)
+      log.debug(s"$CHAT_NOT_FOUND: chatId=$chatId, userId=$userId")
+      MDC.remove("repMethod")
+      false
+    }
   }
 
   def deleteOverseer(chatId: String, oversightId: String, userId: String): Future[Boolean] =
     db.run(deleteOverseerAction(chatId, oversightId, userId).transactionally)
 
-  private def getOversightsAction(userId: String): DBIO[Option[Oversight]] =
+  private def getOversightsAction(userId: String): DBIO[Option[Oversight]] = {
+    MDC.put("repMethod", "getOversightsAction")
+    log.info(logRequest(logGetOversights))
+    log.debug(logRequest(s"$logGetOversights: userId=$userId"))
+
     for {
       overseeing <- getOverseeing(DEFAULT_PAGE, DEFAULT_PER_PAGE, DefaultOrder, userId)
         .map { case (chatOverseeings, _, _) => chatOverseeings.headOption }
@@ -511,31 +715,69 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
 
     } yield {
       (overseeing, overseen) match {
-        case (None, None) => None
-        case _ => Some(Oversight(overseeing, overseen))
+        case (None, None) =>
+          log.info(OVERSIGHTS_NOT_FOUND)
+          log.debug(s"$OVERSIGHTS_NOT_FOUND: userId=$userId")
+          None
+        case _ =>
+          val oversight = Oversight(overseeing, overseen)
+          log.info("Retrieved the preview of the oversights")
+          log.debug(s"Retrieved the preview of the oversights: oversight: $oversight, userId=$userId")
+          Some(Oversight(overseeing, overseen))
       }
     }
+  }
 
   def getOversights(userId: String): Future[Option[Oversight]] =
     db.run(getOversightsAction(userId).transactionally)
 
   private[implementations] def getOverseeingsAction(page: Int, perPage: Int, orderBy: OrderBy,
-    userId: String): DBIO[Option[(Seq[ChatOverseeing], Int, Int)]] =
+    userId: String): DBIO[Option[(Seq[ChatOverseeing], Int, Int)]] = {
+    MDC.put("repMethod", "getOverseeingsAction")
+    log.info(logRequest(logGetOverseeings))
+    log.debug(logRequest(s"$logGetOverseeings: page=$page, perPage=$perPage, orderBy=$orderBy, userId=$userId"))
 
-    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
-
-    else getOverseeing(page, perPage, orderBy, userId).map(Some(_))
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) {
+      log.info(INVALID_PAGINATION)
+      log.debug(s"$INVALID_PAGINATION. page=$page, perPage=$perPage")
+      MDC.remove("repMethod")
+      DBIO.successful(None)
+    } else getOverseeing(page, perPage, orderBy, userId).map {
+      case (seqChatOverseeing, totalCount, lastPage) =>
+        log.info("Retrieved the paginated overseeings")
+        log.debug(s"${
+          paginatedResult("seqChatOverseeing", seqChatOverseeing, totalCount, lastPage, page, perPage)
+        }, userId=$userId")
+        MDC.remove("repMethod")
+        Some(seqChatOverseeing, totalCount, lastPage)
+    }
+  }
 
   def getOverseeings(page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Option[(Seq[ChatOverseeing], Int, Int)]] =
     db.run(getOverseeingsAction(page, perPage, orderBy, userId).transactionally)
 
   private[implementations] def getOverseensAction(page: Int, perPage: Int, orderBy: OrderBy,
-    userId: String): DBIO[Option[(Seq[ChatOverseen], Int, Int)]] =
+    userId: String): DBIO[Option[(Seq[ChatOverseen], Int, Int)]] = {
+    MDC.put("repMethod", "getOverseensAction")
+    log.info(logRequest(logGetOverseens))
+    log.debug(logRequest(s"$logGetOverseens: page=$page, perPage=$perPage, orderBy=$orderBy, userId=$userId"))
 
-    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) DBIO.successful(None)
-
-    else getOverseen(page, perPage, orderBy, userId).map(Some(_))
+    if (page < 0 || perPage <= 0 || perPage > MAX_PER_PAGE) {
+      log.info(INVALID_PAGINATION)
+      log.debug(s"$INVALID_PAGINATION. page=$page, perPage=$perPage")
+      MDC.remove("repMethod")
+      DBIO.successful(None)
+    } else getOverseen(page, perPage, orderBy, userId).map {
+      case (seqChatOverseen, totalCount, lastPage) =>
+        log.info("Retrieved the paginated overseens")
+        log.debug(s"${
+          paginatedResult("seqChatOverseen", seqChatOverseen, totalCount, lastPage, page, perPage)
+        }, userId=$userId")
+        MDC.remove("repMethod")
+        Some(seqChatOverseen, totalCount, lastPage)
+    }
+  }
 
   def getOverseens(page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]] =
@@ -1080,7 +1322,9 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @param upsertEmail DTO that contains the email data
    * @param chatId      ID of the chat
    * @param emailId     ID of the email
-   * @return the action that updates the email row and the emailAddress rows
+   * @return The Action that updates the email row and the emailAddress rows. This action returns an option
+   *         of the receiving addresses of the patched email. If the user is not authorized to patch this email,
+   *         this option will be None.
    */
   private def updateEmailAction(upsertEmail: UpsertEmail, chatId: String, emailId: String,
     userId: String): DBIO[Option[Set[String]]] = {

@@ -497,8 +497,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String)), 2, 0)
-    }
-
+      
+      }
+    
     "show more than one chat in ascending order of date" in {
       val basicTestDB = genBasicTestDB.sample.value
       val otherChatRow = genChatRow.sample.value
@@ -883,47 +884,6 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         chats mustBe empty
       }
 
-    }
-
-    "sample the chats according to the given page and perPage values" in {
-      val basicTestDB = genBasicTestDB.sample.value
-      val chatList = genList(0, 20, genChatRow).sample.value
-      val userChatList = chatList.map(chatRow =>
-        genUserChatRow(basicTestDB.userRow.userId, chatRow.chatId).sample.value)
-      val emailList = chatList.map(chatRow => genEmailRow(chatRow.chatId).sample.value)
-      val emailAddressList = emailList.map(emailRow => genEmailAddressRow(emailRow.emailId, emailRow.chatId,
-        basicTestDB.addressRow.addressId, from).sample.value)
-      val page = choose(0, 20).sample.value
-      val perPage = choose(1, 20).sample.value
-
-      for {
-        _ <- fillDB(
-          addressRows = List(basicTestDB.addressRow),
-          chatRows = chatList,
-          userRows = List(basicTestDB.userRow),
-          userChatRows = userChatList,
-          emailRows = emailList,
-          emailAddressRows = emailAddressList)
-
-        optChatsPreview <- chatsRep.getChatsPreview(Inbox, page, perPage, DefaultOrder, basicTestDB.userRow.userId)
-      } yield {
-
-        val chatsPreview = optChatsPreview.value
-        val chats = chatsPreview._1
-        val totalCount = chatsPreview._2
-        val lastPage = chatsPreview._3
-        val sortedEmailList = emailList.sortBy(emailrow => (emailrow.date, emailrow.body))(
-          Ordering.Tuple2(Ordering.String.reverse, Ordering.String))
-        if (chats.isEmpty) succeed
-        else {
-          val firstEmail = sortedEmailList(perPage * page).body
-          chats.size mustBe min(perPage, chatList.size) withClue "The size of the slice sequence is wrong"
-          totalCount mustBe chatList.size withClue "The totalCount is wrong"
-          chats.headOption.value.contentPreview mustBe firstEmail withClue "The first element of the sliced sequence" +
-            " is wrong"
-          (lastPage + 1) * perPage must be > chatList.size - 1 withClue "The value for the lastPage is wrong"
-        }
-      }
     }
   }
 
