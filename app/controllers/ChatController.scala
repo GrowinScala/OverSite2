@@ -8,8 +8,12 @@ import services.ChatService
 import utils.Jsons._
 import model.types._
 import model.types.Sort._
+import org.slf4j.MDC
+import play.api.Logger
 import repositories.RepUtils.RepConstants._
 import repositories.RepUtils.types.OrderBy.DefaultOrder
+import utils.LogMessages._
+import utils.Headers._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -20,12 +24,18 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
   import ChatController._
 
+  private val log = Logger(this.getClass)
+
   def getChat(chatId: String, page: Page, perPage: PerPage,
     sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "getChat")
+      log.info(logRequest(logGetChat))
+      log.debug(logRequest(s"$logGetChat: userId=$userId, chatId=$chatId, page=${page.value}," +
+        s" perPage=${perPage.value}, sort=$sort"))
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
-        chatService.getChat(chatId, page, perPage, sort, authenticatedRequest.userId, authenticatedRequest).map {
+        chatService.getChat(chatId, page, perPage, sort, authenticatedRequest).map {
           case Right((chatDTO, totalCount, lastPage)) =>
             val chat = Json.obj("chat" -> Json.toJson(chatDTO))
 
@@ -39,19 +49,33 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
                 next = if (page >= lastPage) None
                 else Some(makeGetChatLink(chatId, page + 1, perPage, sort, authenticatedRequest)),
                 last = makeGetChatLink(chatId, lastPage, perPage, sort, authenticatedRequest)))))
+            log.info("The chat was retrived")
+            log.debug(s"The chat was retrived: ${(chat ++ metadata).toString}")
             Ok(chat ++ metadata)
-          case Left(`chatNotFound`) => NotFound(chatNotFound)
-          case Left(_) => InternalServerError(internalError)
+          case Left(`chatNotFound`) =>
+            log.info(serviceReturn(chatNotFound))
+            log.debug(s"${serviceReturn(chatNotFound)}: chatId=$chatId, userId=$userId")
+            NotFound(chatNotFound)
+          case Left(_) =>
+            log.error(serviceReturn(internalError))
+            InternalServerError(internalError)
         }
-      else Future.successful(BadRequest(invalidSortBy))
+      else {
+        log.info(badRequest(invalidSortBy))
+        log.debug(s"${badRequest(invalidSortBy)}: sort: $sort")
+        Future.successful(BadRequest(invalidSortBy))
+      }
   }
 
   def getChats(mailbox: Mailbox, page: Page, perPage: PerPage,
     sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-
+      MDC.put("controllerMethod", "getChats")
+      log.info(logRequest(logGetChats))
+      log.debug(logRequest(s"$logGetChats: userId=${authenticatedRequest.userId}, mailbox=$mailbox," +
+        s" page=${page.value}, perPage=${perPage.value}, sort=$sort"))
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
-        chatService.getChats(mailbox, page, perPage, sort, authenticatedRequest.userId, authenticatedRequest)
+        chatService.getChats(mailbox, page, perPage, sort, authenticatedRequest)
           .map {
             case Some((chatsPreviewDTO, totalCount, lastPage)) =>
               val chats = Json.obj("chats" -> Json.toJson(chatsPreviewDTO))
@@ -66,10 +90,23 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
                   next = if (page >= lastPage) None
                   else Some(makeGetChatsLink(mailbox, page + 1, perPage, sort, authenticatedRequest)),
                   last = makeGetChatsLink(mailbox, lastPage, perPage, sort, authenticatedRequest)))))
+
+              log.info("The chats were retrived")
+              log.debug(s"The chats were retrived: ${(chats ++ metadata).toString}")
+
               Ok(chats ++ metadata)
-            case None => InternalServerError(internalError)
+            case None =>
+              log.error(serviceReturn(logNonePagError))
+              log.debug(serviceReturn(s"$logNonePagError: page=$page, perPage=$perPage"))
+              log.error(serviceReturn(internalError))
+
+              InternalServerError(internalError)
           }
-      else Future.successful(BadRequest(invalidSortBy))
+      else {
+        log.info(badRequest(invalidSortBy))
+        log.debug(s"${badRequest(invalidSortBy)}: sort: $sort")
+        Future.successful(BadRequest(invalidSortBy))
+      }
   }
 
   /**
@@ -80,11 +117,15 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def getOverseers(chatId: String, page: Page, perPage: PerPage,
     sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "getOverseers")
+      log.info(logRequest(logGetOverseers))
+      log.debug(logRequest(s"$logGetOverseers: userId=$userId," +
+        s" chatId=$chatId, page=${page.value}, perPage=${perPage.value}, sort=$sort"))
       if (sort.sortBy == SORT_BY_ADDRESS || sort.sortBy == DEFAULT_SORT)
-        chatService.getOverseers(chatId, page, perPage, sort, authenticatedRequest.userId).map {
+        chatService.getOverseers(chatId, page, perPage, sort, userId).map {
           case Right((postOverseerDTO, totalCount, lastPage)) =>
-            val chats = Json.obj("overseers" -> Json.toJson(postOverseerDTO))
+            val overseers = Json.obj("overseers" -> Json.toJson(postOverseerDTO))
 
             val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
               totalCount,
@@ -96,23 +137,52 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
                 next = if (page >= lastPage) None
                 else Some(makeGetOverseersLink(chatId, page + 1, perPage, sort, authenticatedRequest)),
                 last = makeGetOverseersLink(chatId, lastPage, perPage, sort, authenticatedRequest)))))
-            Ok(chats ++ metadata)
-          case Left(`chatNotFound`) => NotFound(chatNotFound)
-          case Left(_) => InternalServerError(internalError)
+            log.info("The overseers were retrived")
+            log.debug(s"The overseers were retrived: ${(overseers ++ metadata).toString}")
+            Ok(overseers ++ metadata)
+          case Left(`chatNotFound`) =>
+            log.info(serviceReturn(chatNotFound))
+            log.debug(s"${serviceReturn(chatNotFound)}: chatId=$chatId, userId=$userId")
+            NotFound(chatNotFound)
+          case Left(_) =>
+            log.error(serviceReturn(logNonePagError))
+            log.debug(serviceReturn(s"$logNonePagError: page=$page, perPage=$perPage"))
+            log.error(serviceReturn(internalError))
+            InternalServerError(internalError)
         }
-      else Future.successful(BadRequest(invalidSortBy))
+      else {
+        log.info(badRequest(invalidSortBy))
+        Future.successful(BadRequest(invalidSortBy))
+      }
   }
 
   def postChat: Action[JsValue] = {
     authenticatedUserAction.async(parse.json) { authenticatedRequest =>
       val jsonValue = authenticatedRequest.request.body
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "postChat")
+      log.info(logRequest(logPostChat))
+      log.debug(logRequest(s"$logPostChat: userId=$userId, requestBody=$jsonValue"))
 
       jsonValue.validate[CreateChatDTO].fold(
-        errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        createChatDTO => chatService.postChat(createChatDTO, authenticatedRequest.userId)
+        errors => {
+          log.info(invalidJson(CreateChatDTO, errors))
+          log.debug(invalidJson(CreateChatDTO))
+          Future.successful(BadRequest(JsError.toJson(errors)))
+        },
+        createChatDTO => chatService.postChat(createChatDTO, userId)
           .map {
-            case Some(crChatDTO) => Ok(Json.toJson(crChatDTO))
-            case None => InternalServerError(internalError)
+            case Some(crChatDTO) =>
+              log.info("The chat was posted")
+              log.debug(s"The chat was posted: userId=$userId, DTO=$crChatDTO")
+              Ok(Json.toJson(crChatDTO))
+            case None =>
+              log.error(serviceReturn(logNoneAuthError))
+              log.debug(serviceReturn(s"$logNoneAuthError: userId=$userId, token=${
+                authenticatedRequest.headers
+                  .get(auth)
+              }"))
+              InternalServerError(internalError)
           })
     }
   }
@@ -121,13 +191,27 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def postEmail(chatId: String): Action[JsValue] = {
     authenticatedUserAction.async(parse.json) { authenticatedRequest =>
       val jsonValue = authenticatedRequest.request.body
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "postEmail")
+      log.info(logRequest(logPostEmail))
+      log.debug(logRequest(s"$logPostEmail: userId=$userId, chatId=$chatId, requestBody=$jsonValue"))
 
       jsonValue.validate[UpsertEmailDTO].fold(
-        errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        upsertEmailDTO => chatService.postEmail(upsertEmailDTO, chatId, authenticatedRequest.userId)
+        errors => {
+          log.info(invalidJson(UpsertEmailDTO, errors))
+          log.debug(invalidJson(UpsertEmailDTO))
+          Future.successful(BadRequest(JsError.toJson(errors)))
+        },
+        upsertEmailDTO => chatService.postEmail(upsertEmailDTO, chatId, userId)
           .map {
-            case Some(result) => Ok(Json.toJson(result))
-            case None => NotFound(chatNotFound)
+            case Some(result) =>
+              log.info("The email was posted")
+              log.debug(s"The email was posted: userId=$userId, chatId=$chatId, DTO=$result")
+              Ok(Json.toJson(result))
+            case None =>
+              log.info(s"$chatNotFound")
+              log.debug(s"$chatNotFound. chatId=$chatId, userId=$userId")
+              NotFound(chatNotFound)
           })
     }
   }
@@ -135,14 +219,27 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def patchEmail(chatId: String, emailId: String): Action[JsValue] = {
     authenticatedUserAction.async(parse.json) { authenticatedRequest =>
       val jsonValue = authenticatedRequest.request.body
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "patchEmail")
+      log.info(logRequest(logPatchEmail))
+      log.debug(logRequest(s"$logPatchEmail: userId=$userId, chatId=$chatId, emailId=$emailId, requestBody=$jsonValue"))
 
       jsonValue.validate[UpsertEmailDTO].fold(
-        errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        upsertEmailDTO => chatService.patchEmail(upsertEmailDTO, chatId, emailId, authenticatedRequest.userId,
-          authenticatedRequest)
+        errors => {
+          log.info(invalidJson(UpsertEmailDTO, errors))
+          log.debug(invalidJson(UpsertEmailDTO))
+          Future.successful(BadRequest(JsError.toJson(errors)))
+        },
+        upsertEmailDTO => chatService.patchEmail(upsertEmailDTO, chatId, emailId, authenticatedRequest)
           .map {
-            case Some(result) => Ok(Json.toJson(result))
-            case None => NotFound(emailNotFound)
+            case Some(result) =>
+              log.info("The email was patched")
+              log.debug(s"The email was patched: userId=$userId, chatId=$chatId, emailId=$emailId, DTO=$result")
+              Ok(Json.toJson(result))
+            case None =>
+              log.info(s"$emailNotFound")
+              log.debug(s"$emailNotFound. chatId=$chatId, emailId=$emailId, userId=$userId")
+              NotFound(emailNotFound)
           })
     }
   }
@@ -150,59 +247,142 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def patchChat(chatId: String): Action[JsValue] = {
     authenticatedUserAction.async(parse.json) { authenticatedRequest =>
       val jsonValue = authenticatedRequest.request.body
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "patchChat")
+      log.info(logRequest(logPatchChat))
+      log.debug(logRequest(s"$logPatchChat: userId=$userId, chatId=$chatId, requestBody=$jsonValue"))
 
       jsonValue.validate[PatchChatDTO].fold(
-        errors => Future.successful(BadRequest(JsError.toJson(errors))),
-        patchChatDTO => chatService.patchChat(patchChatDTO, chatId, authenticatedRequest.userId).map {
-          case Some(result) => Ok(Json.toJson(result))
-          case None => NotFound(chatNotFound)
+        errors => {
+          log.info(invalidJson(PatchChatDTO, errors))
+          log.debug(invalidJson(PatchChatDTO))
+          Future.successful(BadRequest(JsError.toJson(errors)))
+        },
+        patchChatDTO => chatService.patchChat(patchChatDTO, chatId, userId).map {
+          case Some(result) =>
+            log.info("The chat was patched")
+            log.debug(s"The chat was patched: userId=$userId, chatId=$chatId, DTO=$result")
+            Ok(Json.toJson(result))
+          case None =>
+            log.info(s"$chatNotFound")
+            log.debug(s"$chatNotFound. chatId=$chatId, userId=$userId")
+            NotFound(chatNotFound)
         })
     }
   }
 
   def getEmail(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "getEmail")
+      log.info(logRequest(logGetEmail))
+      log.debug(logRequest(s"$logGetEmail: userId=$userId, chatId=$chatId, emailId=$emailId"))
 
       chatService.getEmail(chatId, emailId, authenticatedRequest).map {
-        case Some(chatDTO) => Ok(Json.toJson(chatDTO))
-        case None => NotFound(emailNotFound)
+        case Some(chatDTO) =>
+          log.info("The email was retrived")
+          log.debug(s"The email was retrived: $chatDTO")
+          Ok(Json.toJson(chatDTO))
+        case None =>
+          log.info(s"$emailNotFound")
+          log.debug(s"$emailNotFound. chatId=$chatId, emailId=$emailId, userId=$userId")
+          NotFound(emailNotFound)
       }
   }
 
   def deleteChat(chatId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      chatService.deleteChat(chatId, authenticatedRequest.userId).map(if (_) NoContent else NotFound(chatNotFound))
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "deleteChat")
+      log.info(logRequest(logDeleteChat))
+      log.debug(logRequest(s"$logDeleteChat: userId=$userId, chatId=$chatId"))
+
+      chatService.deleteChat(chatId, userId).map(
+        if (_) {
+          log.info("The chat was deleted")
+          log.debug(s"The chat was deleted: chatId=$chatId, userId=$userId")
+          NoContent
+        } else {
+          log.info(s"$chatNotFound")
+          log.debug(s"$chatNotFound. chatId=$chatId, userId=$userId")
+          NotFound(chatNotFound)
+        })
   }
 
   def deleteDraft(chatId: String, emailId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      chatService.deleteDraft(chatId, emailId, authenticatedRequest.userId).map(if (_) NoContent
-      else NotFound(emailNotFound))
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "deleteDraft")
+      log.info(logRequest(logDeleteDraft))
+      log.debug(logRequest(s"$logDeleteDraft: userId=$userId, chatId=$chatId, emailId=$emailId"))
+
+      chatService.deleteDraft(chatId, emailId, userId).map(
+        if (_) {
+          log.info("The draft was deleted")
+          log.debug(s"The draft was deleted: chatId=$chatId, emailId=$emailId, userId=$userId")
+          NoContent
+        } else {
+          log.info(s"$emailNotFound")
+          log.debug(s"$emailNotFound. chatId=$chatId, emailId=$emailId, userId=$userId")
+          NotFound(emailNotFound)
+        })
   }
 
   def deleteOverseer(chatId: String, oversightId: String): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      chatService.deleteOverseer(chatId, oversightId, authenticatedRequest.userId)
-        .map(if (_) NoContent else NotFound(overseerNotFound))
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "deleteOverseer")
+      log.info(logRequest(logDeleteOverseer))
+      log.debug(logRequest(s"$logDeleteOverseer: userId=$userId, chatId=$chatId, oversightId=$oversightId"))
+
+      chatService.deleteOverseer(chatId, oversightId, userId)
+        .map(if (_) {
+          log.info("The overseer was deleted")
+          log.debug(s"The overseer was deleted: chatId=$chatId, oversightId=$oversightId, userId=$userId")
+          NoContent
+        } else {
+          log.info(s"$overseerNotFound")
+          log.debug(s"$overseerNotFound. chatId=$chatId, oversightId=$oversightId, userId=$userId")
+          NotFound(overseerNotFound)
+        })
   }
 
   def postOverseers(chatId: String): Action[JsValue] = {
     authenticatedUserAction.async(parse.json) { authenticatedRequest =>
       val jsonValue = authenticatedRequest.request.body
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "postOverseers")
+      log.info(logRequest(logPostOverseers))
+      log.debug(logRequest(s"$logPostOverseers: userId=$userId, chatId=$chatId, requestBody=$jsonValue"))
 
       jsonValue.validate[Set[PostOverseerDTO]].fold(
-        errors => Future.successful(BadRequest(JsError.toJson(errors))),
+        errors => {
+          log.info(invalidJsonSet(PostOverseerDTO, errors))
+          log.debug(invalidJsonSet(PostOverseerDTO))
+          Future.successful(BadRequest(JsError.toJson(errors)))
+        },
         postOverseersDTO => chatService.postOverseers(postOverseersDTO, chatId, authenticatedRequest.userId)
           .map {
-            case Some(result) => Ok(Json.toJson(result))
-            case None => NotFound(chatNotFound)
+            case Some(result) =>
+              log.info("The overseers were posted")
+              log.debug(s"The overseers were posted: userId=$userId, chatId=$chatId, DTO=$result")
+              Ok(Json.toJson(result))
+            case None =>
+              log.info(s"$chatNotFound")
+              log.debug(s"$chatNotFound. chatId=$chatId, userId=$userId")
+              NotFound(chatNotFound)
           })
     }
   }
 
   def getOversights: Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
-      chatService.getOversights(authenticatedRequest.userId)
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "getOversights")
+      log.info(logRequest(logGetOversights))
+      log.debug(logRequest(s"$logGetOversights: userId=$userId"))
+
+      chatService.getOversights(userId)
         .map {
           case Some(oversightDTO) =>
             val oversightsPreview = Json.obj("oversightsPreview" -> Json.toJson(oversightDTO))
@@ -215,14 +395,24 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
                   "overseen" -> routes.ChatController.getOverseens(Page(DEFAULT_PAGE), PerPage(DEFAULT_PER_PAGE),
                     Sort(DEFAULT_SORT, DefaultOrder))
                     .absoluteURL(authenticatedRequest.secure)(authenticatedRequest.request))))
+            log.info("The oversights were retrived")
+            log.debug(s"The oversights were retrived: ${(oversightsPreview ++ metadata).toString}")
             Ok(oversightsPreview ++ metadata)
-          case None => NotFound(oversightsNotFound)
+          case None =>
+            log.info(s"$oversightsNotFound")
+            log.debug(s"$oversightsNotFound: userId=$userId")
+            NotFound(oversightsNotFound)
         }
   }
 
   def getOverseeings(page: Page, perPage: PerPage,
     sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "getOverseeings")
+      log.info(logRequest(logGetOverseeings))
+      log.debug(logRequest(s"$logGetOverseeings: userId=$userId, page=${page.value}, perPage=${perPage.value}," +
+        s" sort=$sort"))
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
         chatService.getOverseeings(page, perPage, sort, authenticatedRequest.userId).map {
@@ -239,15 +429,30 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
                 next = if (page >= lastPage) None
                 else Some(makeGetOverseeingsLink(page + 1, perPage, sort, authenticatedRequest)),
                 last = makeGetOverseeingsLink(lastPage, perPage, sort, authenticatedRequest)))))
+            log.info("The overseeings were retrived")
+            log.debug(s"The overseeings were retrived: ${(overseeings ++ metadata).toString}")
             Ok(overseeings ++ metadata)
-          case None => InternalServerError(internalError)
+          case None =>
+            log.error(serviceReturn(logNonePagError))
+            log.debug(serviceReturn(s"$logNonePagError: page=$page, perPage=$perPage"))
+            log.error(serviceReturn(internalError))
+            InternalServerError(internalError)
         }
-      else Future.successful(BadRequest(invalidSortBy))
+      else {
+        log.info(badRequest(invalidSortBy))
+        log.debug(s"${badRequest(invalidSortBy)}: sort: $sort")
+        Future.successful(BadRequest(invalidSortBy))
+      }
   }
 
   def getOverseens(page: Page, perPage: PerPage,
     sort: Sort): Action[AnyContent] = authenticatedUserAction.async {
     authenticatedRequest =>
+      val userId = authenticatedRequest.userId
+      MDC.put("controllerMethod", "getOverseens")
+      log.info(logRequest(logGetOverseens))
+      log.debug(logRequest(s"$logGetOverseens: userId=$userId, page=${page.value}, perPage=${perPage.value}," +
+        s" sort=$sort"))
 
       if (sort.sortBy == SORT_BY_DATE || sort.sortBy == DEFAULT_SORT)
         chatService.getOverseens(page, perPage, sort, authenticatedRequest.userId).map {
@@ -264,10 +469,20 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
                 next = if (page >= lastPage) None
                 else Some(makeGetOverseensLink(page + 1, perPage, sort, authenticatedRequest)),
                 last = makeGetOverseensLink(lastPage, perPage, sort, authenticatedRequest)))))
+            log.info("The overseens were retrived")
+            log.debug(s"The overseens were retrived: ${(overseens ++ metadata).toString}")
             Ok(overseens ++ metadata)
-          case None => InternalServerError(internalError)
+          case None =>
+            log.error(serviceReturn(logNonePagError))
+            log.debug(serviceReturn(s"$logNonePagError: page=$page, perPage=$perPage"))
+            log.error(serviceReturn(internalError))
+            InternalServerError(internalError)
         }
-      else Future.successful(BadRequest(invalidSortBy))
+      else {
+        log.info(badRequest(invalidSortBy))
+        log.debug(s"${badRequest(invalidSortBy)}: sort: $sort")
+        Future.successful(BadRequest(invalidSortBy))
+      }
   }
 }
 

@@ -56,7 +56,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(*, *, *, *, *, *)
+      mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
       val result: Future[Result] = chatController.getChats(mailbox, page, perPage, sort)
@@ -87,7 +87,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val perPage = genPerPage.sample.value
       val sort = genSort(DEFAULT_SORT).sample.value
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(*, *, *, *, *, *)
+      mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
       val result: Future[Result] = chatController.getChats(mailbox, page, perPage, sort)
@@ -119,7 +119,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(*, *, *, *, *, *)
+      mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(Some(chatsPreviewDTO, totalCount, lastPage)))
 
       val result: Future[Result] = chatController.getChats(mailbox, page, perPage, sort)
@@ -143,7 +143,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
     "return InternalError if the service returns None" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChats(*, *, *, *, *, *)
+      mockChatService.getChats(*, *, *, *, *)
         .returns(Future.successful(None))
 
       val result: Future[Result] = chatController.getChats(genMailbox.sample.value, genPage.sample.value,
@@ -181,7 +181,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChat(*, *, *, *, *, *)
+      mockChatService.getChat(*, *, *, *, *)
         .returns(Future.successful(Right(chatDTO, totalCount, lastPage)))
 
       val result: Future[Result] = chatController.getChat(chatId, page, perPage, sort)
@@ -213,7 +213,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChat(*, *, *, *, *, *)
+      mockChatService.getChat(*, *, *, *, *)
         .returns(Future.successful(Right(chatDTO, totalCount, lastPage)))
 
       val result: Future[Result] = chatController.getChat(chatId, page, perPage, sort)
@@ -245,7 +245,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val sort = genSort(DEFAULT_SORT).sample.value
 
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChat(*, *, *, *, *, *)
+      mockChatService.getChat(*, *, *, *, *)
         .returns(Future.successful(Right(chatDTO, totalCount, lastPage)))
 
       val result: Future[Result] = chatController.getChat(chatId, page, perPage, sort)
@@ -269,7 +269,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
     "return NotFound if that is the service's message" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChat(*, *, *, *, *, *)
+      mockChatService.getChat(*, *, *, *, *)
         .returns(Future.successful(Left(chatNotFound)))
 
       val result: Future[Result] = chatController.getChat(genUUID.sample.value, genPage.sample.value,
@@ -281,7 +281,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
     "return InternalServerError if the service returns an error message other than chatNotFound" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
-      mockChatService.getChat(*, *, *, *, *, *)
+      mockChatService.getChat(*, *, *, *, *)
         .returns(Future.successful(Left(genSimpleJsObj.sample.value)))
 
       val result: Future[Result] = chatController.getChat(genUUID.sample.value, genPage.sample.value,
@@ -538,7 +538,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val emailDTO = genEmailDTO(chatId).sample.value
 
-      mockChatService.patchEmail(*, *, *, *, *)
+      mockChatService.patchEmail(*, *, *, *)
         .returns(Future.successful(Some(emailDTO)))
 
       val emailJsonRequest = Json.toJson(genUpsertEmailDTOption.sample.value)
