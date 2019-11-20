@@ -3,21 +3,40 @@
 
   <conversionRule conversionWord="coloredLevel" converterClass="play.api.libs.logback.ColoredLevel" />
 
-  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>${application.home:-.}/logs/application.log</file>
+  <appender name="INFOFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>INFO</level>
+    </filter>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+    <fileNamePattern>${application.home:-.}/logs/infoLog.%d{yyyy-MM-dd}.txt</fileNamePattern>
+    <maxHistory>5</maxHistory>
+    <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+
     <encoder>
-      <pattern>%date [%level] from %logger in %thread - %message%n%xException</pattern>
+      <pattern>%date [%level] from %logger %X{controllerMethod} %X{serviceMethod} %X{repMethod} in [%thread] - %message%n%xException</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="DEBUGFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>${application.home:-.}/logs/debugLog.%d{yyyy-MM-dd}.txt</fileNamePattern>
+      <maxHistory>5</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+
+    <encoder>
+      <pattern>%date [%level] from %logger %X{controllerMethod} %X{serviceMethod} %X{repMethod} in [%thread] - %message%n%xException</pattern>
     </encoder>
   </appender>
 
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>WARN</level>
+    </filter>
     <encoder>
       <pattern>%coloredLevel %logger{15} - %message%n%xException{10}</pattern>
     </encoder>
-  </appender>
-
-  <appender name="ASYNCFILE" class="ch.qos.logback.classic.AsyncAppender">
-    <appender-ref ref="FILE" />
   </appender>
 
   <appender name="ASYNCSTDOUT" class="ch.qos.logback.classic.AsyncAppender">
@@ -25,16 +44,27 @@
   </appender>
 
   <logger name="play" level="INFO" />
-  <logger name="application" level="DEBUG" />
+  <logger name="controllers" level="DEBUG" >
+    <appender-ref ref="INFOFILE" />
+    <appender-ref ref="DEBUGFILE" />
+  </logger>
 
-  <!-- Off these ones as they are annoying, and anyway we manage configuration ourselves -->
-  <logger name="com.avaje.ebean.config.PropertyMapLoader" level="OFF" />
-  <logger name="com.avaje.ebeaninternal.server.core.XmlConfigLoader" level="OFF" />
-  <logger name="com.avaje.ebeaninternal.server.lib.BackgroundThread" level="OFF" />
-  <logger name="com.gargoylesoftware.htmlunit.javascript" level="OFF" />
+  <logger name="controllers" level="DEBUG" >
+    <appender-ref ref="INFOFILE" />
+    <appender-ref ref="DEBUGFILE" />
+  </logger>
+
+  <logger name="services" level="DEBUG" >
+    <appender-ref ref="INFOFILE" />
+    <appender-ref ref="DEBUGFILE" />
+  </logger>
+
+  <logger name="repositories" level="DEBUG" >
+    <appender-ref ref="INFOFILE" />
+    <appender-ref ref="DEBUGFILE" />
+  </logger>
 
   <root level="WARN">
-    <!--<appender-ref ref="ASYNCFILE" />-->
     <appender-ref ref="ASYNCSTDOUT" />
   </root>
 

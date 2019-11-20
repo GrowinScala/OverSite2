@@ -533,7 +533,10 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val (chatController, mockChatService) = getControllerAndServiceMock
 
-      val emailDTO = genEmailDTO.sample.value
+      val chatId = genUUID.sample.value
+      val emailId = genUUID.sample.value
+
+      val emailDTO = genEmailDTO(chatId).sample.value
 
       mockChatService.patchEmail(*, *, *, *)
         .returns(Future.successful(Some(emailDTO)))
@@ -541,9 +544,6 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       val emailJsonRequest = Json.toJson(genUpsertEmailDTOption.sample.value)
 
       val emailJsonResponse = Json.toJson(emailDTO)
-
-      val chatId = genUUID.sample.value
-      val emailId = genUUID.sample.value
 
       val request = FakeRequest(PATCH, s"/chats/$chatId/emails/$emailId")
         .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "application/json")
