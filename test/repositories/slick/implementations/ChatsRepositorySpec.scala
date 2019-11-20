@@ -497,8 +497,9 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         .sortBy(chatPreview =>
           (chatPreview.lastEmailDate, chatPreview.contentPreview, chatPreview.lastAddress))(
           Ordering.Tuple3(Ordering.String.reverse, Ordering.String, Ordering.String)), 2, 0)
-    }
-
+      
+      }
+    
     "show more than one chat in ascending order of date" in {
       val basicTestDB = genBasicTestDB.sample.value
       val otherChatRow = genChatRow.sample.value
