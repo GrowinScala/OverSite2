@@ -19,6 +19,7 @@ object Jsons {
   val oversightsNotFound: Error = Json.parse("""{ "Error": "No oversight was found for this user"}  """)
   val overseerNotFound: Error = Json.parse("""{ "Error": "The given overseer was not found"}  """)
   val emailNotFound: Error = Json.parse("""{ "Error": "The given email was not found"}  """)
+  val missingAttachment: Error = Json.parse("""{ "Error": "The attachment to be uploaded is missing"}  """)
   val cannotBothDeleteAndRestore: Error =
     Json.parse("""{ "Error": "Cannot move chat to trash and restore chat simultaneously"}""")
   val internalError: Error = Json.parse("""{ "Error": "Internal Server error"}  """)

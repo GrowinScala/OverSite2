@@ -1,5 +1,7 @@
 package controllers
 
+import java.io.File
+
 import model.dtos.PatchChatDTO.{ ChangeSubject, MoveToTrash, Restore }
 import model.dtos._
 import model.types._
@@ -18,12 +20,13 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import utils.Jsons._
 import utils.TestGenerators._
 import org.scalacheck.Gen._
-import repositories.RepUtils.types.OrderBy.DefaultOrder
+import play.api.libs.Files.{ SingletonTemporaryFileCreator, TemporaryFile }
+import play.api.mvc.MultipartFormData.FilePart
+import utils.FileUtils
 
 import scala.concurrent.{ ExecutionContext, Future }
 
 class ChatControllerSpec extends PlaySpec with OptionValues with Results with IdiomaticMockito {
-
   private lazy val appBuilder: GuiceApplicationBuilder = new GuiceApplicationBuilder()
   private lazy val injector: Injector = appBuilder.injector()
   implicit val ec: ExecutionContext = injector.instanceOf[ExecutionContext]
@@ -34,7 +37,6 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
   private val LOCALHOST = "localhost:9000"
 
   def getControllerAndServiceMock: (ChatController, ChatService) = {
-
     implicit val mockChatService: ChatService = mock[ChatService]
     val chatController = new ChatController()
     (chatController, mockChatService)
@@ -1149,4 +1151,96 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     }
   }
 
+  "ChatController#postAttachment" should {
+    "return 200 Ok and the attachmentId of the uploaded attachment" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+
+      val attachmentId: String = genUUID.sample.value
+
+      mockChatService.postAttachment(*, *, *, *, *)
+        .returns(Future.successful(Some(attachmentId)))
+
+      val file: File = FileUtils.generateTextFile("attachmentFile")
+      val temporaryFile: TemporaryFile = SingletonTemporaryFileCreator.create(file.toPath)
+      val part: FilePart[TemporaryFile] =
+        FilePart[TemporaryFile](key = "attachment", filename = "attachmentFile", contentType = None, ref = temporaryFile)
+      file.deleteOnExit()
+      temporaryFile.deleteOnExit()
+
+      val request: FakeRequest[MultipartFormData[TemporaryFile]] =
+        FakeRequest()
+          .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "multipart/form-data")
+          .withBody(MultipartFormData[TemporaryFile](dataParts = Map.empty, files = Seq(part), badParts = Nil))
+
+      val result: Future[Result] = chatController
+        .postAttachment(genUUID.sample.value, genUUID.sample.value)
+        .apply(request)
+
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.obj("attachmentId" -> attachmentId)
+    }
+
+    "return 400 Bad Request if no file was attached" in {
+      val (chatController, _) = getControllerAndServiceMock
+
+      val request: FakeRequest[MultipartFormData[TemporaryFile]] =
+        FakeRequest()
+          .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "multipart/form-data")
+          .withBody(MultipartFormData[TemporaryFile](dataParts = Map.empty, files = Seq(), badParts = Nil))
+
+      val result: Future[Result] = chatController
+        .postAttachment(genUUID.sample.value, genUUID.sample.value)
+        .apply(request)
+
+      status(result) mustBe BAD_REQUEST
+      contentAsJson(result) mustBe missingAttachment
+    }
+
+    "return 400 Bad Request if a file is attached but under the wrong key" in {
+      val (chatController, _) = getControllerAndServiceMock
+
+      val file: File = new java.io.File("attachmentFile")
+      val temporaryFile: TemporaryFile = SingletonTemporaryFileCreator.create(file.toPath)
+      val part: FilePart[TemporaryFile] = FilePart[TemporaryFile](key = "wrongKey", filename = "attachmentFile", contentType = None, ref = temporaryFile)
+      file.deleteOnExit()
+      temporaryFile.deleteOnExit()
+
+      val request: FakeRequest[MultipartFormData[TemporaryFile]] =
+        FakeRequest()
+          .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "multipart/form-data")
+          .withBody(MultipartFormData[TemporaryFile](dataParts = Map.empty, files = Seq(part), badParts = Nil))
+
+      val result: Future[Result] = chatController
+        .postAttachment(genUUID.sample.value, genUUID.sample.value)
+        .apply(request)
+
+      status(result) mustBe BAD_REQUEST
+      contentAsJson(result) mustBe missingAttachment
+    }
+
+    "return 404 Not Found if the service return None" in {
+      val (chatController, mockChatService) = getControllerAndServiceMock
+
+      mockChatService.postAttachment(*, *, *, *, *)
+        .returns(Future.successful(None))
+
+      val file: File = new java.io.File("attachmentFile")
+      val temporaryFile: TemporaryFile = SingletonTemporaryFileCreator.create(file.toPath)
+      val part: FilePart[TemporaryFile] = FilePart[TemporaryFile](key = "attachment", filename = "attachmentFile", contentType = None, ref = temporaryFile)
+      file.deleteOnExit()
+      temporaryFile.deleteOnExit()
+
+      val request: FakeRequest[MultipartFormData[TemporaryFile]] =
+        FakeRequest()
+          .withHeaders(HOST -> LOCALHOST, CONTENT_TYPE -> "multipart/form-data")
+          .withBody(MultipartFormData[TemporaryFile](dataParts = Map.empty, files = Seq(part), badParts = Nil))
+
+      val result: Future[Result] = chatController
+        .postAttachment(genUUID.sample.value, genUUID.sample.value)
+        .apply(request)
+
+      status(result) mustBe NOT_FOUND
+      contentAsJson(result) mustBe chatNotFound
+    }
+  }
 }

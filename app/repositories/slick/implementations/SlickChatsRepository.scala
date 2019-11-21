@@ -563,7 +563,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     log.debug(logRequest(s"$logDeleteDraft: userId=$userId, chatId=$chatId, emailId=$emailId"))
 
     for {
-      allowedToDeleteDraft <- verifyConditionsToDeleteDraftAction(chatId, emailId, userId)
+      allowedToDeleteDraft <- verifyDraftPermissionsAction(chatId, emailId, userId)
 
       deleted <- if (allowedToDeleteDraft) deleteDraftRowsAction(chatId, emailId, userId).transactionally
       else DBIO.successful(false)
@@ -616,6 +616,39 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def postOverseers(postOverseers: Set[PostOverseer], chatId: String,
     userId: String): Future[Option[Set[PostOverseer]]] =
     db.run(postOverseersAction(postOverseers, chatId, userId).transactionally)
+
+  private def getOverseersAction(chatId: String, userId: String): DBIO[Option[Set[PostOverseer]]] = {
+    for {
+      optChatData <- getChatDataAction(chatId, userId)
+      result <- optChatData match {
+        case Some(_) => getOverseersQuery(chatId, userId).result
+          .map(seq => Some(seq.map { case (address, oversightId) => PostOverseer(address, Some(oversightId)) }.toSet))
+
+        case None => DBIO.successful(None)
+      }
+    } yield result
+  }
+
+  def getOverseers(chatId: String, userId: String): Future[Option[Set[PostOverseer]]] =
+    db.run(getOverseersAction(chatId, userId).transactionally)
+
+  private def postAttachmentAction(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): DBIO[String] = {
+    MDC.put("repMethod", "postAttachmentAction")
+
+    val attachmentId = newUUID
+    log.info(logRequest(logPostAttachment))
+    log.debug(logRequest(s"$logPostAttachment: chatId=$chatId, emailId=$emailId, userId=$userId, filename=$filename, " +
+      s"attachmentId=$attachmentId, attachmentPath=$attachmentPath"))
+
+    (AttachmentsTable.all += AttachmentRow(attachmentId, emailId, filename, attachmentPath))
+      .andThen(DBIO.successful(attachmentId))
+  }
+
+  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): Future[String] =
+    db.run(postAttachmentAction(chatId, emailId, userId, filename, attachmentPath).transactionally)
+
+  def verifyDraftPermissions(chatId: String, emailId: String, userId: String): Future[Boolean] =
+    db.run(verifyDraftPermissionsAction(chatId, emailId, userId).transactionally)
 
   //region Auxiliary Methods
 
@@ -968,7 +1001,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     } yield numberOfDeletedRows > 0
   }
 
-  private def verifyConditionsToDeleteDraftAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
+  private def verifyDraftPermissionsAction(chatId: String, emailId: String, userId: String): DBIO[Boolean] = {
     for {
       optionUserChat <- getDraftsUserChat(userId, chatId).result.headOption
       optionDraft <- getDraftEmailQuery(chatId, emailId).result.headOption

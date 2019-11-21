@@ -2349,7 +2349,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId))
+        _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId, genString.sample.value, genString.sample.value))
 
         numberOfDraftsBefore <- db.run(UserChatsTable.all
           .filter(userChatRow => userChatRow.userId === basicTestDB.userRow.userId &&
@@ -2388,7 +2388,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             List(basicTestDB.emailRow.copy(sent = 0)),
             List(basicTestDB.emailAddressRow))
 
-          _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId))
+          _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId, genString.sample.value, genString.sample.value))
 
           deleteDraft <- chatsRep.deleteDraft(basicTestDB.chatRow.chatId, basicTestDB.emailRow.emailId,
             basicTestDB.userRow.userId)
@@ -3759,6 +3759,38 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         totalCount must be > 0
         seqChatOverseen mustBe empty
       }
+    }
+  }
+
+  "SlickChatsRepository#postAttachment" should {
+    "correctly add an AttachmentsRow with the uploaded file information" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+        postChatResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+        postEmailResponse <- chatsRep.postEmail(genUpsertEmailOption.sample.value, postChatResponse.value.chatId.value,
+          basicTestDB.userRow.userId)
+
+        filename = genString.sample.value
+        path = genString.sample.value
+
+        postAttachmentResponse <- chatsRep.postAttachment(
+          postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
+          filename, path)
+
+        emailWithOneAttachment <- chatsRep.getEmail(postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId)
+        attachmentId = emailWithOneAttachment.value.emails.headOption.value.attachments.headOption.value
+
+        attachmentRow <- db.run(AttachmentsTable.all.filter(_.attachmentId === postAttachmentResponse.value)
+          .result.headOption)
+
+      } yield assert(emailWithOneAttachment.isDefined &
+        attachmentId === postAttachmentResponse.value &
+        attachmentRow.value.filename === filename &
+        attachmentRow.value.path === path)
     }
   }
 }

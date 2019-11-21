@@ -88,6 +88,18 @@ object LogMessages {
 
   val logGetOverseens = "get a user's overseens"
 
+  val logPostAttachment = "post an attachment"
+
+  val logUploadAttachment = "upload an attachment"
+
+  val uploadSuccessful = "the attachment was successfully uploaded"
+
+  val uploadUnsuccessful = "the attachment was not uploaded"
+
+  val uploadPermissionGranted = "the user has permission to upload attachment"
+
+  val uploadPermissionDenied = "the user does not have permission to upload attachment"
+
   def logRepData(dataType: String) = s"Received the $dataType data from the repository"
 
 }

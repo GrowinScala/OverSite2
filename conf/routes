@@ -34,6 +34,10 @@ POST    /chats/:id/overseers                controllers.ChatController.postOvers
 
 DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteOverseer(chatId : String, oversightId : String)
 
+DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
+
+POST    /chats/:chatId/emails/:emailId/attachments      controllers.ChatController.postAttachment(chatId : String, emailId : String)
+
 
 # Authentication
 
