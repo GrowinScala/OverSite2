@@ -43,7 +43,7 @@ trait ChatsRepository {
   def getOverseens(page: Int, perPage: Int, orderBy: OrderBy,
     userId: String): Future[Option[(Seq[ChatOverseen], Int, Int)]]
 
-  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): Future[Option[String]]
+  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): Future[String]
 
   def verifyDraftPermissions(chatId: String, emailId: String, userId: String): Future[Boolean]
 }

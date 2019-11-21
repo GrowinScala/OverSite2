@@ -632,18 +632,19 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getOverseers(chatId: String, userId: String): Future[Option[Set[PostOverseer]]] =
     db.run(getOverseersAction(chatId, userId).transactionally)
 
-  private def postAttachmentAction(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): DBIO[Option[String]] = {
-    for {
-      optionVerifiedFromAddress <- getVerifiedFromAddressQuery(chatId, emailId, userId).result.headOption
-      optionAttachmentId <- DBIO.sequenceOption(optionVerifiedFromAddress.map { _ =>
-        val attachmentId = newUUID
-        (AttachmentsTable.all += AttachmentRow(attachmentId, emailId, filename, attachmentPath))
-          .andThen(DBIO.successful(attachmentId))
-      })
-    } yield optionAttachmentId
+  private def postAttachmentAction(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): DBIO[String] = {
+    MDC.put("repMethod", "postAttachmentAction")
+
+    val attachmentId = newUUID
+    log.info(logRequest(logPostAttachment))
+    log.debug(logRequest(s"$logPostAttachment: chatId=$chatId, emailId=$emailId, userId=$userId, filename=$filename, " +
+      s"attachmentId=$attachmentId, attachmentPath=$attachmentPath"))
+
+    (AttachmentsTable.all += AttachmentRow(attachmentId, emailId, filename, attachmentPath))
+      .andThen(DBIO.successful(attachmentId))
   }
 
-  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): Future[Option[String]] =
+  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): Future[String] =
     db.run(postAttachmentAction(chatId, emailId, userId, filename, attachmentPath).transactionally)
 
   def verifyDraftPermissions(chatId: String, emailId: String, userId: String): Future[Boolean] =

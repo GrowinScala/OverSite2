@@ -329,27 +329,45 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
           Some(toSeqChatOverseenDTO(seqChatOverseen), totalCount, Page(lastPage))
         case None =>
           log.info(repReturn(logNonePagError))
-          log.debug(serviceReturn(s"$logNonePagError: page=$page, perPage=$perPage"))
+          log.debug(repReturn(s"$logNonePagError: page=$page, perPage=$perPage"))
           MDC.remove("serviceMethod")
           None
       }
   }
+
   def postAttachment(chatId: String, emailId: String, userId: String, filename: String,
-                     source: Source[ByteString, Future[IOResult]]): Future[Option[String]] = {
+    source: Source[ByteString, Future[IOResult]]): Future[Option[String]] = {
+    MDC.put("serviceMethod", "postAttachment")
+    log.info(logRequest(logPostAttachment))
+    log.debug(logRequest(s"$logPostAttachment: userId=$userId, chatId=$chatId, emailId=$emailId, filename=$filename"))
     chatsRep.verifyDraftPermissions(chatId, emailId, userId).flatMap { hasPermission =>
       if (hasPermission) {
+        log.info(uploadPermissionGranted)
         for {
           optionAttachmentPath <- uploadAttachment(source)
           optionAttachmentId <- optionAttachmentPath match {
-            case Some(attachmentPath) => chatsRep.postAttachment(chatId, emailId, userId, filename, attachmentPath)
-            case None => Future.successful(None)
+            case Some(attachmentPath) =>
+              log.info(uploadSuccessful)
+              MDC.remove("serviceMethod")
+              Some(chatsRep.postAttachment(chatId, emailId, userId, filename, attachmentPath))
+            case None =>
+              log.info(uploadUnsuccessful)
+              MDC.remove("serviceMethod")
+              Future.successful(None)
           }
         } yield optionAttachmentId
-      } else Future.successful(None)
+      } else {
+        log.info(uploadPermissionDenied)
+        MDC.remove("serviceMethod")
+        Future.successful(None)
+
+      }
     }
   }
 
   private[services] def uploadAttachment(source: Source[ByteString, Future[IOResult]]): Future[Option[String]] = {
+    MDC.put("serviceMethod", "uploadAttachment")
+    log.info(logRequest(logUploadAttachment))
     val uploadPathString = config.get[String]("uploadDirectory") + "\\" + newUUID
 
     val sink: Sink[ByteString, Future[IOResult]] = FileIO.toPath(Paths.get(uploadPathString))
@@ -357,8 +375,16 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     source.runWith(sink)
       .map { result =>
         if (result.wasSuccessful) {
+          log.info(uploadSuccessful)
+          log.debug(s"$uploadSuccessful: path=$uploadPathString")
+          MDC.remove("serviceMethod")
           Some(uploadPathString)
-        } else None
+        } else {
+          log.info(uploadUnsuccessful)
+          log.debug(s"$uploadUnsuccessful: path=$uploadPathString")
+          MDC.remove("serviceMethod")
+          None
+        }
       }
   }
 }

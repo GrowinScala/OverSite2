@@ -492,13 +492,27 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
   def postAttachment(chatId: String, emailId: String): Action[MultipartFormData[TemporaryFile]] =
     authenticatedUserAction.async(parse.multipartFormData) {
       implicit authenticatedRequest =>
+        val userId = authenticatedRequest.userId
+        MDC.put("controllerMethod", "postAttachment")
+        log.info(logRequest(logPostAttachment))
+        log.debug(logRequest(s"$logPostAttachment: userId=$userId, chatId=$chatId, emailId=$emailId"))
+
         authenticatedRequest.body.file("attachment") match {
           case Some(FilePart(_, filename, _, ref)) =>
-            chatService.postAttachment(chatId, emailId, authenticatedRequest.userId, filename, FileIO.fromPath(ref.path)).map {
-              case Some(attachmentId) => Ok(Json.obj("attachmentId" -> attachmentId))
-              case None => NotFound(chatNotFound)
+            chatService.postAttachment(chatId, emailId, userId, filename, FileIO.fromPath(ref.path)).map {
+              case Some(attachmentId) =>
+                log.info("The attachment was posted")
+                log.debug(s"The attachment was posted. userId=$userId, chatId=$chatId, emailId=$emailId, attachmentId=$attachmentId")
+                Ok(Json.obj("attachmentId" -> attachmentId))
+              case None =>
+                log.info(s"$chatNotFound")
+                log.debug(s"$chatNotFound. chatId=$chatId, userId=$userId")
+                NotFound(chatNotFound)
             }
-          case None => Future.successful(BadRequest(missingAttachment))
+          case None =>
+            log.info(s"$missingAttachment")
+            log.debug(s"$missingAttachment. userId=$userId, chatId=$chatId, emailId=$emailId")
+            Future.successful(BadRequest(missingAttachment))
         }
     }
 }
