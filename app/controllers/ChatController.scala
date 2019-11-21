@@ -2,14 +2,17 @@ package controllers
 
 import javax.inject._
 import model.dtos._
-import play.api.mvc._
-import play.api.libs.json._
 import services.ChatService
 import utils.Jsons._
+import akka.stream.scaladsl._
+import play.api.libs.json.{ JsError, JsValue, Json }
+import play.api.mvc.MultipartFormData.FilePart
+import play.api.mvc._
 import model.types._
 import model.types.Sort._
 import org.slf4j.MDC
 import play.api.Logger
+import play.api.libs.Files.TemporaryFile
 import repositories.RepUtils.RepConstants._
 import repositories.RepUtils.types.OrderBy.DefaultOrder
 import utils.LogMessages._
@@ -18,8 +21,8 @@ import utils.Headers._
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class ChatController @Inject() (implicit val ec: ExecutionContext, cc: ControllerComponents, chatService: ChatService,
-  authenticatedUserAction: AuthenticatedUserAction)
+class ChatController @Inject() (implicit val ec: ExecutionContext, cc: ControllerComponents,
+  chatService: ChatService, authenticatedUserAction: AuthenticatedUserAction)
   extends AbstractController(cc) {
 
   import ChatController._
@@ -124,8 +127,8 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
         s" chatId=$chatId, page=${page.value}, perPage=${perPage.value}, sort=$sort"))
       if (sort.sortBy == SORT_BY_ADDRESS || sort.sortBy == DEFAULT_SORT)
         chatService.getOverseers(chatId, page, perPage, sort, userId).map {
-          case Right((postOverseerDTO, totalCount, lastPage)) =>
-            val overseers = Json.obj("overseers" -> Json.toJson(postOverseerDTO))
+          case Right((seqPostOverseerDTO, totalCount, lastPage)) =>
+            val overseers = Json.obj("overseers" -> Json.toJson(seqPostOverseerDTO))
 
             val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
               totalCount,
@@ -484,6 +487,33 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
         Future.successful(BadRequest(invalidSortBy))
       }
   }
+
+  def postAttachment(chatId: String, emailId: String): Action[MultipartFormData[TemporaryFile]] =
+    authenticatedUserAction.async(parse.multipartFormData) {
+      implicit authenticatedRequest =>
+        val userId = authenticatedRequest.userId
+        MDC.put("controllerMethod", "postAttachment")
+        log.info(logRequest(logPostAttachment))
+        log.debug(logRequest(s"$logPostAttachment: userId=$userId, chatId=$chatId, emailId=$emailId"))
+
+        authenticatedRequest.body.file("attachment") match {
+          case Some(FilePart(_, filename, _, ref)) =>
+            chatService.postAttachment(chatId, emailId, userId, filename, FileIO.fromPath(ref.path)).map {
+              case Some(attachmentId) =>
+                log.info("The attachment was posted")
+                log.debug(s"The attachment was posted. userId=$userId, chatId=$chatId, emailId=$emailId, attachmentId=$attachmentId")
+                Ok(Json.obj("attachmentId" -> attachmentId))
+              case None =>
+                log.info(s"$chatNotFound")
+                log.debug(s"$chatNotFound. chatId=$chatId, userId=$userId")
+                NotFound(chatNotFound)
+            }
+          case None =>
+            log.info(s"$missingAttachment")
+            log.debug(s"$missingAttachment. userId=$userId, chatId=$chatId, emailId=$emailId")
+            Future.successful(BadRequest(missingAttachment))
+        }
+    }
 
   def getAttachments(chatId: String, emailId: String): Action[AnyContent] = {
     authenticatedUserAction.async {

@@ -26,6 +26,9 @@ object LogMessages {
   def badRequest(json: JsValue) =
     s"A bad request was made: ${json.toString}"
 
+  def unauthorized(json: JsValue) =
+    s"An unauthorized was made: ${json.toString}"
+
   def receivedJson(request: Request[JsValue]) =
     s"Received in request the Json: ${request.body.toString}"
 
@@ -84,6 +87,18 @@ object LogMessages {
   val logGetOverseeings = "get a user's overseeings"
 
   val logGetOverseens = "get a user's overseens"
+
+  val logPostAttachment = "post an attachment"
+
+  val logUploadAttachment = "upload an attachment"
+
+  val uploadSuccessful = "the attachment was successfully uploaded"
+
+  val uploadUnsuccessful = "the attachment was not uploaded"
+
+  val uploadPermissionGranted = "the user has permission to upload attachment"
+
+  val uploadPermissionDenied = "the user does not have permission to upload attachment"
 
   def logRepData(dataType: String) = s"Received the $dataType data from the repository"
 
