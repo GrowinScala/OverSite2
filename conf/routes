@@ -4,7 +4,13 @@
 # ~~~~
 
 # Chats
-GET     /chats                              controllers.ChatController.getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort)
+GET     /chats/oversights                   controllers.ChatController.getOversights
+
+GET     /chats/oversights/overseeings       controllers.ChatController.getOverseeings(page: Page, perPage: PerPage, sort: Sort)
+
+GET     /chats/oversights/overseens         controllers.ChatController.getOverseens(page: Page, perPage: PerPage, sort: Sort)
+
+GET     /chats                             controllers.ChatController.getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort)
 
 POST    /chats                              controllers.ChatController.postChat
 
@@ -28,11 +34,6 @@ POST    /chats/:id/overseers                controllers.ChatController.postOvers
 
 DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteOverseer(chatId : String, oversightId : String)
 
-GET     /chats/oversights                   controllers.ChatController.getOversights
-
-GET     /chats/oversights/overseeings       controllers.ChatController.getOverseeings(page: Page, perPage: PerPage, sort: Sort)
-
-GET     /chats/oversights/overseens         controllers.ChatController.getOverseens(page: Page, perPage: PerPage, sort: Sort)
 
 # Authentication
 
