@@ -25,7 +25,7 @@ object TestGenerators {
 
   val genString: Gen[String] =
     for {
-      stringSize <- Gen.choose(1, 7)
+      stringSize <- Gen.choose(5, 10)
       charList <- Gen.listOfN(stringSize, Gen.alphaChar)
     } yield charList.mkString
 

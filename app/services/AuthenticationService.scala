@@ -52,7 +52,7 @@ class AuthenticationService @Inject() (implicit val ec: ExecutionContext, authen
             log.debug(repToken(token))
             Right(jsToken(token))
           case None =>
-            log.error("The repository failed to update the token for the user: ${userAccessDTO.address}")
+            log.error(s"The repository failed to update the token for the user: ${userAccessDTO.address}")
             Left(internalError)
         }
       } else {
