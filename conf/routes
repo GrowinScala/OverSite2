@@ -4,37 +4,35 @@
 # ~~~~
 
 # Chats
-GET     /chats                              controllers.ChatController.getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort)
-
-GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
-
-GET     /chats/:id/overseers                controllers.ChatController.getOverseers(id : String, page: Page, perPage: PerPage, sort: Sort)
-
 GET     /chats/oversights                   controllers.ChatController.getOversights
 
 GET     /chats/oversights/overseeings       controllers.ChatController.getOverseeings(page: Page, perPage: PerPage, sort: Sort)
 
 GET     /chats/oversights/overseens         controllers.ChatController.getOverseens(page: Page, perPage: PerPage, sort: Sort)
 
-GET     /chats/:id                          controllers.ChatController.getChat(id : String, page: Page, perPage: PerPage, sort: Sort)
+GET     /chats                             controllers.ChatController.getChats(mailbox: Mailbox, page: Page, perPage: PerPage, sort: Sort)
 
 POST    /chats                              controllers.ChatController.postChat
 
-POST    /chats/:id/emails                   controllers.ChatController.postEmail(id : String)
-
-POST    /chats/:id/overseers                controllers.ChatController.postOverseers(id : String)
-
-PATCH   /chats/:chatId/emails/:emailId      controllers.ChatController.patchEmail(chatId : String, emailId : String)
+GET     /chats/:id                          controllers.ChatController.getChat(id : String, page: Page, perPage: PerPage, sort: Sort)
 
 PATCH   /chats/:id                          controllers.ChatController.patchChat(id : String)
 
 DELETE  /chats/:id                          controllers.ChatController.deleteChat(id : String)
 
+POST    /chats/:id/emails                   controllers.ChatController.postEmail(id : String)
+
+GET     /chats/:chatId/emails/:emailId      controllers.ChatController.getEmail(chatId : String, emailId: String)
+
+PATCH   /chats/:chatId/emails/:emailId      controllers.ChatController.patchEmail(chatId : String, emailId : String)
+
 DELETE  /chats/:chatId/emails/:emailId      controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
-DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteOverseer(chatId : String, oversightId : String)
+GET     /chats/:id/overseers                controllers.ChatController.getOverseers(id : String, page: Page, perPage: PerPage, sort: Sort)
 
-DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
+POST    /chats/:id/overseers                controllers.ChatController.postOverseers(id : String)
+
+DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteOverseer(chatId : String, oversightId : String)
 
 
 # Authentication

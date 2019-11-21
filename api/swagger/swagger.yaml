@@ -1,0 +1,969 @@
+openapi: 3.0.1
+info:
+  title: Oversite2
+  description: >-
+    Oversite2 is a remake of
+    [Oversite](https://github.com/GrowinScala/OverSite). Like its predecessor,
+    it's an open-source email service written in Scala that allows users to
+    grant other users supervision access of specified chats.
+
+
+    The supervising user (Overseer) will have access to all the emails that the
+    supervised user (Oversee) has sent or received within the specified chat.
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+  version: 0.0.1
+servers:
+  - url: 'http://localhost:9000/'
+
+security:
+  - jwt: []
+
+paths:
+  /signup:
+    post:
+      summary: Inserts a user into the database
+      description: >-
+        Inserts a user into the database, the user is given a token for future authentication. This token will be valid for 1 day. After this period, the user will need to sign-in to receive a new token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/userAccess'
+
+      responses:
+        '200':
+          description: Successfully signed-up the user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/userAccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /signin:
+    post:
+      summary: Signs-in the user updating their token.
+      description: >-
+        Signs-in the user updating their token. This token will be valid for 1 day. After this period, the user will need to sign-in again to receive a new token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/userAccess'
+
+      responses:
+        '200':
+          description: Successfully signed-in the user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/userAccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+  /chats:
+    get:
+      summary: Retrieves the user's chats
+      description: >-
+        Retrieves the user's chats in a given mailbox. If no mailbox is provided
+        then the inbox will be shown.
+
+        Each chat only shows one email (the most recent one) as a preview.
+      parameters:
+        - name: mailbox
+          in: query
+          description: 'Specifies the mailbox being seen '
+          schema:
+            type: string
+            enum: [inbox, sent, drafts, trash]
+            default: inbox
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/descDateSort'
+
+      responses:
+        '200':
+          description: Successfully retrieved the chats and their metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chats:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        chatId:
+                          type: string
+                          format: uuid
+                        subject:
+                          type: string
+                        lastAddress:
+                          type: string
+                          format: email
+                        lastEmailDate:
+                          type: string
+                          format: "yyyy-MM-dd HH:mm:ss"
+                          example: "2019-06-19 11:04:00"
+                        contentPreview:
+                          type: string
+                      required: [chatId, subject, lastAddress, lastEmailDate,
+                      contentPreview]
+                  _metadata:
+                    $ref: '#/components/schemas/pageMetaData'
+                required: [chats, _metadata]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Inserts a chat with an email into the database
+      description: >-
+        Inserts a chat with an email as a draft. The id of the inserted chat
+        is returned to the client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createChat'
+
+      responses:
+        '200':
+          description: Successfully posted the chat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/createdChat'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /chats/{chatId}:
+    get:
+      summary: Retrieves a specific chat
+      description: >-
+        Retrieves a specific chat. Only the emails made by or sent to the user or
+        one of the people they are overseeing will be visible.
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/ascDateSort'
+
+      responses:
+        '200':
+          description: Successfully retrieved the chat and its metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chat:
+                    $ref: '#/components/schemas/chat'
+                  _metadata:
+                    $ref: '#/components/schemas/pageMetaData'
+                required: [chats _metadata]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: Patches a specific chat
+      description: >-
+        Patches a specific chat. This can be used to move the chat to and from
+        the Trash mailbox as well as change the chat's subject.
+        The chat's subject can only be changed in the chat's initial state, when
+        it contains only one email that has not been sent.
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/patchChat'
+
+      responses:
+        '200':
+          description: Successfully patched the chat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/patchChat'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Deletes a chat from the user's Trash mailbox.
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+
+      responses:
+        '204':
+          description: No Content. Chat deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /chats/{chatId}/emails:
+    post:
+      summary: Inserts an email in the specified chat
+      description: >-
+        Inserts a draft email in the specified chat. The id of the inserted
+        email is returned to the client.
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/upsertEmail'
+
+      responses:
+        '200':
+          description: Successfully posted the email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/createdChat'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /chats/{chatId}/emails/{emailId}:
+    get:
+      summary: Retrieves a specific email
+      description: >-
+        Retrieves a specific email. The email will only be retrieced if it was
+        made by or sent to the user or one of the people they are overseeing.
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+        - $ref: '#/components/parameters/emailId'
+
+      responses:
+        '200':
+          description: Successfully retrieved the email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/chat'
+
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: Patches a specific email
+      description: >-
+        Patches a specific email. Any of the fields of the email can be changed
+        except for 'from' and 'attachments', the first is inferred from the
+        Authentication token and the second is accessed through the
+        '/chats/{chatId}/emails/{emailId}/attachments' endpoint.
+
+        Only emails that have yet to be sent can be patched.
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+        - $ref: '#/components/parameters/emailId'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/upsertEmail'
+
+      responses:
+        '200':
+          description: Successfully patched the email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/chat'
+
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Deletes a draft
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+        - $ref: '#/components/parameters/emailId'
+
+      responses:
+        '204':
+          description: No Content. Email deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /chats/{chatId}/overseers:
+    get:
+      summary: Retrieves the user's overseers for the given chat
+      description: >-
+        Retrieves the user's overseers for the given chat. Note that each
+        overseer will be identified by an oversightId, this is not the overseer's
+        user Id. It is the Id of the overseeing relationship between the overseer
+        and the user who made this request.
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/addressSort'
+
+
+      responses:
+        '200':
+          description: Successfully retrieved the overseers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overseers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/postedOverseer'
+                  _metadata:
+                    $ref: '#/components/schemas/pageMetaData'
+                required: [overseers, _metadata]
+
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Adds a set of overseers in the specified chat
+      description: >-
+        Adds a set of overseers in the specified chat. The overseers will have
+        access to the emails within the specified chat that are visible to the
+        user who made this request.
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/postOverseer'
+
+      responses:
+        '200':
+          description: Successfully posted the overseers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/postedOverseer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /chats/{chatId}/overseers/{oversightId}:
+    delete:
+      summary: Removes an overseer from the given chat.
+      description: Removes an overseer from the given chat. Note that each
+        overseer will be identified by an oversightId, this is not the overseer's
+        user Id. It is the Id of the overseeing relationship between the overseer
+        and the user who made this request.
+
+      parameters:
+        - $ref: '#/components/parameters/chatId'
+        - $ref: '#/components/parameters/oversightId'
+
+      responses:
+        '204':
+          description: No Content. Overseer deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /chats/oversights:
+    get:
+      summary: Retrieves a preview of the user's oversight relationships
+      description: >-
+        Retrieves a preview of the user's oversight relationships. This request will retrieve both the overseeing (the one's where the user is the overseer) and the  overseen (the ones where the user is the oversee) relationships. Since this a preview of both, only the overseeings and overseens belonging to the most recently updated chat will be shown. Links are provided to access the complete overseeing and overseens.
+
+      responses:
+        '200':
+          description: Successfully retrieved the oversights
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  oversightsPreview:
+                    type: object
+                    properties:
+                      overseeing:
+                        $ref: '#/components/schemas/overseeing'
+                      overseen:
+                        $ref: '#/components/schemas/overseen'
+
+                  _metadata:
+                    type: object
+                    properties:
+                      links:
+                        type: object
+                        properties:
+                          overseeing:
+                            type: string
+                            format: url
+                            example: "http://localhost/chats/oversights/overseeings"
+                          overseen:
+                            type: string
+                            format: url
+                            example: "http://localhost/chats/oversights/overseens"
+                        required: [overseeing, overseen]
+
+                required: [oversightsPreview, _metadata]
+
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/Notfound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /chats/oversights/overseeings:
+    get:
+      summary: Retrieves the user's overseeing relationships
+      description: >-
+        Retrieves all of  the user's overseeing relationships, meaning the one's where the user is the overseer. The overseeing are organised by chat.
+
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/descDateSort'
+
+      responses:
+        '200':
+          description: Successfully retrieved the overseeings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overseeings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/overseeing'
+
+                  _metadata:
+                    $ref: '#/components/schemas/pageMetaData'
+
+                required: [overseeings, _metadata]
+
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /chats/oversights/overseens:
+    get:
+      summary: Retrieves the user's overseen relationships
+      description: >-
+        Retrieves all of  the user's overseen relationships, meaning the one's where the user is the oversee. The overseen are organised by chat.
+
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/perPage'
+        - $ref: '#/components/parameters/descDateSort'
+
+      responses:
+        '200':
+          description: Successfully retrieved the overseens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overseens:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/overseen'
+
+                  _metadata:
+                    $ref: '#/components/schemas/pageMetaData'
+
+                required: [overseens, _metadata]
+
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+
+
+components:
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Notfound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  parameters:
+    chatId:
+      name: chatId
+      in: path
+      description: The chat's Id
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    emailId:
+      name: emailId
+      in: path
+      description: The email's Id
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    oversightId:
+      name: oversightId
+      in: path
+      description: 'The Id of an oversight relationship between an overseer and an oversee'
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    page:
+      name: page
+      in: query
+      description: 'Specifies the page being seen '
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+    perPage:
+     name: perPage
+     in: query
+     description: 'Specifies the number of elements per page being seen'
+     schema:
+       type: integer
+       minimum: 1
+       default: 5
+
+    descDateSort:
+     name: sort
+     in: query
+     description: 'Specifies if the sorting by date will be ascending "+date" or descending "-date". Default: descending'
+     schema:
+       type: string
+       enum: [+date, -date]
+       default: -date
+
+    ascDateSort:
+     name: sort
+     in: query
+     description: 'Specifies if the sorting by date will be ascending "+date" or descending "-date". Default: ascending'
+     schema:
+       type: string
+       enum: [+date, -date]
+       default: +date
+
+    addressSort:
+      name: sort
+      in: query
+      description: 'Specifies if the alphabetical sorting by address will be ascending+address" or descending "-address". Default: ascending'
+
+      schema:
+        type: string
+        enum: [+address, -address]
+        default: +address
+
+
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        Error:
+          type: string
+          example: "message"
+      required: [Error]
+
+    userAccess:
+      type: object
+      properties:
+        address:
+          type: string
+          format: email
+        password:
+          type: string
+        first_name:
+          type: string
+          example: Jane
+        last_name:
+          type: string
+          example: Doe
+      required: [address, password]
+
+    userAccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/userAccess'
+        - type: object
+          properties:
+            token:
+              type: string
+          required: [token]
+
+    patchChat:
+      type: object
+      properties:
+        command:
+          type: string
+          enum: [moveToTrash, restore, changeSubject]
+        subject:
+          type: string
+      required: [command]
+
+    chat:
+      type: object
+      properties:
+        chatId:
+          type: string
+          format: uuid
+        subject:
+          type: string
+        addresses:
+          type: array
+          items:
+            type: string
+        overseers:
+          type: array
+          items:
+            type: object
+            properties:
+              overseeAddress:
+                type: string
+                format: email
+              overseersAddresses:
+                type: array
+                items:
+                 type: string
+                 format: email
+              emails:
+                type: array
+                items:
+                  $ref: '#/components/schemas/email'
+
+
+
+    createChat:
+      type: object
+      properties:
+        subject:
+          type: string
+        email:
+          $ref: '#/components/schemas/upsertEmail'
+      required: [email]
+
+
+    createdChat:
+      type: object
+      properties:
+        chatId:
+          type: string
+          format: uuid
+        subject:
+          type: string
+        email:
+          $ref: '#/components/schemas/upsertedEmail'
+      required: [chatId, email]
+
+    upsertEmail:
+      type: object
+      properties:
+        from:
+          type: string
+          format: email
+        to:
+          type: array
+          items:
+            type: string
+            format: email
+        bcc:
+          type: array
+          items:
+            type: string
+            format: email
+        cc:
+          type: array
+          items:
+            type: string
+            format: email
+        body:
+          type: string
+        date:
+          type: string
+        sent:
+          type: string
+
+    upsertedEmail:
+      allOf:
+        - type: object
+          properties:
+            emailId:
+              type: string
+              format: uuid
+          required: [emailId]
+        - $ref: '#/components/schemas/upsertEmail'
+
+    email:
+      type: object
+      properties:
+        emailId:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: email
+        to:
+          type: array
+          items:
+            type: string
+            format: email
+        bcc:
+          type: array
+          items:
+            type: string
+            format: email
+        cc:
+          type: array
+          items:
+            type: string
+            format: email
+        body:
+          type: string
+        date:
+          type: string
+        sent:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required: [emailId, from, to, bcc, cc, body, date, sent, attachments]
+
+    postOverseer:
+      type: object
+      properties:
+        address:
+          type: string
+          format: email
+      required: [address]
+
+    postedOverseer:
+      allOf:
+        - $ref: '#/components/schemas/postOverseer'
+        - type: object
+          properties:
+            oversightId:
+              type: string
+              format: uuid
+          required: [oversightId]
+
+    overseeing:
+      type: object
+      properties:
+        chatId:
+          type: string
+          format: uuid
+        overseeings:
+          type: array
+          items:
+            type: object
+            properties:
+              oversightId:
+                type: string
+                format: uuid
+              overseeAddress:
+                type: string
+                format: email
+            required: [oversightId, overseeAddress]
+      required: [chatId, overseeings]
+
+    overseen:
+      type: object
+      properties:
+        chatId:
+          type: string
+          format: uuid
+        overseens:
+          type: array
+          items:
+            type: object
+            properties:
+              oversightId:
+                type: string
+                format: uuid
+              overseerAddress:
+                type: string
+                format: email
+            required: [oversightId, overseerAddress]
+      required: [chatId, overseens]
+
+
+
+    pageMetaData:
+      type: object
+      properties:
+       totalCount:
+         type: integer
+         example: 42
+       links:
+          type: object
+          properties:
+            self:
+              type: string
+              format: url
+              example: "http://localhost/path?page=3&perPage=5"
+            first:
+              type: string
+              format: url
+              example: "http://localhost/path?page=0&perPage=5"
+            previous:
+              type: string
+              format: url
+              example: "http://localhost/path?page=2&perPage=5"
+            next:
+              type: string
+              format: url
+              example: "http://localhost/path?page=4&perPage=5"
+            last:
+              type: string
+              format: url
+              example: "http://localhost/path?page=8&perPage=5"
+          required: [self, first, last]
+      required: [totalCount, links]
+
+
+  securitySchemes:
+    jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

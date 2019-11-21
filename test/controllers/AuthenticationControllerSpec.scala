@@ -136,7 +136,7 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
 
       val result = authenticatedUserAction.async(
         authenticatedUser => Future.successful(Ok)).apply(FakeRequest())
-      status(result) mustBe BAD_REQUEST
+      status(result) mustBe UNAUTHORIZED
       contentAsJson(result) mustBe tokenNotFound
     }
 
@@ -151,7 +151,7 @@ class AuthenticationControllerSpec extends PlaySpec with OptionValues with Resul
       val result = authenticatedUserAction.async(
         authenticatedUser => Future.successful(Ok)).apply(FakeRequest().withHeaders("Authorization" ->
           genUUID.sample.value))
-      status(result) mustBe BAD_REQUEST
+      status(result) mustBe UNAUTHORIZED
       contentAsJson(result) mustBe jsonMessage
     }
 

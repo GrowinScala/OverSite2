@@ -124,8 +124,8 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
         s" chatId=$chatId, page=${page.value}, perPage=${perPage.value}, sort=$sort"))
       if (sort.sortBy == SORT_BY_ADDRESS || sort.sortBy == DEFAULT_SORT)
         chatService.getOverseers(chatId, page, perPage, sort, userId).map {
-          case Right((postOverseerDTO, totalCount, lastPage)) =>
-            val overseers = Json.obj("overseers" -> Json.toJson(postOverseerDTO))
+          case Right((seqPostOverseerDTO, totalCount, lastPage)) =>
+            val overseers = Json.obj("overseers" -> Json.toJson(seqPostOverseerDTO))
 
             val metadata = Json.obj("_metadata" -> Json.toJsObject(PaginationDTO(
               totalCount,
