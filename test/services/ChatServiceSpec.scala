@@ -422,7 +422,7 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
         .returns(Future.successful(true))
 
       mockChatsRep.postAttachment(*, *, *, *, *)
-        .returns(Future.successful(Some(attachmentId)))
+        .returns(Future.successful(attachmentId))
 
       val file = FileUtils.generateTextFile(filename)
       file.deleteOnExit()

@@ -349,7 +349,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
             case Some(attachmentPath) =>
               log.info(uploadSuccessful)
               MDC.remove("serviceMethod")
-              Some(chatsRep.postAttachment(chatId, emailId, userId, filename, attachmentPath))
+              chatsRep.postAttachment(chatId, emailId, userId, filename, attachmentPath).map(Some(_))
             case None =>
               log.info(uploadUnsuccessful)
               MDC.remove("serviceMethod")
