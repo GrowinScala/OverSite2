@@ -26,6 +26,9 @@ object LogMessages {
   def badRequest(json: JsValue) =
     s"A bad request was made: ${json.toString}"
 
+  def unauthorized(json: JsValue) =
+    s"An unauthorized was made: ${json.toString}"
+
   def receivedJson(request: Request[JsValue]) =
     s"Received in request the Json: ${request.body.toString}"
 

@@ -105,12 +105,12 @@ class ImplAuthenticatedUserAction @Inject() (
     log.info("Received request to authenticate user")
     request.headers.get(auth) match {
       case None =>
-        log.info(badRequest(tokenNotFound))
-        Future.successful(BadRequest(tokenNotFound))
+        log.info(unauthorized(tokenNotFound))
+        Future.successful(Unauthorized(tokenNotFound))
       case Some(token) => authenticationService.validateToken(token).flatMap {
         case Left(error) =>
-          log.info(badRequest(error))
-          Future.successful(BadRequest(error))
+          log.info(unauthorized(error))
+          Future.successful(Unauthorized(error))
         case Right(userId) =>
           log.info("Successfully received the userId from the service")
           log.debug(s"Successfully received the userId: $userId from the service")
