@@ -33,7 +33,7 @@ import utils.TestGenerators._
 class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
   with AsyncIdiomaticMockito with MustMatchers with OptionValues {
 
-  implicit val config: Configuration = Configuration(ConfigFactory.load("test.conf"))
+  implicit val config: Configuration = Configuration(ConfigFactory.load("application.conf"))
 
   def getServiceAndRepMock: (ChatService, ChatsRepository) = {
     implicit val mockChatsRep: ChatsRepository = mock[ChatsRepository]
