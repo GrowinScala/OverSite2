@@ -656,7 +656,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
       attachmentRows <- AttachmentsTable.all.filter(_.emailId === emailId).result
 
       attachmentsInfo = attachmentRows
-        .map(attachmentRow => AttachmentInfo(attachmentRow.attachmentId, "filename" /*attachmentRow.filename*/ )) //TODO
+        .map(attachmentRow => AttachmentInfo(attachmentRow.attachmentId, attachmentRow.filename))
         .toSet
 
     } yield verifyIfUserIfAllowed.map(_ => attachmentsInfo)
