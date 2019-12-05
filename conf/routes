@@ -32,11 +32,13 @@ GET     /chats/:id/overseers                controllers.ChatController.getOverse
 
 POST    /chats/:id/overseers                controllers.ChatController.postOverseers(id : String)
 
-DELETE  /chats/:chatId/overseers/:oversightId controllers.ChatController.deleteOverseer(chatId : String, oversightId : String)
+DELETE  /chats/:chatId/overseers/:oversightId                           controllers.ChatController.deleteOverseer(chatId : String, oversightId : String)
 
-DELETE  /chats/:chatId/emails/:emailId     controllers.ChatController.deleteDraft(chatId : String, emailId : String)
+DELETE  /chats/:chatId/emails/:emailId                                  controllers.ChatController.deleteDraft(chatId : String, emailId : String)
 
-POST    /chats/:chatId/emails/:emailId/attachments      controllers.ChatController.postAttachment(chatId : String, emailId : String)
+POST    /chats/:chatId/emails/:emailId/attachments                      controllers.ChatController.postAttachment(chatId : String, emailId : String)
+
+#GET     /chats/:chatId/emails/:emailId/attachments/:attachmentId        controllers.ChatController.getAttachment(chatId: String, emailId: String, attachmentId: String)
 
 
 # Authentication
