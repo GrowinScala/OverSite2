@@ -352,4 +352,13 @@ object TestGenerators {
 
   val genSetAttachmentInfoDTO: Gen[Set[AttachmentInfoDTO]] =
     genList(1, 4, genAttachmentInfoDTO).map(_.toSet)
+
+  val genAttachmentInfo: Gen[AttachmentInfo] =
+    for {
+      attachmentId <- genUUID
+      filename <- genString
+    } yield AttachmentInfo(filename, attachmentId)
+
+  val genSetAttachmentInfo: Gen[Set[AttachmentInfo]] =
+    genList(1, 4, genAttachmentInfo).map(_.toSet)
 }
