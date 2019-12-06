@@ -336,7 +336,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
   }
 
   def postAttachment(chatId: String, emailId: String, userId: String, filename: String,
-    source: Source[ByteString, Future[IOResult]]): Future[Option[String]] = {
+    contentType: Option[String], source: Source[ByteString, Future[IOResult]]): Future[Option[String]] = {
     MDC.put("serviceMethod", "postAttachment")
     log.info(logRequest(logPostAttachment))
     log.debug(logRequest(s"$logPostAttachment: userId=$userId, chatId=$chatId, emailId=$emailId, filename=$filename"))
@@ -349,7 +349,7 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
             case Some(attachmentPath) =>
               log.info(uploadSuccessful)
               MDC.remove("serviceMethod")
-              chatsRep.postAttachment(chatId, emailId, userId, filename, attachmentPath).map(Some(_))
+              chatsRep.postAttachment(chatId, emailId, userId, filename, attachmentPath, contentType).map(Some(_))
             case None =>
               log.info(uploadUnsuccessful)
               MDC.remove("serviceMethod")
@@ -387,4 +387,9 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
         }
       }
   }
+
+  def getAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Option[AttachmentDTO]] = {
+    chatsRep.getAttachment(chatId, emailId, attachmentId, userId).map(_.map(AttachmentDTO.toAttachmentDTO))
+  }
+
 }

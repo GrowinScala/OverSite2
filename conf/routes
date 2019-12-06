@@ -38,7 +38,7 @@ DELETE  /chats/:chatId/emails/:emailId                                  controll
 
 POST    /chats/:chatId/emails/:emailId/attachments                      controllers.ChatController.postAttachment(chatId : String, emailId : String)
 
-#GET     /chats/:chatId/emails/:emailId/attachments/:attachmentId        controllers.ChatController.getAttachment(chatId: String, emailId: String, attachmentId: String)
+GET     /chats/:chatId/emails/:emailId/attachments/:attachmentId       controllers.ChatController.getAttachment(chatId: String, emailId: String, attachmentId: String)
 
 
 # Authentication
