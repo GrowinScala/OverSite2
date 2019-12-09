@@ -344,4 +344,21 @@ object TestGenerators {
       orderBy <- genOrderBy
     } yield Sort(sortBy, orderBy)
 
+  val genAttachmentInfoDTO: Gen[AttachmentInfoDTO] =
+    for {
+      attachmentId <- genUUID
+      filename <- genString
+    } yield AttachmentInfoDTO(filename, attachmentId)
+
+  val genSetAttachmentInfoDTO: Gen[Set[AttachmentInfoDTO]] =
+    genList(1, 4, genAttachmentInfoDTO).map(_.toSet)
+
+  val genAttachmentInfo: Gen[AttachmentInfo] =
+    for {
+      attachmentId <- genUUID
+      filename <- genString
+    } yield AttachmentInfo(filename, attachmentId)
+
+  val genSetAttachmentInfo: Gen[Set[AttachmentInfo]] =
+    genList(1, 4, genAttachmentInfo).map(_.toSet)
 }

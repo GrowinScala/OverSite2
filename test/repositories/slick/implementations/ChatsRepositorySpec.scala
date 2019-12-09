@@ -3793,6 +3793,39 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
         attachmentRow.value.path === path)
     }
   }
+
+  "SlickChatsRepository#getAttachments" should {
+    "return a set of the AttachmentInfo for that email" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+        postChatResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+        postEmailResponse <- chatsRep.postEmail(genUpsertEmailOption.sample.value, postChatResponse.value.chatId.value,
+          basicTestDB.userRow.userId)
+
+        filenameOne = genString.sample.value
+        filenameTwo = genString.sample.value
+
+        attachmentOneId <- chatsRep.postAttachment(
+          postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
+          filenameOne, genString.sample.value)
+
+        attachmentTwoId <- chatsRep.postAttachment(
+          postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
+          filenameTwo, genString.sample.value)
+
+        setAttachments <- chatsRep.getAttachments(
+          postEmailResponse.value.chatId.value,
+          postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId)
+
+      } yield assert(
+        setAttachments.value.contains(AttachmentInfo(attachmentOneId, filenameOne)) &
+          setAttachments.value.contains(AttachmentInfo(attachmentTwoId, filenameTwo)))
+    }
+  }
 }
 
 case class BasicTestDB(addressRow: AddressRow, userRow: UserRow, chatRow: ChatRow, emailRow: EmailRow,

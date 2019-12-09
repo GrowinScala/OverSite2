@@ -114,7 +114,6 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
   /**
    * Gets the user's overseers for the given chat
-   *
    * @param chatId The chat's Id
    * @return A postOverseersDTO that contains the address and oversightId for each overseear or 404 NotFound
    */
@@ -515,6 +514,17 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
             Future.successful(BadRequest(missingAttachment))
         }
     }
+
+  def getAttachments(chatId: String, emailId: String): Action[AnyContent] = {
+    authenticatedUserAction.async {
+      authenticatedRequest =>
+        chatService.getAttachments(chatId, emailId, authenticatedRequest.userId).map {
+          case Some(attachmentsInfo) => Ok(Json.toJson(attachmentsInfo))
+          case None => NotFound
+        }
+
+    }
+  }
 }
 
 object ChatController {
