@@ -650,6 +650,22 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def verifyDraftPermissions(chatId: String, emailId: String, userId: String): Future[Boolean] =
     db.run(verifyDraftPermissionsAction(chatId, emailId, userId).transactionally)
 
+  private def getAttachmentsAction(chatId: String, emailId: String, userId: String): DBIO[Option[Set[AttachmentInfo]]] = {
+    for {
+      verifyIfUserIfAllowed <- verifyIfUserAllowedToSeeEmail(chatId, emailId, userId).result.headOption
+      attachmentRows <- AttachmentsTable.all.filter(_.emailId === emailId).result
+
+      attachmentsInfo = attachmentRows
+        .map(attachmentRow => AttachmentInfo(attachmentRow.attachmentId, attachmentRow.filename))
+        .toSet
+
+    } yield verifyIfUserIfAllowed.map(_ => attachmentsInfo)
+  }
+
+  def getAttachments(chatId: String, emailId: String, userId: String): Future[Option[Set[AttachmentInfo]]] = {
+    db.run(getAttachmentsAction(chatId, emailId, userId))
+  }
+
   private def getAttachmentAction(chatId: String, emailId: String, attachmentId: String, userId: String): DBIO[Option[AttachmentLocation]] = {
     for {
       verifyIfUserIfAllowed <- verifyIfUserAllowedToSeeEmail(chatId, emailId, userId).result.headOption
@@ -1551,9 +1567,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
    * @return A DBIOAction that returns the chat's id, it's subject and the user's address
    *         (chatId, subject, address)
    */
-  private[implementations] def getChatDataAction(
-    chatId: String,
-    userId: String): DBIO[Option[(String, String, String)]] =
+  private[implementations] def getChatDataAction(chatId: String, userId: String): DBIO[Option[(String, String, String)]] =
     (for {
       subject <- ChatsTable.all.filter(_.chatId === chatId).map(_.subject)
       _ <- UserChatsTable.all.filter(userChatRow => userChatRow.chatId === chatId && userChatRow.userId === userId &&

@@ -453,4 +453,30 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
 
     }
   }
+  "ChatService#getAttachments" should {
+    "return some set of AttachmentInfoDTOs" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val authenticatedUser = AuthenticatedUser(genString.sample.value, FakeRequest())
+      val setAttachmentInfo = genSetAttachmentInfo.sample.value
+
+      mockChatsRep.getAttachments(*, *, *)
+        .returns(Future.successful(Some(setAttachmentInfo)))
+
+      val expectedServiceResponse = Some(setAttachmentInfo.map(AttachmentInfoDTO.toAttachmentInfoDTO))
+
+      chatService.getAttachments(genUUID.sample.value, genUUID.sample.value, authenticatedUser.userId).map(
+        serviceResponse => serviceResponse.value mustBe expectedServiceResponse.value)
+    }
+
+    "return None if the user does not have permission see the attachments info" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val authenticatedUser = AuthenticatedUser(genString.sample.value, FakeRequest())
+
+      mockChatsRep.getAttachments(*, *, *)
+        .returns(Future.successful(None))
+
+      chatService.getAttachments(genUUID.sample.value, genUUID.sample.value, authenticatedUser.userId).map(
+        serviceResponse => serviceResponse mustBe None)
+    }
+  }
 }

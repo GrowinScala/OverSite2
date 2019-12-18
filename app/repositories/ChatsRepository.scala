@@ -48,4 +48,6 @@ trait ChatsRepository {
   def getAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Option[AttachmentLocation]]
 
   def verifyDraftPermissions(chatId: String, emailId: String, userId: String): Future[Boolean]
+
+  def getAttachments(chatId: String, emailId: String, userId: String): Future[Option[Set[AttachmentInfo]]]
 }

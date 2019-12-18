@@ -1243,4 +1243,39 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       contentAsJson(result) mustBe chatNotFound
     }
   }
+
+  "ChatController#getAttachments" should {
+    "return 200 Ok and the Json for some AttachmentInfoDTO" in {
+      val chatId = genUUID.sample.value
+      val emailId = genUUID.sample.value
+
+      val setAttachmentInfoDTO = genSetAttachmentInfoDTO.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getAttachments(*, *, *)
+        .returns(Future.successful(Some(setAttachmentInfoDTO)))
+
+      val result = chatController.getAttachments(chatId, emailId)
+        .apply(FakeRequest())
+
+      status(result) mustBe OK
+      contentAsJson(result) mustBe Json.toJson(setAttachmentInfoDTO)
+    }
+
+    "return 404 Not Found if the service return None" in {
+      val chatId = genUUID.sample.value
+      val emailId = genUUID.sample.value
+
+      val setAttachmentInfoDTO = genSetAttachmentInfoDTO.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.getAttachments(*, *, *)
+        .returns(Future.successful(None))
+
+      val result = chatController.getAttachments(chatId, emailId)
+        .apply(FakeRequest())
+
+      status(result) mustBe NOT_FOUND
+    }
+  }
 }

@@ -40,6 +40,7 @@ POST    /chats/:chatId/emails/:emailId/attachments                      controll
 
 GET     /chats/:chatId/emails/:emailId/attachments/:attachmentId       controllers.ChatController.getAttachment(chatId: String, emailId: String, attachmentId: String)
 
+GET     /chats/:chatId/emails/:emailId/attachments      controllers.ChatController.getAttachments(chatId: String, emailId: String)
 
 # Authentication
 
