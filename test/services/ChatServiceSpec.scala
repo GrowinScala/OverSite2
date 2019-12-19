@@ -417,11 +417,12 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
       val (chatService, mockChatsRep) = getServiceAndRepMock
       val attachmentId = genUUID.sample.value
       val filename = genString.sample.value
+      val contentType = genString.sample.value
 
       mockChatsRep.verifyDraftPermissions(*, *, *)
         .returns(Future.successful(true))
 
-      mockChatsRep.postAttachment(*, *, *, *, *)
+      mockChatsRep.postAttachment(*, *, *, *, *, *)
         .returns(Future.successful(attachmentId))
 
       val file = FileUtils.generateTextFile(filename)
@@ -430,12 +431,13 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
 
       chatService
         .postAttachment(genUUID.sample.value, genUUID.sample.value,
-          genUUID.sample.value, filename, source)
+          genUUID.sample.value, filename, Some(contentType), source)
         .map(_ mustBe Some(attachmentId))
     }
     "return None if the user does not have permission to attach a file" in {
       val (chatService, mockChatsRep) = getServiceAndRepMock
       val filename = genString.sample.value
+      val contentType = genString.sample.value
 
       mockChatsRep.verifyDraftPermissions(*, *, *)
         .returns(Future.successful(false))
@@ -446,7 +448,7 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
 
       chatService
         .postAttachment(genUUID.sample.value, genUUID.sample.value,
-          genUUID.sample.value, filename, source)
+          genUUID.sample.value, filename, Some(contentType), source)
         .map(_ mustBe None)
 
     }

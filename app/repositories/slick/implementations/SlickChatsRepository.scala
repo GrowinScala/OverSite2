@@ -632,7 +632,7 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getOverseers(chatId: String, userId: String): Future[Option[Set[PostOverseer]]] =
     db.run(getOverseersAction(chatId, userId).transactionally)
 
-  private def postAttachmentAction(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): DBIO[String] = {
+  private def postAttachmentAction(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String, contentType: Option[String]): DBIO[String] = {
     MDC.put("repMethod", "postAttachmentAction")
 
     val attachmentId = newUUID
@@ -640,12 +640,12 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     log.debug(logRequest(s"$logPostAttachment: chatId=$chatId, emailId=$emailId, userId=$userId, filename=$filename, " +
       s"attachmentId=$attachmentId, attachmentPath=$attachmentPath"))
 
-    (AttachmentsTable.all += AttachmentRow(attachmentId, emailId, filename, attachmentPath))
+    (AttachmentsTable.all += AttachmentRow(attachmentId, emailId, filename, attachmentPath, contentType))
       .andThen(DBIO.successful(attachmentId))
   }
 
-  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String): Future[String] =
-    db.run(postAttachmentAction(chatId, emailId, userId, filename, attachmentPath).transactionally)
+  def postAttachment(chatId: String, emailId: String, userId: String, filename: String, attachmentPath: String, contentType: Option[String]): Future[String] =
+    db.run(postAttachmentAction(chatId, emailId, userId, filename, attachmentPath, contentType).transactionally)
 
   def verifyDraftPermissions(chatId: String, emailId: String, userId: String): Future[Boolean] =
     db.run(verifyDraftPermissionsAction(chatId, emailId, userId).transactionally)
@@ -665,6 +665,22 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getAttachments(chatId: String, emailId: String, userId: String): Future[Option[Set[AttachmentInfo]]] = {
     db.run(getAttachmentsAction(chatId, emailId, userId))
   }
+
+  private def getAttachmentAction(chatId: String, emailId: String, attachmentId: String, userId: String): DBIO[Option[AttachmentLocation]] = {
+    for {
+      verifyIfUserIfAllowed <- verifyIfUserAllowedToSeeEmail(chatId, emailId, userId).result.headOption
+
+      optionAttachmentRow <- AttachmentsTable.all
+        .filter(attachmentRow => attachmentRow.emailId === emailId && attachmentRow.attachmentId === attachmentId)
+        .result.headOption
+
+    } yield verifyIfUserIfAllowed.flatMap(_ =>
+      optionAttachmentRow.map(attachmentRow =>
+        AttachmentLocation(attachmentRow.path, attachmentRow.contentType, attachmentRow.filename)))
+  }
+
+  def getAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Option[AttachmentLocation]] =
+    db.run(getAttachmentAction(chatId, emailId, attachmentId, userId).transactionally)
 
   //region Auxiliary Methods
 

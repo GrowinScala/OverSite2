@@ -497,8 +497,8 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
         log.debug(logRequest(s"$logPostAttachment: userId=$userId, chatId=$chatId, emailId=$emailId"))
 
         authenticatedRequest.body.file("attachment") match {
-          case Some(FilePart(_, filename, _, ref)) =>
-            chatService.postAttachment(chatId, emailId, userId, filename, FileIO.fromPath(ref.path)).map {
+          case Some(FilePart(_, filename, contentType, ref)) =>
+            chatService.postAttachment(chatId, emailId, userId, filename, contentType, FileIO.fromPath(ref.path)).map {
               case Some(attachmentId) =>
                 log.info("The attachment was posted")
                 log.debug(s"The attachment was posted. userId=$userId, chatId=$chatId, emailId=$emailId, attachmentId=$attachmentId")
@@ -525,6 +525,20 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
 
     }
   }
+
+  def getAttachment(chatId: String, emailId: String, attachmentId: String): Action[AnyContent] =
+    authenticatedUserAction.async {
+      authenticatedRequest =>
+        chatService.getAttachment(chatId, emailId, attachmentId, authenticatedRequest.userId).map {
+          case Some(AttachmentDTO(source, optionContentType, filename)) =>
+            optionContentType match {
+              case Some(contentType) => Ok.chunked(source).as(contentType)
+              case None => Ok.chunked(source)
+            }
+          case None =>
+            NotFound(chatNotFound)
+        }
+    }
 }
 
 object ChatController {

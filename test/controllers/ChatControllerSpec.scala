@@ -1157,7 +1157,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
 
       val attachmentId: String = genUUID.sample.value
 
-      mockChatService.postAttachment(*, *, *, *, *)
+      mockChatService.postAttachment(*, *, *, *, *, *)
         .returns(Future.successful(Some(attachmentId)))
 
       val file: File = FileUtils.generateTextFile("attachmentFile")
@@ -1221,7 +1221,7 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
     "return 404 Not Found if the service return None" in {
       val (chatController, mockChatService) = getControllerAndServiceMock
 
-      mockChatService.postAttachment(*, *, *, *, *)
+      mockChatService.postAttachment(*, *, *, *, *, *)
         .returns(Future.successful(None))
 
       val file: File = new java.io.File("attachmentFile")

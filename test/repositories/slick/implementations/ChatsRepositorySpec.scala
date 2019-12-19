@@ -2349,7 +2349,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             basicTestDB.emailRow.copy(sent = 0)),
           List(basicTestDB.emailAddressRow))
 
-        _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId, genString.sample.value, genString.sample.value))
+        _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId, genString.sample.value, genString.sample.value, Some(genString.sample.value)))
 
         numberOfDraftsBefore <- db.run(UserChatsTable.all
           .filter(userChatRow => userChatRow.userId === basicTestDB.userRow.userId &&
@@ -2388,7 +2388,7 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
             List(basicTestDB.emailRow.copy(sent = 0)),
             List(basicTestDB.emailAddressRow))
 
-          _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId, genString.sample.value, genString.sample.value))
+          _ <- db.run(AttachmentsTable.all += AttachmentRow(genUUID.sample.value, basicTestDB.emailRow.emailId, genString.sample.value, genString.sample.value, Some(genString.sample.value)))
 
           deleteDraft <- chatsRep.deleteDraft(basicTestDB.chatRow.chatId, basicTestDB.emailRow.emailId,
             basicTestDB.userRow.userId)
@@ -3775,11 +3775,12 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           basicTestDB.userRow.userId)
 
         filename = genString.sample.value
+        contentType = genString.sample.value
         path = genString.sample.value
 
         postAttachmentResponse <- chatsRep.postAttachment(
           postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
-          filename, path)
+          filename, path, Some(contentType))
 
         emailWithOneAttachment <- chatsRep.getEmail(postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId)
         attachmentId = emailWithOneAttachment.value.emails.headOption.value.attachments.headOption.value
@@ -3811,11 +3812,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         attachmentOneId <- chatsRep.postAttachment(
           postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
-          filenameOne, genString.sample.value)
+          filenameOne, genString.sample.value, Some(genString.sample.value))
 
         attachmentTwoId <- chatsRep.postAttachment(
           postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
-          filenameTwo, genString.sample.value)
+          filenameTwo, genString.sample.value, Some(genString.sample.value))
 
         setAttachments <- chatsRep.getAttachments(
           postEmailResponse.value.chatId.value,
