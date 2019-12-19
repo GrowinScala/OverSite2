@@ -3812,11 +3812,11 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
 
         attachmentOneId <- chatsRep.postAttachment(
           postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
-          filenameOne, genString.sample.value)
+          filenameOne, genString.sample.value, Some(genString.sample.value))
 
         attachmentTwoId <- chatsRep.postAttachment(
           postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
-          filenameTwo, genString.sample.value)
+          filenameTwo, genString.sample.value, Some(genString.sample.value))
 
         setAttachments <- chatsRep.getAttachments(
           postEmailResponse.value.chatId.value,
