@@ -539,6 +539,15 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
             NotFound(chatNotFound)
         }
     }
+
+  def deleteAttachment(chatId: String, emailId: String, attachmentId: String): Action[AnyContent] =
+    authenticatedUserAction.async {
+      authenticatedRequest =>
+        chatService.deleteAttachment(chatId, emailId, attachmentId, authenticatedRequest.userId).map {
+          if (_) NoContent
+          else NotFound(missingAttachment)
+        }
+    }
 }
 
 object ChatController {

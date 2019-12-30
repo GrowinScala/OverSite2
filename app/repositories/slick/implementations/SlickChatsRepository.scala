@@ -682,6 +682,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Option[AttachmentLocation]] =
     db.run(getAttachmentAction(chatId, emailId, attachmentId, userId).transactionally)
 
+  private def deleteAttachmentAction(chatId: String, emailId: String, attachmentId: String, userId: String): DBIO[Boolean] = {
+    //TODO
+    DBIO.successful(true)
+  }
+
+  def deleteAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Boolean] =
+    db.run(deleteAttachmentAction(chatId, emailId, attachmentId, userId).transactionally)
+
   //region Auxiliary Methods
 
   /**

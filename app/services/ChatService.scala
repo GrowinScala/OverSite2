@@ -396,4 +396,8 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
     chatsRep.getAttachment(chatId, emailId, attachmentId, userId).map(_.map(AttachmentDTO.toAttachmentDTO))
   }
 
+  def deleteAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Boolean] = {
+    chatsRep.deleteAttachment(chatId, emailId, attachmentId, userId)
+  }
+
 }
