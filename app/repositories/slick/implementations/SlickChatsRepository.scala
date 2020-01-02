@@ -683,8 +683,14 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
     db.run(getAttachmentAction(chatId, emailId, attachmentId, userId).transactionally)
 
   private def deleteAttachmentAction(chatId: String, emailId: String, attachmentId: String, userId: String): DBIO[Boolean] = {
-    //TODO
-    DBIO.successful(true)
+    verifyDraftPermissionsAction(chatId, emailId, userId).flatMap { hasPermission =>
+      if (hasPermission) {
+        AttachmentsTable.all
+          .filter(attachmentRow => attachmentRow.emailId === emailId && attachmentRow.attachmentId === attachmentId)
+          .delete
+          .map( _ > 0 )
+      } else DBIO.successful(false)
+    }
   }
 
   def deleteAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Boolean] =
