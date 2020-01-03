@@ -682,6 +682,25 @@ class SlickChatsRepository @Inject() (db: Database)(implicit executionContext: E
   def getAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Option[AttachmentLocation]] =
     db.run(getAttachmentAction(chatId, emailId, attachmentId, userId).transactionally)
 
+  private def deleteAttachmentAction(chatId: String, emailId: String, attachmentId: String, userId: String): DBIO[Option[String]] = {
+    verifyDraftPermissionsAction(chatId, emailId, userId)
+      .flatMap { hasPermission =>
+        if (hasPermission) {
+          val filterQuery = AttachmentsTable.all
+            .filter(attachmentRow => attachmentRow.emailId === emailId && attachmentRow.attachmentId === attachmentId)
+
+          filterQuery.map(_.path).result.headOption
+            .flatMap { optionPath =>
+              filterQuery.delete
+                .map(deletedRows => if (deletedRows > 0) optionPath else None)
+            }
+        } else DBIO.successful(None)
+      }
+  }
+
+  def deleteAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Option[String]] =
+    db.run(deleteAttachmentAction(chatId, emailId, attachmentId, userId).transactionally)
+
   //region Auxiliary Methods
 
   /**

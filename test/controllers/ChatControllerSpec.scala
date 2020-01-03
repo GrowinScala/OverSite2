@@ -1278,4 +1278,36 @@ class ChatControllerSpec extends PlaySpec with OptionValues with Results with Id
       status(result) mustBe NOT_FOUND
     }
   }
+
+  "ChatController#deleteAttachment" should {
+    "return 204 NoContent if the attachment was deleted" in {
+      val chatId = genUUID.sample.value
+      val emailId = genUUID.sample.value
+      val attachmentId = genUUID.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.deleteAttachment(*, *, *, *)
+        .returns(Future.successful(true))
+
+      val result = chatController.deleteAttachment(chatId, emailId, attachmentId)
+        .apply(FakeRequest())
+
+      status(result) mustBe NO_CONTENT
+    }
+
+    "return 404 NotFound if the chat, email or attachment was not found" in {
+      val chatId = genUUID.sample.value
+      val emailId = genUUID.sample.value
+      val attachmentId = genUUID.sample.value
+
+      val (chatController, mockChatService) = getControllerAndServiceMock
+      mockChatService.deleteAttachment(*, *, *, *)
+        .returns(Future.successful(false))
+
+      val result = chatController.deleteAttachment(chatId, emailId, attachmentId)
+        .apply(FakeRequest())
+
+      status(result) mustBe NOT_FOUND
+    }
+  }
 }
