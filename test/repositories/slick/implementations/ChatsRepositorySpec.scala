@@ -3827,6 +3827,85 @@ class ChatsRepositorySpec extends AsyncWordSpec with OptionValues with MustMatch
           setAttachments.value.contains(AttachmentInfo(attachmentTwoId, filenameTwo)))
     }
   }
+
+  "SlickChatsRepository#deleteAttachment" should {
+    "delete the corresponding attachmentRow and return the path of the attachment file" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+        postChatResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+        postEmailResponse <- chatsRep.postEmail(genUpsertEmailOption.sample.value, postChatResponse.value.chatId.value,
+          basicTestDB.userRow.userId)
+        attachmentId <- chatsRep.postAttachment(
+          postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
+          genString.sample.value, genString.sample.value, Some(genString.sample.value))
+
+        deletedAttachmentPath <- chatsRep.deleteAttachment(
+          postEmailResponse.value.chatId.value,
+          postEmailResponse.value.email.emailId.value, attachmentId, basicTestDB.userRow.userId)
+
+        attachmentRow <- db.run(AttachmentsTable.all.filter(_.attachmentId === attachmentId)
+          .result.headOption)
+
+      } yield assert(attachmentRow.isEmpty & deletedAttachmentPath.isDefined)
+    }
+
+    "NOT delete the attachmentRow if user is not allowed" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+        postChatResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+        postEmailResponse <- chatsRep.postEmail(genUpsertEmailOption.sample.value, postChatResponse.value.chatId.value,
+          basicTestDB.userRow.userId)
+        attachmentId <- chatsRep.postAttachment(
+          postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
+          genString.sample.value, genString.sample.value, Some(genString.sample.value))
+
+        userWithNoPermission = genUUID.sample.value
+
+        deletedAttachmentPath <- chatsRep.deleteAttachment(
+          postEmailResponse.value.chatId.value,
+          postEmailResponse.value.email.emailId.value, attachmentId, userWithNoPermission)
+
+        attachmentRow <- db.run(AttachmentsTable.all.filter(_.attachmentId === attachmentId)
+          .result.headOption)
+
+      } yield assert(attachmentRow.isDefined & deletedAttachmentPath.isEmpty)
+    }
+
+    "NOT delete the attachmentRow if the email is not a draft anymore (i.e. was already sent)" in {
+      val basicTestDB = genBasicTestDB.sample.value
+
+      for {
+        _ <- fillDB(
+          List(basicTestDB.addressRow),
+          userRows = List(basicTestDB.userRow))
+        postChatResponse <- chatsRep.postChat(genCreateChatOption.sample.value, basicTestDB.userRow.userId)
+        postEmailResponse <- chatsRep.postEmail(genUpsertEmailOption.sample.value, postChatResponse.value.chatId.value,
+          basicTestDB.userRow.userId)
+        attachmentId <- chatsRep.postAttachment(
+          postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId,
+          genString.sample.value, genString.sample.value, Some(genString.sample.value))
+        sendEmail <- chatsRep.patchEmail(
+          UpsertEmail(None, None, None, None, None, None, None, Some(true)),
+          postEmailResponse.value.chatId.value, postEmailResponse.value.email.emailId.value, basicTestDB.userRow.userId)
+
+        deletedAttachmentPath <- chatsRep.deleteAttachment(
+          postEmailResponse.value.chatId.value,
+          postEmailResponse.value.email.emailId.value, attachmentId, basicTestDB.userRow.userId)
+
+        attachmentRow <- db.run(AttachmentsTable.all.filter(_.attachmentId === attachmentId)
+          .result.headOption)
+
+      } yield assert(sendEmail.isDefined & attachmentRow.isDefined & deletedAttachmentPath.isEmpty)
+    }
+  }
 }
 
 case class BasicTestDB(addressRow: AddressRow, userRow: UserRow, chatRow: ChatRow, emailRow: EmailRow,
