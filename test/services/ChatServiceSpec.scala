@@ -479,4 +479,41 @@ class ChatServiceSpec extends AsyncWordSpec with BeforeAndAfterAll
         serviceResponse => serviceResponse mustBe None)
     }
   }
+
+  "ChatService#deleteAttachment" should {
+    "return true if the attachment was deleted" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val authenticatedUser = AuthenticatedUser(genString.sample.value, FakeRequest())
+      val filename = genString.sample.value
+
+      val file = FileUtils.generateTextFile(filename)
+      val path = file.toPath
+
+      Files.exists(path) mustBe true
+
+      mockChatsRep.deleteAttachment(*, *, *, *)
+        .returns(Future.successful(Some(path.toString)))
+
+      chatService
+        .deleteAttachment(genUUID.sample.value, genUUID.sample.value,
+          genUUID.sample.value, authenticatedUser.userId)
+        .map { response =>
+          response mustBe true
+          Files.exists(path) mustBe false
+        }
+    }
+
+    "return false if the attachment was not deleted" in {
+      val (chatService, mockChatsRep) = getServiceAndRepMock
+      val authenticatedUser = AuthenticatedUser(genString.sample.value, FakeRequest())
+
+      mockChatsRep.deleteAttachment(*, *, *, *)
+        .returns(Future.successful(None))
+
+      chatService
+        .deleteAttachment(genUUID.sample.value, genUUID.sample.value,
+          genUUID.sample.value, authenticatedUser.userId)
+        .map(_ mustBe false)
+    }
+  }
 }
