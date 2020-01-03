@@ -51,5 +51,5 @@ trait ChatsRepository {
 
   def getAttachments(chatId: String, emailId: String, userId: String): Future[Option[Set[AttachmentInfo]]]
 
-  def deleteAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Boolean]
+  def deleteAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Option[String]]
 }

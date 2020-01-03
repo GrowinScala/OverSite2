@@ -1,5 +1,6 @@
 package services
 
+import java.io.File
 import java.nio.file.Paths
 
 import javax.inject.Inject
@@ -398,6 +399,10 @@ class ChatService @Inject() (implicit val ec: ExecutionContext, chatsRep: ChatsR
 
   def deleteAttachment(chatId: String, emailId: String, attachmentId: String, userId: String): Future[Boolean] = {
     chatsRep.deleteAttachment(chatId, emailId, attachmentId, userId)
+      .map(optionPath =>
+        optionPath.map { path =>
+          new File(path).delete()
+        }.isDefined)
   }
 
 }

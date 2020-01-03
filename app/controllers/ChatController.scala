@@ -520,7 +520,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       authenticatedRequest =>
         chatService.getAttachments(chatId, emailId, authenticatedRequest.userId).map {
           case Some(attachmentsInfo) => Ok(Json.toJson(attachmentsInfo))
-          case None => NotFound
+          case None => NotFound(chatNotFound)
         }
 
     }
@@ -545,7 +545,7 @@ class ChatController @Inject() (implicit val ec: ExecutionContext, cc: Controlle
       authenticatedRequest =>
         chatService.deleteAttachment(chatId, emailId, attachmentId, authenticatedRequest.userId).map {
           if (_) NoContent
-          else NotFound(missingAttachment)
+          else NotFound(chatNotFound)
         }
     }
 }
